@@ -253,9 +253,9 @@ extension _AudioLibraryScanLogic on _MainScreenState {
   Future<void> _checkForUpdatesStartup() async {
     try {
       final client = HttpClient();
-      client.userAgent = 'Flow-App';
+      client.userAgent = 'Fley-App';
       final request = await client.getUrl(
-        Uri.parse('https://api.github.com/repos/coflyn/Flow/releases/latest'),
+        Uri.parse('https://api.github.com/repos/coflyn/Fley/releases/latest'),
       );
       final response = await request.close();
       if (response.statusCode == 200) {
@@ -263,7 +263,7 @@ extension _AudioLibraryScanLogic on _MainScreenState {
         final json = jsonDecode(responseBody) as Map<String, dynamic>;
         final String latestVersionTag = json['tag_name'] ?? 'v1.0.0';
         final String htmlUrl =
-            json['html_url'] ?? 'https://github.com/coflyn/Flow/releases';
+            json['html_url'] ?? 'https://github.com/coflyn/Fley/releases';
 
         final latestVersion = latestVersionTag.replaceAll('v', '').trim();
 

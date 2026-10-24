@@ -17,7 +17,7 @@ class _EqualizerSheetContent extends StatefulWidget {
 }
 
 class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
-  static const _channel = MethodChannel('com.flow.audio/equalizer');
+  static const _channel = MethodChannel('com.fley.audio/equalizer');
   bool _initialized = false;
   bool _enabled = false;
   int _bands = 0;

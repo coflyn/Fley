@@ -1,4 +1,4 @@
-package com.flow
+package com.fley
 
 import android.content.Intent
 import android.media.audiofx.AudioEffect
@@ -11,7 +11,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : AudioServiceActivity() {
-    private val CHANNEL = "com.flow.audio/equalizer"
+    private val CHANNEL = "com.fley.audio/equalizer"
     private var equalizer: Equalizer? = null
     private var activeSessionId: Int = 0
 

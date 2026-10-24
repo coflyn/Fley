@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.flow"
+    namespace = "com.fley"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.flow"
+        applicationId = "com.fley"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -39,7 +39,7 @@ android {
             val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             val abi = outputImpl.filters.find { it.filterType == com.android.build.VariantOutput.FilterType.ABI.name }?.identifier
             val abiSuffix = if (abi != null) "-$abi" else ""
-            outputImpl.outputFileName = "flow$abiSuffix.apk"
+            outputImpl.outputFileName = "fley$abiSuffix.apk"
         }
     }
 }

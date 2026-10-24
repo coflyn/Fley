@@ -5,7 +5,7 @@ import 'package:audio_service/audio_service.dart';
 
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:flow/l10n/app_localizations.dart';
+import 'package:fley/l10n/app_localizations.dart';
 export 'strings.dart';
 
 String getFontFamily([String? fontName]) {

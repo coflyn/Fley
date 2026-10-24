@@ -5,7 +5,7 @@ extension _AudioEqualizerLogic on _MainScreenState {
   Future<void> _applySavedEqualizerSettings(int sessionId) async {
     if (sessionId == 0) return;
     try {
-      const channel = MethodChannel('com.flow.audio/equalizer');
+      const channel = MethodChannel('com.fley.audio/equalizer');
       final prefs = await SharedPreferences.getInstance();
       final enabled = prefs.getBool('saved_eq_enabled') ?? false;
       if (enabled) {

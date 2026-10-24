@@ -29,7 +29,7 @@ import 'screens/settings_screen.dart';
 import 'utils/globals.dart';
 import 'utils/artwork_cache.dart';
 import 'utils/image_cropper_util.dart';
-import 'package:flow/l10n/app_localizations.dart';
+import 'package:fley/l10n/app_localizations.dart';
 part 'ui/player_ui.dart';
 part 'ui/detail_views_ui.dart';
 part 'ui/tabs_ui.dart';
@@ -68,8 +68,8 @@ void main() async {
     audioHandler = await AudioService.init(
       builder: () => MyAudioHandler(),
       config: AudioServiceConfig(
-        androidNotificationChannelId: 'com.flow.music.channel.audio.v6',
-        androidNotificationChannelName: 'Flow Audio Player',
+        androidNotificationChannelId: 'com.fley.music.channel.audio.v1',
+        androidNotificationChannelName: 'Fley Audio Player',
         androidNotificationOngoing: false,
         androidStopForegroundOnPause: true,
         androidShowNotificationBadge: true,
@@ -117,11 +117,13 @@ void main() async {
     debugPrint('Font preload error: $e');
   }
 
-  runApp(const ProviderScope(child: FlowApp()));
+  runApp(const ProviderScope(child: FleyApp()));
 }
 
-class FlowApp extends StatelessWidget {
-  const FlowApp({super.key});
+typedef FlowApp = FleyApp;
+
+class FleyApp extends StatelessWidget {
+  const FleyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +188,7 @@ class FlowApp extends StatelessWidget {
                               valueListenable: languageNotifier,
                               builder: (context, lang, child) {
                                 return MaterialApp(
-                                  title: 'Flow',
+                                  title: 'Fley',
                                   debugShowCheckedModeBanner: false,
                                   localizationsDelegates:
                                       AppLocalizations.localizationsDelegates,

@@ -1,11 +1,11 @@
 name: Feature Request
-description: Suggest an idea or enhancement for Flow
+description: Suggest an idea or enhancement for Fley
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Have an idea to improve Flow? Let us know below!
+        Have an idea to improve Fley? Let us know below!
   - type: textarea
     id: problem
     attributes:

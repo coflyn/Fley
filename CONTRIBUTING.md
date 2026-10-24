@@ -1,6 +1,6 @@
-# Contributing to Flow
+# Contributing to Fley
 
-Thank you for your interest in contributing to Flow! Please take a moment to review the following guidelines to keep the codebase clean, robust, and maintainable.
+Thank you for your interest in contributing to Fley! Please take a moment to review the following guidelines to keep the codebase clean, robust, and maintainable.
 
 ---
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing to Flow! Please take a moment to rev
 ### Development Setup
 1. Fork the repository and clone your fork:
    ```bash
-   git clone https://github.com/<your-username>/Flow.git
-   cd Flow
+   git clone https://github.com/<your-username>/Fley.git
+   cd Fley
    ```
 2. Install dependencies:
    ```bash

@@ -19,7 +19,7 @@ import '../utils/globals.dart';
 import '../utils/image_cropper_util.dart';
 
 import '../widgets/settings/settings_ui_components.dart';
-import 'package:flow/l10n/app_localizations.dart';
+import 'package:fley/l10n/app_localizations.dart';
 part 'settings_sleep_timer.dart';
 part 'settings_backup_restore.dart';
 part 'settings_hidden_tracks.dart';
@@ -141,9 +141,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     showFlowToast(AppLocalizations.of(context).checkingUpdates);
     try {
       final client = HttpClient();
-      client.userAgent = 'Flow-App';
+      client.userAgent = 'Fley-App';
       final request = await client.getUrl(
-        Uri.parse('https://api.github.com/repos/coflyn/Flow/releases/latest'),
+        Uri.parse('https://api.github.com/repos/coflyn/Fley/releases/latest'),
       );
       final response = await request.close();
       if (response.statusCode == 200) {
@@ -151,7 +151,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final json = jsonDecode(responseBody) as Map<String, dynamic>;
         final String latestVersionTag = json['tag_name'] ?? 'v1.0.0';
         final String htmlUrl =
-            json['html_url'] ?? 'https://github.com/coflyn/Flow/releases';
+            json['html_url'] ?? 'https://github.com/coflyn/Fley/releases';
 
         final latestVersion = latestVersionTag.replaceAll('v', '').trim();
 
@@ -1474,7 +1474,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   setState(() => _monoAudio = val);
                   await _saveBool('monoAudio', val);
                   try {
-                    const channel = MethodChannel('com.flow.audio/equalizer');
+                    const channel = MethodChannel('com.fley.audio/equalizer');
                     await channel.invokeMethod('toggleMonoAudio', {
                       'enable': val,
                     });
@@ -1667,7 +1667,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   size: 18,
                 ),
                 onTap: () async {
-                  final url = Uri.parse('https://github.com/coflyn/Flow');
+                  final url = Uri.parse('https://github.com/coflyn/Fley');
                   try {
                     final launched = await launchUrl(
                       url,

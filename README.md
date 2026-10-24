@@ -1,11 +1,11 @@
-# Flow
+# Fley
 
 ![License](https://img.shields.io/badge/license-GPLv3-blue.svg)
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?logo=flutter&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-Android-lightgrey)
 ![i18n](https://img.shields.io/badge/i18n-EN%20%7C%20ID%20%7C%20JA-blueviolet)
 
-Flow is a clean, modern offline music player for Android built with Flutter. Designed for aesthetics, fluid performance, and an uninterrupted listening experience.
+Fley is a clean, modern offline music player for Android built with Flutter. Designed for aesthetics, fluid performance, and an uninterrupted listening experience.
 
 ## Previews
 
@@ -66,11 +66,11 @@ Flow is a clean, modern offline music player for Android built with Flutter. Des
 
 ## Downloads
 
-Download the latest release APKs directly from the [Releases](https://github.com/coflyn/Flow/releases) page:
+Download the latest release APKs directly from the [Releases](https://github.com/coflyn/Fley/releases) page:
 
-- `app-arm64-v8a-release.apk` (Recommended for modern 64-bit devices)
-- `app-armeabi-v7a-release.apk` (32-bit devices)
-- `app-x86_64-release.apk` (Emulators)
+- `fley-arm64-v8a-release.apk` (Recommended for modern 64-bit devices)
+- `fley-armeabi-v7a-release.apk` (32-bit devices)
+- `fley-x86_64-release.apk` (Emulators)
 
 ## Building from Source
 
@@ -83,8 +83,8 @@ Download the latest release APKs directly from the [Releases](https://github.com
 
 ```bash
 # Clone the repository
-git clone https://github.com/coflyn/Flow.git
-cd Flow
+git clone https://github.com/coflyn/Fley.git
+cd Fley
 
 # Fetch dependencies
 flutter pub get

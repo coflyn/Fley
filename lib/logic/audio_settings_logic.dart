@@ -184,7 +184,7 @@ extension _AudioSettingsLogic on _MainScreenState {
     ) async {
       if (_stopOnLowBattery && _audioPlayer.playing) {
         try {
-          const channel = MethodChannel('com.flow.audio/equalizer');
+          const channel = MethodChannel('com.fley.audio/equalizer');
           final result = await channel.invokeMapMethod<String, dynamic>(
             'getBatteryStatus',
           );

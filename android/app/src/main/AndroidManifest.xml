@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.flow">
+    package="com.fley">
     <!-- Permissions for local music scanning and streaming -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
@@ -13,7 +13,7 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <application
-        android:label="Flow"
+        android:label="Fley"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

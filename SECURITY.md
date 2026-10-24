@@ -2,16 +2,16 @@
 
 ## Supported Versions
 
-Only the latest release version of Flow is actively supported with security updates.
+Only the latest release version of Fley is actively supported with security updates.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0.0 | :x:                |
+| 1.1.x   | :white_check_mark: |
+| < 1.1.0 | :x:                |
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in Flow, please do not open a public issue. Instead, report it privately via GitHub Security Advisories:
+If you discover a security vulnerability in Fley, please do not open a public issue. Instead, report it privately via GitHub Security Advisories:
 
 1. Navigate to the **Security** tab of the repository.
 2. Click on **Advisories** and then **Report a vulnerability**.

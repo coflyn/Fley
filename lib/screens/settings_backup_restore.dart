@@ -34,7 +34,7 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
         if (!await publicDir.exists()) {
           await publicDir.create(recursive: true);
         }
-        final file = File('${publicDir.path}/Flow_Backup.json');
+        final file = File('${publicDir.path}/Fley_Backup.json');
         await file.writeAsString(jsonString);
         saved = true;
       } catch (_) {}
@@ -46,7 +46,7 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
             if (!await extDir.exists()) {
               await extDir.create(recursive: true);
             }
-            final file = File('${extDir.path}/Flow_Backup.json');
+            final file = File('${extDir.path}/Fley_Backup.json');
             await file.writeAsString(jsonString);
             saved = true;
           }
@@ -55,7 +55,7 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
 
       if (!saved) {
         final docDir = await getApplicationDocumentsDirectory();
-        final file = File('${docDir.path}/Flow_Backup.json');
+        final file = File('${docDir.path}/Fley_Backup.json');
         await file.writeAsString(jsonString);
         saved = true;
       }
@@ -86,18 +86,21 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
 
     try {
       final List<File> candidateFiles = [
+        File('/storage/emulated/0/Download/Fley_Backup.json'),
         File('/storage/emulated/0/Download/Flow_Backup.json'),
       ];
 
       try {
         final extDir = await getExternalStorageDirectory();
         if (extDir != null) {
+          candidateFiles.add(File('${extDir.path}/Fley_Backup.json'));
           candidateFiles.add(File('${extDir.path}/Flow_Backup.json'));
         }
       } catch (_) {}
 
       try {
         final docDir = await getApplicationDocumentsDirectory();
+        candidateFiles.add(File('${docDir.path}/Fley_Backup.json'));
         candidateFiles.add(File('${docDir.path}/Flow_Backup.json'));
       } catch (_) {}
 

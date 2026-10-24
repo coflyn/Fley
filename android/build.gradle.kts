@@ -40,7 +40,7 @@ subprojects {
                         }
                         
                         // Fallback to name if not found in manifest
-                        val finalPackage = packageName ?: "com.flow.${project.name.replace("-", "_").replace(".", "_")}"
+                        val finalPackage = packageName ?: "com.fley.${project.name.replace("-", "_").replace(".", "_")}"
                         setNamespace.invoke(android, finalPackage)
                     }
                     
