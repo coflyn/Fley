@@ -51,8 +51,14 @@ extension _AudioStreamsLogic on _MainScreenState {
       });
     });
 
+    bool isHandlingCompletion = false;
     _audioPlayer.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
+        if (isHandlingCompletion) return;
+        isHandlingCompletion = true;
+        Future.delayed(const Duration(milliseconds: 600), () {
+          isHandlingCompletion = false;
+        });
         if (_repeatMode == 2) {
           _audioPlayer.seek(Duration.zero);
           _audioPlayer.play();

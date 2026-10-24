@@ -445,7 +445,10 @@ extension _AudioLibraryScanLogic on _MainScreenState {
     }
   }
 
-  Future<Uri?> _getCoverUriForTrack(Track track) async {
+  Future<Uri?> _getCoverUriForTrack(
+    Track track, {
+    bool fetchNativeIfMissing = true,
+  }) async {
     if (_metadataOverrides.containsKey(track.id) &&
         _metadataOverrides[track.id]!['coverPath'] != null) {
       return Uri.file(_metadataOverrides[track.id]!['coverPath']!);
@@ -456,6 +459,7 @@ extension _AudioLibraryScanLogic on _MainScreenState {
       if (await cacheFile.exists()) {
         return Uri.file(cacheFile.path);
       }
+      if (!fetchNativeIfMissing) return null;
       final bytes = await _audioQuery.queryArtwork(
         int.parse(track.id),
         ArtworkType.AUDIO,

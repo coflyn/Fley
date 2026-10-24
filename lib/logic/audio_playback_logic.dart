@@ -221,8 +221,26 @@ extension _AudioPlaybackLogic on _MainScreenState {
       final currentUri = track.url.startsWith('/')
           ? Uri.file(track.url)
           : (Uri.tryParse(track.url) ?? Uri.parse(''));
-      final currentCover = await _getCoverUriForTrack(track);
+      final currentCover = await _getCoverUriForTrack(
+        track,
+        fetchNativeIfMissing: false,
+      );
       if (requestId != _playRequestId) return;
+
+      if (currentCover == null) {
+        Future.microtask(() async {
+          final fullCover = await _getCoverUriForTrack(
+            track,
+            fetchNativeIfMissing: true,
+          );
+          if (fullCover != null && requestId == _playRequestId) {
+            final cur = audioHandler.mediaItem.value;
+            if (cur != null && cur.id == track.id) {
+              audioHandler.updateMediaItem(cur.copyWith(artUri: fullCover));
+            }
+          }
+        });
+      }
 
       final currentSource = AudioSource.uri(
         currentUri,
@@ -283,7 +301,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
           final prevUri = prevTrack.url.startsWith('/')
               ? Uri.file(prevTrack.url)
               : (Uri.tryParse(prevTrack.url) ?? Uri.parse(''));
-          final prevCover = await _getCoverUriForTrack(prevTrack);
+          final prevCover = await _getCoverUriForTrack(
+            prevTrack,
+            fetchNativeIfMissing: false,
+          );
           if (requestId != _playRequestId) return;
           children.add(
             AudioSource.uri(
@@ -320,7 +341,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
           final nextUri = nextTrack.url.startsWith('/')
               ? Uri.file(nextTrack.url)
               : (Uri.tryParse(nextTrack.url) ?? Uri.parse(''));
-          final nextCover = await _getCoverUriForTrack(nextTrack);
+          final nextCover = await _getCoverUriForTrack(
+            nextTrack,
+            fetchNativeIfMissing: false,
+          );
           if (requestId != _playRequestId) return;
           children.add(
             AudioSource.uri(
@@ -353,47 +377,43 @@ extension _AudioPlaybackLogic on _MainScreenState {
         );
       }
 
-      final int sessionId = ++_fadeSessionId;
+      final double targetVol = _volume > 0 ? _volume : 1.0;
 
       if (_audioPlayer.playing && _crossfadeDuration > 0) {
         // Smooth fade out
-        final int steps = 10;
+        final int steps = 6;
         final int stepDelay = (_crossfadeDuration / steps).round();
         for (int i = steps; i >= 0; i--) {
-          if (_fadeSessionId != sessionId) return;
-          await _audioPlayer.setVolume(_volume * (i / steps.toDouble()));
+          if (requestId != _playRequestId) break;
+          await _audioPlayer.setVolume(targetVol * (i / steps.toDouble()));
           if (stepDelay > 0) {
             await Future.delayed(Duration(milliseconds: stepDelay));
           }
         }
       }
 
-      if (_fadeSessionId != sessionId) return;
+      if (requestId != _playRequestId) return;
       await _audioPlayer.setAudioSource(source, initialIndex: initialIndex);
 
-      if (_fadeSessionId != sessionId) return;
+      if (requestId != _playRequestId) return;
 
       if (playImmediately) {
-        await _audioPlayer.setVolume(0.0);
+        await _audioPlayer.setVolume(targetVol);
         _audioPlayer.play();
         if (_crossfadeDuration > 0) {
           // Smooth fade in
-          final int steps = 10;
+          final int steps = 6;
           final int stepDelay = (_crossfadeDuration / steps).round();
           for (int i = 1; i <= steps; i++) {
-            if (_fadeSessionId != sessionId) return;
-            await _audioPlayer.setVolume(_volume * (i / steps.toDouble()));
+            if (requestId != _playRequestId) break;
+            await _audioPlayer.setVolume(targetVol * (i / steps.toDouble()));
             if (stepDelay > 0) {
               await Future.delayed(Duration(milliseconds: stepDelay));
             }
           }
         }
-        if (_fadeSessionId == sessionId) {
-          await _audioPlayer.setVolume(_volume);
-        }
-      } else {
-        await _audioPlayer.setVolume(_volume);
       }
+      await _audioPlayer.setVolume(targetVol);
     } catch (e) {
       if (e.toString().toLowerCase().contains('abort')) return;
 
@@ -424,6 +444,8 @@ extension _AudioPlaybackLogic on _MainScreenState {
     } finally {
       if (requestId == _playRequestId) {
         _isProgrammaticLoading = false;
+        final double targetVol = _volume > 0 ? _volume : 1.0;
+        _audioPlayer.setVolume(targetVol).catchError((_) {});
       }
     }
   }
@@ -483,7 +505,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
         final prevUri = prevTrack.url.startsWith('/')
             ? Uri.file(prevTrack.url)
             : (Uri.tryParse(prevTrack.url) ?? Uri.parse(''));
-        final prevCover = await _getCoverUriForTrack(prevTrack);
+        final prevCover = await _getCoverUriForTrack(
+          prevTrack,
+          fetchNativeIfMissing: false,
+        );
         await concatenating.insert(
           0,
           AudioSource.uri(
@@ -515,7 +540,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
         final nextUri = nextTrack.url.startsWith('/')
             ? Uri.file(nextTrack.url)
             : (Uri.tryParse(nextTrack.url) ?? Uri.parse(''));
-        final nextCover = await _getCoverUriForTrack(nextTrack);
+        final nextCover = await _getCoverUriForTrack(
+          nextTrack,
+          fetchNativeIfMissing: false,
+        );
         await concatenating.add(
           AudioSource.uri(
             nextUri,
@@ -560,25 +588,29 @@ extension _AudioPlaybackLogic on _MainScreenState {
       _loadLyricsForTrack(track);
       _updateDominantColor(track);
 
+      final double targetVol = _volume > 0 ? _volume : 1.0;
       if (_crossfadeDuration > 0) {
         final int sessionId = ++_fadeSessionId;
-        final int steps = 10;
+        final int steps = 6;
         final int stepDelay = (_crossfadeDuration / steps).round();
         Future.delayed(Duration.zero, () async {
-          await _audioPlayer.setVolume(0.0);
-          for (int i = 1; i <= steps; i++) {
-            if (_fadeSessionId != sessionId) return;
-            await _audioPlayer.setVolume(_volume * (i / steps.toDouble()));
-            if (stepDelay > 0) {
-              await Future.delayed(Duration(milliseconds: stepDelay));
+          try {
+            await _audioPlayer.setVolume(0.0);
+            for (int i = 1; i <= steps; i++) {
+              if (_fadeSessionId != sessionId) break;
+              await _audioPlayer.setVolume(targetVol * (i / steps.toDouble()));
+              if (stepDelay > 0) {
+                await Future.delayed(Duration(milliseconds: stepDelay));
+              }
             }
-          }
-          if (_fadeSessionId == sessionId) {
-            await _audioPlayer.setVolume(_volume);
+          } finally {
+            if (_fadeSessionId == sessionId) {
+              await _audioPlayer.setVolume(targetVol).catchError((_) {});
+            }
           }
         });
       } else {
-        await _audioPlayer.setVolume(_volume);
+        await _audioPlayer.setVolume(targetVol);
       }
 
       SharedPreferences.getInstance().then((prefs) {
@@ -630,7 +662,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
             final nextUri = nextTrack.url.startsWith('/')
                 ? Uri.file(nextTrack.url)
                 : (Uri.tryParse(nextTrack.url) ?? Uri.parse(''));
-            final nextCover = await _getCoverUriForTrack(nextTrack);
+            final nextCover = await _getCoverUriForTrack(
+              nextTrack,
+              fetchNativeIfMissing: false,
+            );
             await concatenating.add(
               AudioSource.uri(
                 nextUri,
@@ -665,7 +700,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
             final prevUri = prevTrack.url.startsWith('/')
                 ? Uri.file(prevTrack.url)
                 : (Uri.tryParse(prevTrack.url) ?? Uri.parse(''));
-            final prevCover = await _getCoverUriForTrack(prevTrack);
+            final prevCover = await _getCoverUriForTrack(
+              prevTrack,
+              fetchNativeIfMissing: false,
+            );
             await concatenating.insert(
               0,
               AudioSource.uri(
