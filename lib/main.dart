@@ -319,6 +319,23 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final Set<String> _animatedPlaylistIds = {};
   final Set<String> _animatedArtistIds = {};
   final Set<String> _animatedAlbumIds = {};
+  String _artistViewMode = 'grid';
+  String _albumViewMode = 'grid';
+  Map<String, List<Track>>? _memoArtistTracksMap;
+  List<String>? _memoArtistsList;
+  List<String>? _memoTopArtistsList;
+  String? _memoArtistSortBy;
+  String? _memoArtistSearchQuery;
+  int? _memoArtistPoolLen;
+  Map<String, List<Track>>? _memoAlbumTracksMap;
+  List<String>? _memoAlbumsList;
+  List<String>? _memoTopAlbumsList;
+  String? _memoAlbumSortBy;
+  String? _memoAlbumSearchQuery;
+  int? _memoAlbumPoolLen;
+  final Set<String> _visitedTabKeys = {};
+  final int _artistsAnimToken = 0;
+  final int _albumsAnimToken = 0;
 
   List<Track> _allTracks = [];
   bool _isLoading = true;

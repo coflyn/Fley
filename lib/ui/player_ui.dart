@@ -1623,7 +1623,7 @@ class _CachedTrackArtworkState extends State<CachedTrackArtwork> {
   }
 
   void _load() {
-    if (widget.size > 100) {
+    if (widget.size > 200) {
       return;
     }
 
@@ -1688,21 +1688,43 @@ class _CachedTrackArtworkState extends State<CachedTrackArtwork> {
       );
     }
 
-    final int artworkSize = widget.size > 100 ? 1000 : 200;
-    final int artworkQuality = widget.size > 100 ? 100 : 50;
+    if (widget.size <= 200) {
+      return Container(
+        width: widget.size,
+        height: widget.size,
+        decoration: BoxDecoration(
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(widget.radius),
+        ),
+        child: const Icon(Icons.music_note, color: Colors.white54),
+      );
+    }
+
+    final trackIdInt = int.tryParse(widget.trackId);
+    if (trackIdInt == null) {
+      return Container(
+        width: widget.size,
+        height: widget.size,
+        decoration: BoxDecoration(
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(widget.radius),
+        ),
+        child: const Icon(Icons.music_note, color: Colors.white54),
+      );
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: QueryArtworkWidget(
-        id: int.parse(widget.trackId),
+        id: trackIdInt,
         type: ArtworkType.AUDIO,
         artworkWidth: widget.size,
         artworkHeight: widget.size,
         artworkBorder: BorderRadius.circular(widget.radius),
         artworkFit: BoxFit.cover,
         keepOldArtwork: true,
-        size: artworkSize,
-        quality: artworkQuality,
+        size: 500,
+        quality: 70,
         artworkQuality: FilterQuality.low,
         nullArtworkWidget: Container(
           width: widget.size,

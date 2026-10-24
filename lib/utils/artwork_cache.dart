@@ -22,7 +22,7 @@ class ArtworkCacheManager {
 
   /// Fetches the native artwork asynchronously and stores it in the memory cache.
   static Future<Uint8List?> fetchAndCacheNativeArtwork(String trackId) async {
-    if (_memoryCache.containsKey(trackId) && _memoryCache[trackId] != null) {
+    if (_memoryCache.containsKey(trackId)) {
       return _memoryCache[trackId];
     }
 
@@ -32,30 +32,19 @@ class ArtworkCacheManager {
 
     final future = () async {
       Uint8List? bytes;
-      for (int i = 0; i < 3; i++) {
+      final id = int.tryParse(trackId);
+      if (id != null) {
         try {
           bytes = await _audioQuery.queryArtwork(
-            int.parse(trackId),
+            id,
             ArtworkType.AUDIO,
             size: 200,
             quality: 50,
           );
-
-          if (bytes != null && bytes.isNotEmpty) {
-            _memoryCache[trackId] = bytes;
-            break;
-          } else {
-            if (i < 2) {
-              await Future.delayed(Duration(milliseconds: 100 * (i + 1)));
-            }
-          }
-        } catch (e) {
-          if (i < 2) {
-            await Future.delayed(Duration(milliseconds: 100 * (i + 1)));
-          }
-        }
+        } catch (_) {}
       }
 
+      _memoryCache[trackId] = (bytes != null && bytes.isNotEmpty) ? bytes : null;
       _inFlight.remove(trackId);
       return bytes;
     }();
@@ -64,7 +53,7 @@ class ArtworkCacheManager {
     return future;
   }
 
-  /// Silently preloads thumbnails in the background so scrolling is buttery smooth.
+  /// Silently preloads thumbnails in the background so initial view is smooth.
   static Future<void> preloadAllArtworks(
     List<dynamic> tracks,
     Map<String, dynamic> overrides,
@@ -72,7 +61,8 @@ class ArtworkCacheManager {
     if (_isPreloading) return;
     _isPreloading = true;
 
-    for (final track in tracks) {
+    // Only warm initial viewport items to avoid choking the platform channel
+    for (final track in tracks.take(25)) {
       final trackId = track.id.toString();
       final customPath = overrides[trackId]?['coverPath'];
 
@@ -88,7 +78,7 @@ class ArtworkCacheManager {
         }
       }
 
-      await Future.delayed(const Duration(milliseconds: 5));
+      await Future.delayed(const Duration(milliseconds: 10));
     }
 
     _isPreloading = false;
