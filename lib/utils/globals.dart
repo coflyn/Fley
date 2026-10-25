@@ -77,7 +77,7 @@ final ValueNotifier<String> themeAccentPresetNotifier = ValueNotifier<String>(
 final ValueNotifier<bool> lyricsHidePastNotifier = ValueNotifier<bool>(true);
 final ValueNotifier<bool> lyricsAutoFollowNotifier = ValueNotifier<bool>(true);
 
-void showFlowToast(String msg, {bool isLong = false}) {
+void showFleyToast(String msg, {bool isLong = false}) {
   Fluttertoast.showToast(
     msg: msg,
     toastLength: isLong ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT,

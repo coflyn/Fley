@@ -120,8 +120,8 @@ extension SettingsThemeModeModals on _SettingsScreenState {
                                       .updateSetting(
                                         playerBackgroundStyle: 'custom',
                                       );
-                                  showFlowToast(
-                                    '${lookupAppLocalizations(Locale(FlowStrings.currentLang)).toastBgStyleSet} $label',
+                                  showFleyToast(
+                                    '${lookupAppLocalizations(Locale(FleyStrings.currentLang)).toastBgStyleSet} $label',
                                   );
                                   if (!context.mounted) return;
                                   Navigator.pop(context);
@@ -166,8 +166,8 @@ extension SettingsThemeModeModals on _SettingsScreenState {
                                           .updateSetting(
                                             playerCustomBgPath: croppedPath,
                                           );
-                                      showFlowToast(
-                                        '${lookupAppLocalizations(Locale(FlowStrings.currentLang)).toastBgStyleSet} $label',
+                                      showFleyToast(
+                                        '${lookupAppLocalizations(Locale(FleyStrings.currentLang)).toastBgStyleSet} $label',
                                       );
                                       if (!context.mounted) return;
                                       Navigator.pop(context);
@@ -191,8 +191,8 @@ extension SettingsThemeModeModals on _SettingsScreenState {
                                 ref
                                     .read(settingsProvider.notifier)
                                     .updateSetting(playerBackgroundStyle: id);
-                                showFlowToast(
-                                  '${lookupAppLocalizations(Locale(FlowStrings.currentLang)).toastBgStyleSet} $label',
+                                showFleyToast(
+                                  '${lookupAppLocalizations(Locale(FleyStrings.currentLang)).toastBgStyleSet} $label',
                                 );
                                 if (!context.mounted) return;
                                 Navigator.pop(context);
@@ -400,8 +400,8 @@ extension SettingsThemeModeModals on _SettingsScreenState {
           _customThemeStyle = id;
         });
         ref.read(settingsProvider.notifier).updateSetting(customThemeStyle: id);
-        showFlowToast(
-          '${lookupAppLocalizations(Locale(FlowStrings.currentLang)).toastThemeStyleSet} $label',
+        showFleyToast(
+          '${lookupAppLocalizations(Locale(FleyStrings.currentLang)).toastThemeStyleSet} $label',
         );
       },
       child: AnimatedContainer(
@@ -473,9 +473,9 @@ extension SettingsThemeModeModals on _SettingsScreenState {
               ref
                   .read(settingsProvider.notifier)
                   .updateSetting(customThemeBgPath: croppedPath);
-              showFlowToast(
+              showFleyToast(
                 lookupAppLocalizations(
-                  Locale(FlowStrings.currentLang),
+                  Locale(FleyStrings.currentLang),
                 ).wallpaperUpdated,
               );
             }

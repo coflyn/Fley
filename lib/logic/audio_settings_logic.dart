@@ -156,8 +156,8 @@ extension _AudioSettingsLogic on _MainScreenState {
       _metadataOverrides.clear();
       _playlistCovers.clear();
     });
-    showFlowToast(
-      lookupAppLocalizations(Locale(FlowStrings.currentLang)).toastAppDataReset,
+    showFleyToast(
+      lookupAppLocalizations(Locale(FleyStrings.currentLang)).toastAppDataReset,
     );
     _loadSettings();
   }
@@ -193,7 +193,7 @@ extension _AudioSettingsLogic on _MainScreenState {
             final bool isCharging = result['isCharging'] ?? false;
             if (level != -1 && level <= 15 && !isCharging) {
               _pauseWithFade();
-              showFlowToast(
+              showFleyToast(
                 "Battery low ($level%). Playback paused.",
                 isLong: true,
               );

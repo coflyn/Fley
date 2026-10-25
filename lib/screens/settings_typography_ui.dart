@@ -135,7 +135,7 @@ extension SettingsTypographyModals on _SettingsScreenState {
                                       fit: BoxFit.scaleDown,
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        'Flow',
+                                        'Fley',
                                         style: previewTextStyle(
                                           size: 32,
                                           weight: FontWeight.w800,
@@ -448,7 +448,7 @@ extension SettingsTypographyModals on _SettingsScreenState {
                                 if (context.mounted) {
                                   Navigator.pop(context);
                                 }
-                                showFlowToast(
+                                showFleyToast(
                                   "Typography & size updated successfully!",
                                 );
                               },

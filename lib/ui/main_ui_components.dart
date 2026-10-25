@@ -15,7 +15,7 @@ extension _MainUIComponents on _MainScreenState {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Flow',
+              'Fley',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.w800,

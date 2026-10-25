@@ -1,3 +1,4 @@
+# Fley repository git attributes
 # Ignore generated platform code from language statistics
 linux/* linguist-vendored
 macos/* linguist-vendored

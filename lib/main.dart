@@ -120,8 +120,6 @@ void main() async {
   runApp(const ProviderScope(child: FleyApp()));
 }
 
-typedef FlowApp = FleyApp;
-
 class FleyApp extends StatelessWidget {
   const FleyApp({super.key});
 
@@ -272,7 +270,7 @@ class MainScreen extends StatefulWidget {
     if (mainScreenState != null) {
       final sessionId = mainScreenState!.player.androidAudioSessionId ?? 0;
       if (sessionId == 0) {
-        showFlowToast("Please play a song first to use the Equalizer!");
+        showFleyToast("Please play a song first to use the Equalizer!");
       } else {
         mainScreenState!._showEqualizerSheet(context);
       }
@@ -509,9 +507,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       session.becomingNoisyEventStream.listen((_) {
         if (_pauseOnDisconnect && _audioPlayer.playing) {
           _pauseWithFade();
-          showFlowToast(
+          showFleyToast(
             lookupAppLocalizations(
-              Locale(FlowStrings.currentLang),
+              Locale(FleyStrings.currentLang),
             ).toastHeadphonesUnplugged,
           );
         }

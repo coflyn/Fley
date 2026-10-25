@@ -311,7 +311,7 @@ extension SettingsHiddenTracksModals on _SettingsScreenState {
                                               );
                                               widget.onRescanLibrary();
                                               setModalState(() {});
-                                              showFlowToast(
+                                              showFleyToast(
                                                 "${song.title} restored to library",
                                               );
                                             },
@@ -329,7 +329,7 @@ extension SettingsHiddenTracksModals on _SettingsScreenState {
                                               context,
                                             ).autoHiddenTooltip,
                                             onPressed: () {
-                                              showFlowToast(
+                                              showFleyToast(
                                                 AppLocalizations.of(
                                                   context,
                                                 ).autoHiddenToast,

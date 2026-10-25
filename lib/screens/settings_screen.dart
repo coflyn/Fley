@@ -138,7 +138,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _checkForUpdates() async {
-    showFlowToast(AppLocalizations.of(context).checkingUpdates);
+    showFleyToast(AppLocalizations.of(context).checkingUpdates);
     try {
       final client = HttpClient();
       client.userAgent = 'Fley-App';
@@ -251,9 +251,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           mode: LaunchMode.externalApplication,
                         );
                       } catch (_) {
-                        showFlowToast(
+                        showFleyToast(
                           lookupAppLocalizations(
-                            Locale(FlowStrings.currentLang),
+                            Locale(FleyStrings.currentLang),
                           ).couldNotOpenUpdate,
                         );
                       }
@@ -271,20 +271,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           );
         } else {
-          showFlowToast(
-            '${lookupAppLocalizations(Locale(FlowStrings.currentLang)).flowUpToDate} (v$currentVersion)',
+          showFleyToast(
+            '${lookupAppLocalizations(Locale(FleyStrings.currentLang)).fleyUpToDate} (v$currentVersion)',
           );
         }
       } else {
-        showFlowToast(
+        showFleyToast(
           lookupAppLocalizations(
-            Locale(FlowStrings.currentLang),
+            Locale(FleyStrings.currentLang),
           ).unableCheckUpdates,
         );
       }
     } catch (_) {
-      showFlowToast(
-        lookupAppLocalizations(Locale(FlowStrings.currentLang)).networkError,
+      showFleyToast(
+        lookupAppLocalizations(Locale(FleyStrings.currentLang)).networkError,
       );
     }
   }
@@ -370,9 +370,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         await prefs.setString(prefKey, croppedPath);
         onSetStatePath(croppedPath);
         onSave(croppedPath);
-        showFlowToast(
+        showFleyToast(
           lookupAppLocalizations(
-            Locale(FlowStrings.currentLang),
+            Locale(FleyStrings.currentLang),
           ).wallpaperUpdated,
         );
       }
@@ -1444,7 +1444,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   setState(() => _skipSilence = val);
                   _saveBool('skipSilence', val);
                   widget.onSetSkipSilence(val);
-                  showFlowToast(
+                  showFleyToast(
                     val
                         ? AppLocalizations.of(context).silenceEnabledToast
                         : AppLocalizations.of(context).silenceDisabledToast,
@@ -1481,9 +1481,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   } catch (e) {
                     if (e is PlatformException &&
                         e.code == 'PERMISSION_DENIED') {
-                      showFlowToast(
+                      showFleyToast(
                         lookupAppLocalizations(
-                          Locale(FlowStrings.currentLang),
+                          Locale(FleyStrings.currentLang),
                         ).monoAudioPermission,
                         isLong: true,
                       );
@@ -1529,7 +1529,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   setState(() => _autoRegexClean = val);
                   _saveBool('autoRegexClean', val);
                   if (val) {
-                    showFlowToast(
+                    showFleyToast(
                       AppLocalizations.of(context).rescanToApply,
                       isLong: true,
                     );
@@ -1596,7 +1596,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onTap: () {
                   PaintingBinding.instance.imageCache.clear();
                   PaintingBinding.instance.imageCache.clearLiveImages();
-                  showFlowToast(AppLocalizations.of(context).imageCacheCleared);
+                  showFleyToast(AppLocalizations.of(context).imageCacheCleared);
                 },
               ),
               SettingsPremiumListTile(
@@ -1628,7 +1628,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
           SettingsSectionHeader(
-            title: AppLocalizations.of(context).aboutFlow,
+            title: AppLocalizations.of(context).aboutFley,
             activeAccentColor: _activeAccentColor,
           ),
           SettingsPremiumCard(
@@ -1674,16 +1674,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       mode: LaunchMode.externalApplication,
                     );
                     if (!launched) {
-                      showFlowToast(
+                      showFleyToast(
                         lookupAppLocalizations(
-                          Locale(FlowStrings.currentLang),
+                          Locale(FleyStrings.currentLang),
                         ).couldNotOpenLink,
                       );
                     }
                   } catch (e) {
-                    showFlowToast(
+                    showFleyToast(
                       lookupAppLocalizations(
-                        Locale(FlowStrings.currentLang),
+                        Locale(FleyStrings.currentLang),
                       ).couldNotOpenLink,
                     );
                   }
@@ -1709,16 +1709,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       mode: LaunchMode.externalApplication,
                     );
                     if (!launched) {
-                      showFlowToast(
+                      showFleyToast(
                         lookupAppLocalizations(
-                          Locale(FlowStrings.currentLang),
+                          Locale(FleyStrings.currentLang),
                         ).couldNotOpenLink,
                       );
                     }
                   } catch (e) {
-                    showFlowToast(
+                    showFleyToast(
                       lookupAppLocalizations(
-                        Locale(FlowStrings.currentLang),
+                        Locale(FleyStrings.currentLang),
                       ).couldNotOpenLink,
                     );
                   }

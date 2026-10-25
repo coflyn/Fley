@@ -27,7 +27,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
   List<int> _levels = [];
   String? _error;
   String _activePreset = lookupAppLocalizations(
-    Locale(FlowStrings.currentLang),
+    Locale(FleyStrings.currentLang),
   ).customTime;
 
   final Map<String, List<int>> _presets = {
@@ -120,7 +120,7 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
       await prefs.setString('saved_eq_levels', jsonEncode(_levels));
       await prefs.setString(
         'saved_eq_preset',
-        lookupAppLocalizations(Locale(FlowStrings.currentLang)).customTime,
+        lookupAppLocalizations(Locale(FleyStrings.currentLang)).customTime,
       );
     } catch (_) {}
   }

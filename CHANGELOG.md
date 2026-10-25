@@ -5,12 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0]
+
+### Added
+- **Modern Artists & Albums View**: Interactive Grid and List layout switcher with persistent view mode preferences.
+- **Top Highlights Carousel**: Horizontal scroll highlights for top artists and albums based on track count.
+
+### Changed
+- **Project Rebranding to Fley**: Renamed project, visual identity, and Android package ID (`com.fley`) to Fley.
+- **Rock-Solid Offline Audio Core**: Streamlined audio playback engine for pure offline playback, eliminating network timeouts and sudden playback pauses.
+- **Audio Crossfade & Volume Reliability**: Ensured target volume is consistently restored during track transitions and playback restarts.
+
+### Fixed
+- **UI Scroll Performance & Lag**: Replaced non-virtualized `shrinkWrap` grids with `CustomScrollView` and lazy `SliverGrid` / `SliverList` delegates.
+- **Binder IPC Congestion**: Removed duplicate native MediaStore artwork queries on list items, using instant memory cache and placeholders.
+- **Compositing Layer Overhead**: Bypassed unnecessary opacity layer compositing in entrance animation wrappers when animations are disabled.
+- **Startup Preload Optimization**: Restricted background artwork preloading to initial viewport items to keep startup instantaneous.
+
+---
+
 ## [1.0.6]
 
 ### Added
-- **Modern Artists & Albums View**: Grid and List layout switcher with persistent preference.
-- **Top Highlights Carousel**: Horizontal scroll highlights for top artists and albums.
-- **Manual Lyrics Offset**: Per-track ±0.1s / ±0.5s fine-tuning to correct desynchronized `.lrc` files.
+- **Manual Lyrics Offset**: Per-track ±0.1s / ±0.5s fine-tuning to correct desynchronized `.lrc` files directly from the player.
 - **Font Preloading**: Preload selected Google Fonts (Figtree, Inter, Plus Jakarta Sans) before first paint to eliminate startup font-flash.
 - **Dynamic Viewport Stagger Animations**: Top 8 visible items now feature fluid cascading entrance animations when switching tabs.
 
@@ -20,8 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Smooth Lyrics Return**: Replaced abrupt jumps with a fluid 900ms cubic transition when returning to auto-follow lyrics mode.
 
 ### Fixed
-- **UI Scroll Performance**: Resolved scroll lag by replacing un-virtualized `shrinkWrap` grids with `CustomScrollView` and lazy `SliverGrid` / `SliverList`.
-- **Artwork IPC Bottleneck**: Prevented duplicate native MediaStore IPC queries by eliminating fallback query widgets during list scrolling.
 - **Scoped Storage Backup Failure**: Resolved `errno = 13 (Permission Denied)` on Android 10–15 via a multi-tiered fallback path engine (Public Downloads → External Storage → App Documents).
 - **Ringtone Cutter Race Condition**: Fixed a preview timer race condition where restarting audio cut previews prematurely killed active playback.
 

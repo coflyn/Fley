@@ -61,10 +61,10 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
       }
 
       if (!mounted) return;
-      showFlowToast(AppLocalizations.of(context).backupSuccess);
+      showFleyToast(AppLocalizations.of(context).backupSuccess);
     } catch (e) {
       if (!mounted) return;
-      showFlowToast('${AppLocalizations.of(context).backupFailed}: $e');
+      showFleyToast('${AppLocalizations.of(context).backupFailed}: $e');
     }
   }
 
@@ -135,15 +135,15 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
         }
 
         if (!mounted) return;
-        showFlowToast(AppLocalizations.of(context).restoreSuccess);
+        showFleyToast(AppLocalizations.of(context).restoreSuccess);
         widget.onRescanLibrary();
       } else {
         if (!mounted) return;
-        showFlowToast(AppLocalizations.of(context).noBackupFound);
+        showFleyToast(AppLocalizations.of(context).noBackupFound);
       }
     } catch (e) {
       if (!mounted) return;
-      showFlowToast('${AppLocalizations.of(context).restoreFailed}: $e');
+      showFleyToast('${AppLocalizations.of(context).restoreFailed}: $e');
     }
   }
 

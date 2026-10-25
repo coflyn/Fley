@@ -26,7 +26,7 @@ extension _SongInfoUI on _MainScreenState {
         }
       } catch (_) {}
       return lookupAppLocalizations(
-        Locale(FlowStrings.currentLang),
+        Locale(FleyStrings.currentLang),
       ).unknownLiteral;
     }
 
@@ -216,7 +216,7 @@ extension _SongInfoUI on _MainScreenState {
                         ),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: track.path));
-                          showFlowToast("Path copied to clipboard");
+                          showFleyToast("Path copied to clipboard");
                         },
                         tooltip: 'Copy path',
                       ),

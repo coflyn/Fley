@@ -250,7 +250,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
           title: track.title.trim().isEmpty ? 'Unknown Title' : track.title,
           artist: (track.artist.trim().isEmpty || track.artist == '<unknown>')
               ? lookupAppLocalizations(
-                  Locale(FlowStrings.currentLang),
+                  Locale(FleyStrings.currentLang),
                 ).unknownArtist
               : track.artist,
           artUri: currentCover,
@@ -321,7 +321,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
                     (prevTrack.artist.trim().isEmpty ||
                         prevTrack.artist == '<unknown>')
                     ? lookupAppLocalizations(
-                        Locale(FlowStrings.currentLang),
+                        Locale(FleyStrings.currentLang),
                       ).unknownArtist
                     : prevTrack.artist,
                 artUri: prevCover,
@@ -361,7 +361,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
                     (nextTrack.artist.trim().isEmpty ||
                         nextTrack.artist == '<unknown>')
                     ? lookupAppLocalizations(
-                        Locale(FlowStrings.currentLang),
+                        Locale(FleyStrings.currentLang),
                       ).unknownArtist
                     : nextTrack.artist,
                 artUri: nextCover,
@@ -525,7 +525,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
                   (prevTrack.artist.trim().isEmpty ||
                       prevTrack.artist == '<unknown>')
                   ? lookupAppLocalizations(
-                      Locale(FlowStrings.currentLang),
+                      Locale(FleyStrings.currentLang),
                     ).unknownArtist
                   : prevTrack.artist,
               artUri: prevCover,
@@ -559,7 +559,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
                   (nextTrack.artist.trim().isEmpty ||
                       nextTrack.artist == '<unknown>')
                   ? lookupAppLocalizations(
-                      Locale(FlowStrings.currentLang),
+                      Locale(FleyStrings.currentLang),
                     ).unknownArtist
                   : nextTrack.artist,
               artUri: nextCover,
@@ -681,7 +681,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
                       (nextTrack.artist.trim().isEmpty ||
                           nextTrack.artist == '<unknown>')
                       ? lookupAppLocalizations(
-                          Locale(FlowStrings.currentLang),
+                          Locale(FleyStrings.currentLang),
                         ).unknownArtist
                       : nextTrack.artist,
                   artUri: nextCover,
@@ -720,7 +720,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
                       (prevTrack.artist.trim().isEmpty ||
                           prevTrack.artist == '<unknown>')
                       ? lookupAppLocalizations(
-                          Locale(FlowStrings.currentLang),
+                          Locale(FleyStrings.currentLang),
                         ).unknownArtist
                       : prevTrack.artist,
                   artUri: prevCover,
@@ -919,7 +919,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
       final cleanArtist =
           (track.artist.trim().isEmpty || track.artist == '<unknown>')
           ? lookupAppLocalizations(
-              Locale(FlowStrings.currentLang),
+              Locale(FleyStrings.currentLang),
             ).unknownArtist
           : track.artist;
 
@@ -1081,7 +1081,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
         _favoriteTrackIds.remove(trackId);
       } else {
         _favoriteTrackIds.add(trackId);
-        final loc = lookupAppLocalizations(Locale(FlowStrings.currentLang));
+        final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
         if (_playingFromName == loc.favourites) {
           _addTrackToQueueDynamically(trackId);
         }

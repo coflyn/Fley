@@ -228,7 +228,7 @@ extension _EditMetadataUI on _MainScreenState {
                                     });
                                   }
                                   Navigator.pop(context);
-                                  showFlowToast(msg);
+                                  showFleyToast(msg);
                                 }
                               },
                               child: Text(
@@ -335,7 +335,7 @@ extension _EditMetadataUI on _MainScreenState {
                                   if (mounted) setState(() {});
                                 },
                               );
-                              showFlowToast("Metadata updated locally");
+                              showFleyToast("Metadata updated locally");
                             },
                             child: Text(
                               AppLocalizations.of(context).save,

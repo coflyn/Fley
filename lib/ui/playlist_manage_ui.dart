@@ -105,7 +105,7 @@ extension _PlaylistManageUI on _MainScreenState {
                         Navigator.pop(context);
                         if (tracksToAdd.length == 1) {
                           if (skippedCount > 0) {
-                            showFlowToast(
+                            showFleyToast(
                               AppLocalizations.of(context)
                                   .toastSongAlreadyInPlaylist
                                   .replaceFirst(
@@ -115,7 +115,7 @@ extension _PlaylistManageUI on _MainScreenState {
                                   .replaceFirst('[placeholder]', playlistName),
                             );
                           } else {
-                            showFlowToast(
+                            showFleyToast(
                               AppLocalizations.of(context).toastAddedSongTo
                                   .replaceFirst(
                                     '[placeholder]',
@@ -126,13 +126,13 @@ extension _PlaylistManageUI on _MainScreenState {
                           }
                         } else {
                           if (addedCount == 0) {
-                            showFlowToast(
+                            showFleyToast(
                               AppLocalizations.of(context)
                                   .toastSelectedSongsAlreadyIn
                                   .replaceFirst('[placeholder]', playlistName),
                             );
                           } else if (skippedCount > 0) {
-                            showFlowToast(
+                            showFleyToast(
                               AppLocalizations.of(context)
                                   .toastAddedSongsSkipped
                                   .replaceFirst('[placeholder]', '$addedCount')
@@ -143,7 +143,7 @@ extension _PlaylistManageUI on _MainScreenState {
                                   ),
                             );
                           } else {
-                            showFlowToast(
+                            showFleyToast(
                               AppLocalizations.of(context)
                                   .toastAddedSongsToSimple
                                   .replaceFirst('[placeholder]', '$addedCount')
@@ -229,7 +229,7 @@ extension _PlaylistManageUI on _MainScreenState {
                     _saveUserPlaylists();
                   });
                   Navigator.pop(context);
-                  showFlowToast(
+                  showFleyToast(
                     AppLocalizations.of(
                       context,
                     ).playlistCreatedFormat.replaceFirst('[placeholder]', name),
@@ -324,9 +324,9 @@ extension _PlaylistManageUI on _MainScreenState {
                     _saveUserPlaylists();
                   });
                   Navigator.pop(context);
-                  showFlowToast(AppLocalizations.of(context).playlistRenamed);
+                  showFleyToast(AppLocalizations.of(context).playlistRenamed);
                 } else if (_userPlaylists.containsKey(newName)) {
-                  showFlowToast(
+                  showFleyToast(
                     AppLocalizations.of(context).playlistNameExists,
                   );
                 }
@@ -403,7 +403,7 @@ extension _PlaylistManageUI on _MainScreenState {
                     if (songs.isNotEmpty) {
                       _playTrack(0, sourceList: songs);
                     } else {
-                      showFlowToast(AppLocalizations.of(context).playlistEmpty);
+                      showFleyToast(AppLocalizations.of(context).playlistEmpty);
                     }
                   },
                 ),
@@ -414,7 +414,7 @@ extension _PlaylistManageUI on _MainScreenState {
                     Navigator.pop(context);
                     if (songs.isNotEmpty) {
                       _playbackQueue.addAll(songs);
-                      showFlowToast(
+                      showFleyToast(
                         AppLocalizations.of(context).addedSongsToQueue,
                       );
                     }
@@ -445,13 +445,13 @@ extension _PlaylistManageUI on _MainScreenState {
                         }
                       });
                       _savePlaylistCovers();
-                      showFlowToast(
+                      showFleyToast(
                         imagePath == 'reset'
                             ? lookupAppLocalizations(
-                                Locale(FlowStrings.currentLang),
+                                Locale(FleyStrings.currentLang),
                               ).coverResetSuccess
                             : lookupAppLocalizations(
-                                Locale(FlowStrings.currentLang),
+                                Locale(FleyStrings.currentLang),
                               ).playlistCoverUpdated,
                       );
                     }
@@ -508,9 +508,9 @@ extension _PlaylistManageUI on _MainScreenState {
                         }
                       });
                       _saveUserPlaylists();
-                      showFlowToast(
+                      showFleyToast(
                         lookupAppLocalizations(
-                          Locale(FlowStrings.currentLang),
+                          Locale(FleyStrings.currentLang),
                         ).playlistDeleted,
                       );
                     },

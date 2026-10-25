@@ -52,7 +52,7 @@ extension _SortModalsUI on _MainScreenState {
                     Navigator.pop(context);
                     if (tracks.length == 1 &&
                         _playingTrack?.id == tracks.first.id) {
-                      showFlowToast(
+                      showFleyToast(
                         AppLocalizations.of(context).cannotPlayNextActive,
                       );
                       return;
@@ -67,9 +67,9 @@ extension _SortModalsUI on _MainScreenState {
                         addedCount++;
                       }
                       if (addedCount > 0) {
-                        showFlowToast("Added $addedCount tracks to play next");
+                        showFleyToast("Added $addedCount tracks to play next");
                       } else {
-                        showFlowToast(
+                        showFleyToast(
                           AppLocalizations.of(context).cannotPlayNextActive,
                         );
                       }
@@ -85,7 +85,7 @@ extension _SortModalsUI on _MainScreenState {
                       for (final track in tracks) {
                         _moveTrackInQueue(track, _playbackQueue.length);
                       }
-                      showFlowToast("Added ${tracks.length} tracks to queue");
+                      showFleyToast("Added ${tracks.length} tracks to queue");
                     }
                   },
                 ),
@@ -135,10 +135,10 @@ extension _SortModalsUI on _MainScreenState {
                           tracks.any((t) => t.id == _playingTrack!.id)) {
                         _updateDominantColor(_playingTrack!);
                       }
-                      showFlowToast(
+                      showFleyToast(
                         imagePath == 'reset'
                             ? lookupAppLocalizations(
-                                Locale(FlowStrings.currentLang),
+                                Locale(FleyStrings.currentLang),
                               ).coverResetSuccess
                             : "Album cover updated locally",
                       );
@@ -167,10 +167,10 @@ extension _SortModalsUI on _MainScreenState {
                           jsonEncode(_playlistCovers),
                         );
                       });
-                      showFlowToast(
+                      showFleyToast(
                         imagePath == 'reset'
                             ? lookupAppLocalizations(
-                                Locale(FlowStrings.currentLang),
+                                Locale(FleyStrings.currentLang),
                               ).coverResetSuccess
                             : "Cover updated",
                       );

@@ -1,5 +1,5 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
+# Configures the Dart analyzer for Fley code quality & linting.
+# Check for errors, warnings, and lints across the codebase.
 #
 # The issues identified by the analyzer are surfaced in the UI of Dart-enabled
 # IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be

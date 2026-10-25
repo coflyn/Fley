@@ -81,7 +81,7 @@ extension _AudioLibraryScanLogic on _MainScreenState {
                 ],
               ),
               content: const Text(
-                "Flow needs the Notification permission to show music playback controls on your lock screen and background.\n\nPlease enable Notifications for Flow in your phone's App Settings.",
+                "Fley needs the Notification permission to show music playback controls on your lock screen and background.\n\nPlease enable Notifications for Fley in your phone's App Settings.",
               ),
               actions: [
                 TextButton(
@@ -203,7 +203,7 @@ extension _AudioLibraryScanLogic on _MainScreenState {
                   path: song.data,
                   lyrics: [
                     "Playing '$title'...",
-                    "Brought to you by Flow Music,",
+                    "Brought to you by Fley Music,",
                     "Your premium local audio choice.",
                     "Feel the deep rhythm in your soul.",
                     "Let the notes carry you away,",
@@ -363,9 +363,9 @@ extension _AudioLibraryScanLogic on _MainScreenState {
                           mode: LaunchMode.externalApplication,
                         );
                       } catch (_) {
-                        showFlowToast(
+                        showFleyToast(
                           lookupAppLocalizations(
-                            Locale(FlowStrings.currentLang),
+                            Locale(FleyStrings.currentLang),
                           ).couldNotOpenUpdate,
                         );
                       }
@@ -501,7 +501,7 @@ extension _AudioLibraryScanLogic on _MainScreenState {
                   (nextTrack.artist.trim().isEmpty ||
                       nextTrack.artist == '<unknown>')
                   ? lookupAppLocalizations(
-                      Locale(FlowStrings.currentLang),
+                      Locale(FleyStrings.currentLang),
                     ).unknownArtist
                   : nextTrack.artist,
               artUri: nextCover,

@@ -144,7 +144,7 @@ extension _SongCoverPickerUI on _MainScreenState {
                                 if (!context.mounted) return;
                                 Navigator.pop(context, coverUri.toFilePath());
                               } else {
-                                showFlowToast(
+                                showFleyToast(
                                   "No cover available for this song",
                                 );
                               }

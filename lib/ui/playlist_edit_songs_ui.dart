@@ -75,7 +75,7 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                                         _cachedDetailKey = null;
                                         _saveUserPlaylists();
                                       });
-                                      showFlowToast(
+                                      showFleyToast(
                                         AppLocalizations.of(context)
                                             .toastAddedSongsToSimple
                                             .replaceFirst(
@@ -417,7 +417,7 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                                               Navigator.pop(
                                                 context,
                                               ); // Close sheet
-                                              showFlowToast(
+                                              showFleyToast(
                                                 AppLocalizations.of(
                                                   context,
                                                 ).removedSongsToast,
