@@ -351,6 +351,7 @@ extension _PlayerUI on _MainScreenState {
   }
 
   Widget _buildPlainLyricsView(Track currentTrack) {
+    final loc = AppLocalizations.of(context);
     if (_currentLyricsPlain == null || _currentLyricsPlain!.trim().isEmpty) {
       return Center(
         child: Column(
@@ -359,14 +360,14 @@ extension _PlayerUI on _MainScreenState {
             const Icon(Icons.lyrics_outlined, color: Colors.white30, size: 48),
             const SizedBox(height: 12),
             Text(
-              'No lyrics found online.',
-              style: TextStyle(color: Colors.white54, fontSize: 14),
+              loc.noLyrics,
+              style: const TextStyle(color: Colors.white54, fontSize: 14),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => _showManualLyricsEditor(currentTrack),
               icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add Lyrics Manually'),
+              label: Text(loc.addLyricsManually),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _activeAccentColor,
                 foregroundColor: Colors.white,
@@ -404,14 +405,12 @@ extension _PlayerUI on _MainScreenState {
   }
 
   void _showManualLyricsEditor(Track currentTrack) {
+    final isLight = isAppLight;
+    final loc = AppLocalizations.of(context);
     final textController = TextEditingController(
       text: _currentLyricsPlain ?? '',
     );
-    final offsetController = TextEditingController(
-      text: _lyricsOffsetSec == 0.0
-          ? '0'
-          : _lyricsOffsetSec.toStringAsFixed(1),
-    );
+    double currentOffset = _lyricsOffsetSec;
 
     SharedPreferences.getInstance().then((prefs) {
       final manualKey = 'lyrics_manual_${currentTrack.id}';
@@ -432,202 +431,409 @@ extension _PlayerUI on _MainScreenState {
       }
     });
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            'Edit/Add Lyrics',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  AppLocalizations.of(context).lyricsPasteHint,
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+      isScrollControlled: true,
+      backgroundColor: isLight ? const Color(0xFFF6F8FA) : const Color(0xFF161616),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isSynced = textController.text.contains(RegExp(r'\[\d{2}:\d{2}'));
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20.0,
+                  right: 20.0,
+                  top: 14.0,
+                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16.0,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(
-                      AppLocalizations.of(context).lyricsOffsetLabel,
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: offsetController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                          signed: true,
-                        ),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: '0.0',
-                          hintStyle: const TextStyle(color: Colors.white24),
-                          filled: true,
-                          fillColor: Colors.white.withValues(alpha: 0.05),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isLight ? Colors.black12 : Colors.white24,
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    for (final step in [-0.5, -0.1, 0.1, 0.5])
-                      OutlinedButton(
-                        onPressed: () {
-                          final current = double.tryParse(
-                                offsetController.text.replaceAll(',', '.'),
-                              ) ??
-                              0.0;
-                          offsetController.text = (current + step)
-                              .toStringAsFixed(1);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 6,
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          _buildTrackArtwork(currentTrack, size: 40, radius: 8),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  loc.editLyrics,
+                                  style: TextStyle(
+                                    color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  '${currentTrack.title} • ${currentTrack.artist}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isLight ? Colors.black54 : Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          side: BorderSide(
-                            color: Colors.white24,
+                          FilledButton.icon(
+                            onPressed: () async {
+                              final navigator = Navigator.of(context);
+                              final prefs = await SharedPreferences.getInstance();
+                              final manualKey = 'lyrics_manual_${currentTrack.id}';
+                              final text = textController.text.trim();
+                              if (text.isEmpty) {
+                                await prefs.remove(manualKey);
+                              } else {
+                                await prefs.setString(manualKey, text);
+                              }
+                              final offsetKey = 'lyrics_offset_${currentTrack.id}';
+                              if (currentOffset == 0.0) {
+                                await prefs.remove(offsetKey);
+                              } else {
+                                await prefs.setDouble(offsetKey, currentOffset);
+                              }
+                              navigator.pop();
+                              _loadLyricsForTrack(currentTrack);
+                              showFleyToast(
+                                lookupAppLocalizations(
+                                  Locale(FleyStrings.currentLang),
+                                ).toastLyricsUpdated,
+                              );
+                            },
+                            icon: const Icon(Icons.check_rounded, size: 18),
+                            label: Text(loc.save),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _activeAccentColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                try {
+                                  final result = await const MethodChannel(
+                                    'com.fley.audio/equalizer',
+                                  ).invokeMethod<String>('pickLyricsFile');
+                                  if (result != null && result.isNotEmpty) {
+                                    textController.text = result;
+                                    setModalState(() {});
+                                    showFleyToast(loc.toastLyricsUpdated);
+                                  }
+                                } catch (_) {}
+                              },
+                              icon: const Icon(Icons.file_open_rounded, size: 16),
+                              label: Text(loc.importLrcFile),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                side: BorderSide(
+                                  color: isLight ? Colors.black12 : Colors.white12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                final data = await Clipboard.getData(Clipboard.kTextPlain);
+                                if (data?.text != null && data!.text!.isNotEmpty) {
+                                  textController.text = data.text!;
+                                  setModalState(() {});
+                                }
+                              },
+                              icon: const Icon(Icons.content_paste_rounded, size: 16),
+                              label: Text(loc.pasteFromClipboard),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                side: BorderSide(
+                                  color: isLight ? Colors.black12 : Colors.white12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                textController.clear();
+                                setModalState(() {});
+                              },
+                              icon: const Icon(Icons.clear_all_rounded, size: 16),
+                              label: Text(loc.clearLyrics),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                side: BorderSide(
+                                  color: isLight ? Colors.black12 : Colors.white12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                final cleanTitle = currentTrack.title;
+                                final cleanArtist = (currentTrack.artist.trim().isEmpty ||
+                                        currentTrack.artist == '<unknown>' ||
+                                        currentTrack.artist == loc.unknownArtist)
+                                    ? ''
+                                    : currentTrack.artist.trim();
+                                final queryText = cleanArtist.isNotEmpty
+                                    ? '$cleanArtist $cleanTitle lrc'
+                                    : '$cleanTitle lrc';
+                                final url = Uri.parse(
+                                  'https://www.google.com/search?q=${Uri.encodeComponent(queryText)}',
+                                );
+                                if (await canLaunchUrl(url)) {
+                                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                                }
+                              },
+                              icon: const Icon(Icons.travel_explore_rounded, size: 16),
+                              label: Text(loc.searchLyricsOnline),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                side: BorderSide(
+                                  color: isLight ? Colors.black12 : Colors.white12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isLight
+                              ? Colors.black.withValues(alpha: 0.04)
+                              : Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isLight ? Colors.black12 : Colors.white10,
                           ),
                         ),
-                        child: Text(
-                          step > 0 ? '+${step.toStringAsFixed(1)}s' : '${step.toStringAsFixed(1)}s',
-                          style: const TextStyle(
-                            color: Colors.white70,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.timer_outlined,
+                                  size: 16,
+                                  color: isLight ? Colors.black54 : Colors.white60,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  loc.lyricsOffsetLabel.replaceAll(':', '').trim(),
+                                  style: TextStyle(
+                                    color: isLight ? Colors.black87 : Colors.white70,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _activeAccentColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${currentOffset >= 0 ? '+' : ''}${currentOffset.toStringAsFixed(1)}s',
+                                    style: TextStyle(
+                                      color: _activeAccentColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                if (currentOffset != 0.0) ...[
+                                  const SizedBox(width: 6),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(6),
+                                    onTap: () => setModalState(() => currentOffset = 0.0),
+                                    child: Tooltip(
+                                      message: loc.resetOffset,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(2.0),
+                                        child: Icon(
+                                          Icons.refresh_rounded,
+                                          size: 16,
+                                          color: isLight ? Colors.black54 : Colors.white60,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                for (final step in [-0.5, -0.1, 0.1, 0.5]) ...[
+                                  if (step != -0.5) const SizedBox(width: 8),
+                                  Expanded(
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(8),
+                                      onTap: () {
+                                        setModalState(() {
+                                          currentOffset = double.parse(
+                                            (currentOffset + step).toStringAsFixed(1),
+                                          );
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 6),
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: isLight
+                                              ? Colors.black.withValues(alpha: 0.06)
+                                              : Colors.white.withValues(alpha: 0.08),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          step > 0 ? '+${step.toStringAsFixed(1)}s' : '${step.toStringAsFixed(1)}s',
+                                          style: TextStyle(
+                                            color: isLight ? Colors.black87 : Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: textController,
+                        maxLines: 9,
+                        style: TextStyle(
+                          color: isLight ? Colors.black87 : Colors.white,
+                          fontSize: 13,
+                          height: 1.4,
+                          fontFamily: 'monospace',
+                        ),
+                        onChanged: (_) => setModalState(() {}),
+                        decoration: InputDecoration(
+                          hintText: loc.lyricsPasteHint,
+                          hintStyle: TextStyle(
+                            color: isLight ? Colors.black26 : Colors.white24,
                             fontSize: 12,
                           ),
+                          filled: true,
+                          fillColor: isLight
+                              ? Colors.black.withValues(alpha: 0.03)
+                              : Colors.white.withValues(alpha: 0.04),
+                          contentPadding: const EdgeInsets.all(14),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: isLight ? Colors.black12 : Colors.white10,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: isLight ? Colors.black12 : Colors.white10,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: _activeAccentColor,
+                              width: 1.5,
+                            ),
+                          ),
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: textController,
-                  maxLines: 8,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: 'Type or paste lyrics here...',
-                    hintStyle: const TextStyle(color: Colors.white24),
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.05),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: (isSynced ? Colors.green : Colors.blueGrey)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isSynced ? Icons.sync_rounded : Icons.notes_rounded,
+                                  size: 13,
+                                  color: isSynced ? Colors.green : Colors.blueGrey,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isSynced ? 'LRC Synced' : 'Plain Text',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSynced ? Colors.green : Colors.blueGrey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${textController.text.split('\n').where((l) => l.trim().isNotEmpty).length} lines',
+                            style: TextStyle(
+                              color: isLight ? Colors.black38 : Colors.white30,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final cleanTitle = currentTrack.title;
-                    final cleanArtist =
-                        (currentTrack.artist.trim().isEmpty ||
-                            currentTrack.artist == '<unknown>' ||
-                            currentTrack.artist ==
-                                AppLocalizations.of(context).unknownArtist)
-                        ? ''
-                        : currentTrack.artist.trim();
-                    final queryText = cleanArtist.isNotEmpty
-                        ? '$cleanArtist $cleanTitle lrc'
-                        : '$cleanTitle lrc';
-                    final query = Uri.encodeComponent(queryText);
-                    final url = Uri.parse(
-                      'https://www.google.com/search?q=$query',
-                    );
-                    if (await canLaunchUrl(url)) {
-                      await launchUrl(
-                        url,
-                        mode: LaunchMode.externalApplication,
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.search, size: 18),
-                  label: const Text('Search on Google'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white10,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                AppLocalizations.of(context).cancel,
-                style: TextStyle(color: Colors.white38),
               ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final navigator = Navigator.of(context);
-                final prefs = await SharedPreferences.getInstance();
-                final manualKey = 'lyrics_manual_${currentTrack.id}';
-                final text = textController.text.trim();
-                if (text.isEmpty) {
-                  await prefs.remove(manualKey);
-                } else {
-                  await prefs.setString(manualKey, text);
-                }
-                final offsetVal = double.tryParse(
-                      offsetController.text.replaceAll(',', '.'),
-                    ) ??
-                    0.0;
-                final offsetKey = 'lyrics_offset_${currentTrack.id}';
-                if (offsetVal == 0.0) {
-                  await prefs.remove(offsetKey);
-                } else {
-                  await prefs.setDouble(offsetKey, offsetVal);
-                }
-                navigator.pop();
-                _loadLyricsForTrack(currentTrack);
-                showFlowToast(
-                  lookupAppLocalizations(
-                    Locale(FlowStrings.currentLang),
-                  ).toastLyricsUpdated,
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _activeAccentColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(AppLocalizations.of(context).save),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -1198,7 +1404,7 @@ extension _PlayerUI on _MainScreenState {
                             _toggleFavorite(currentTrack.id);
                             if (wasFavorited) {
                               final loc = lookupAppLocalizations(
-                                Locale(FlowStrings.currentLang),
+                                Locale(FleyStrings.currentLang),
                               );
                               if (_playingFromName == loc.favourites) {
                                 _removeFromQueueAndPlayer(currentTrack.id);

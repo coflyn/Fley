@@ -9,85 +9,125 @@ extension _TrackOptionsUI on _MainScreenState {
     String? playlistContext,
   }) {
     final isLight = isAppLight;
+    final sheetBg = isLight
+        ? const Color(0xFFF0F0F3)
+        : const Color(0xFF161616);
+    final scrollController = ScrollController();
+    final canScrollMore = ValueNotifier<bool>(true);
+
+    void checkScroll() {
+      if (!scrollController.hasClients) return;
+      final max = scrollController.position.maxScrollExtent;
+      final current = scrollController.offset;
+      final hasMore = max > 10 && current < max - 20;
+      if (canScrollMore.value != hasMore) {
+        canScrollMore.value = hasMore;
+      }
+    }
+
+    scrollController.addListener(checkScroll);
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: isLight
-          ? const Color(0xFFF0F0F3)
-          : const Color(0xFF161616),
+      backgroundColor: sheetBg,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => checkScroll());
         return StatefulBuilder(
           builder: (context, setModalState) {
             final isFavorited = _favoriteTrackIds.contains(track.id);
+            final screenHeight = MediaQuery.sizeOf(context).height;
             return SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        _buildTrackArtwork(track, size: 48, radius: 8),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                track.title,
-                                style: TextStyle(
-                                  color: isLight
-                                      ? const Color(0xFF1A1A1A)
-                                      : Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: getFontFamily(_activeFont),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                '${track.artist} • ${track.album}',
-                                style: TextStyle(
-                                  color: isLight
-                                      ? Colors.black54
-                                      : Colors.white54,
-                                  fontSize: 14,
-                                  fontFamily: getFontFamily(_activeFont),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: screenHeight * 0.72,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isLight ? Colors.black12 : Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  Divider(
-                    color: isLight
-                        ? Colors.black.withValues(alpha: 0.08)
-                        : Colors.white10,
-                    height: 1,
-                  ),
-                  if (!isFromPlayer) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16.0, 10.0, 16.0, 14.0),
+                      child: Row(
+                        children: [
+                          _buildTrackArtwork(track, size: 48, radius: 8),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  track.title,
+                                  style: TextStyle(
+                                    color: isLight
+                                        ? const Color(0xFF1A1A1A)
+                                        : Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: getFontFamily(_activeFont),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${track.artist} • ${track.album}',
+                                  style: TextStyle(
+                                    color: isLight
+                                        ? Colors.black54
+                                        : Colors.white54,
+                                    fontSize: 14,
+                                    fontFamily: getFontFamily(_activeFont),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(
+                      color: isLight
+                          ? Colors.black.withValues(alpha: 0.08)
+                          : Colors.white10,
+                      height: 1,
+                    ),
+                    Flexible(
+                      child: Stack(
+                        children: [
+                          SingleChildScrollView(
+                            controller: scrollController,
+                            physics: const BouncingScrollPhysics(),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (!isFromPlayer) ...[
                     _buildOptionItem(
                       Icons.playlist_play,
                       AppLocalizations.of(context).playNext,
                       () {
                         Navigator.pop(context);
                         if (_playingTrack?.id == track.id) {
-                          showFlowToast(
+                          showFleyToast(
                             AppLocalizations.of(context).cannotPlayNextActive,
                           );
                           return;
                         }
                         if (_playbackQueue.isNotEmpty) {
                           _moveTrackInQueue(track, _currentIndex + 1);
-                          showFlowToast(
+                          showFleyToast(
                             AppLocalizations.of(context).addedPlayNext,
                           );
                         }
@@ -99,14 +139,14 @@ extension _TrackOptionsUI on _MainScreenState {
                       () {
                         Navigator.pop(context);
                         if (_playingTrack?.id == track.id) {
-                          showFlowToast(
+                          showFleyToast(
                             AppLocalizations.of(context).cannotPlayNextActive,
                           );
                           return;
                         }
                         if (_playbackQueue.isNotEmpty) {
                           _moveTrackInQueue(track, _playbackQueue.length);
-                          showFlowToast(
+                          showFleyToast(
                             AppLocalizations.of(context).addedSongsToQueue,
                           );
                         }
@@ -152,7 +192,7 @@ extension _TrackOptionsUI on _MainScreenState {
                       _toggleFavorite(track.id);
                       if (isFavorited) {
                         final loc = lookupAppLocalizations(
-                          Locale(FlowStrings.currentLang),
+                          Locale(FleyStrings.currentLang),
                         );
                         if (_MainScreenState
                                 .mainScreenState!
@@ -186,7 +226,7 @@ extension _TrackOptionsUI on _MainScreenState {
                         _MainScreenState.mainScreenState!
                             ._removeFromQueueAndPlayer(track.id);
                         if (!context.mounted) return;
-                        showFlowToast(
+                        showFleyToast(
                           AppLocalizations.of(context).trackDeleted,
                         );
                       },
@@ -282,9 +322,9 @@ extension _TrackOptionsUI on _MainScreenState {
                         'cached_tracks_list',
                         jsonEncode(serialized),
                       );
-                      showFlowToast(
+                      showFleyToast(
                         lookupAppLocalizations(
-                          Locale(FlowStrings.currentLang),
+                          Locale(FleyStrings.currentLang),
                         ).trackHidden,
                       );
                     },
@@ -321,9 +361,9 @@ extension _TrackOptionsUI on _MainScreenState {
                             'cached_tracks_list',
                             jsonEncode(serialized),
                           );
-                          showFlowToast(
+                          showFleyToast(
                             lookupAppLocalizations(
-                              Locale(FlowStrings.currentLang),
+                              Locale(FleyStrings.currentLang),
                             ).trackDeleted,
                           );
                         } else {
@@ -337,15 +377,112 @@ extension _TrackOptionsUI on _MainScreenState {
                     },
                     iconColor: Colors.redAccent,
                   ),
-                  const SizedBox(height: 16),
-                ],
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: canScrollMore,
+                        builder: (context, hasMore, _) {
+                          return IgnorePointer(
+                            child: AnimatedOpacity(
+                              opacity: hasMore ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Container(
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      sheetBg.withValues(alpha: 0.0),
+                                      sheetBg.withValues(alpha: 0.95),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 6,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: canScrollMore,
+                          builder: (context, hasMore, _) {
+                            return IgnorePointer(
+                              ignoring: !hasMore,
+                              child: AnimatedOpacity(
+                                opacity: hasMore ? 1.0 : 0.0,
+                                duration: const Duration(milliseconds: 200),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    if (scrollController.hasClients) {
+                                      scrollController.animateTo(
+                                        (scrollController.offset + 160).clamp(
+                                          0.0,
+                                          scrollController.position.maxScrollExtent,
+                                        ),
+                                        duration: const Duration(milliseconds: 300),
+                                        curve: Curves.easeOutCubic,
+                                      );
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isLight
+                                          ? Colors.black.withValues(alpha: 0.08)
+                                          : Colors.white.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isLight
+                                            ? Colors.black12
+                                            : Colors.white12,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      size: 16,
+                                      color: isLight
+                                          ? Colors.black54
+                                          : Colors.white70,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            );
-          },
-        );
-      },
-    );
-  }
+            ],
+          ),
+        ),
+      );
+    },
+  );
+},
+).whenComplete(() {
+  scrollController.removeListener(checkScroll);
+  scrollController.dispose();
+  canScrollMore.dispose();
+});
+}
 
   void _showScopedStorageFallbackDialog(BuildContext ctx, Track track) {
     final isLight = isAppLight;
@@ -407,9 +544,9 @@ extension _TrackOptionsUI on _MainScreenState {
                   'cached_tracks_list',
                   jsonEncode(serialized),
                 );
-                showFlowToast(
+                showFleyToast(
                   lookupAppLocalizations(
-                    Locale(FlowStrings.currentLang),
+                    Locale(FleyStrings.currentLang),
                   ).trackDeleted,
                 );
               },
