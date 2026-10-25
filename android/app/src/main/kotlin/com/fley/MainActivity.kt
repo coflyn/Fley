@@ -1,19 +1,27 @@
 package com.fley
 
+import android.content.ContentValues
 import android.content.Intent
+import android.media.RingtoneManager
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.Equalizer
+import android.net.Uri
 import android.os.BatteryManager
+import android.os.Build
+import android.provider.MediaStore
 import android.provider.Settings
 import androidx.annotation.NonNull
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 
 class MainActivity : AudioServiceActivity() {
     private val CHANNEL = "com.fley.audio/equalizer"
     private var equalizer: Equalizer? = null
     private var activeSessionId: Int = 0
+    private var pendingLyricsResult: MethodChannel.Result? = null
+    private val REQUEST_CODE_PICK_LYRICS = 1001
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -181,10 +189,102 @@ class MainActivity : AudioServiceActivity() {
                         result.error("EQ_TOGGLE_ERROR", e.message, null)
                     }
                 }
+                "pickLyricsFile" -> {
+                    try {
+                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/*", "application/octet-stream", "*/*"))
+                        }
+                        pendingLyricsResult = result
+                        startActivityForResult(intent, REQUEST_CODE_PICK_LYRICS)
+                    } catch (e: Exception) {
+                        result.error("PICK_ERROR", e.message, null)
+                    }
+                }
+                "trimAudio" -> {
+                    val srcPath = call.argument<String>("srcPath") ?: ""
+                    val destPath = call.argument<String>("destPath") ?: ""
+                    val startMs = (call.argument<Number>("startMs")?.toLong() ?: 0L)
+                    val endMs = (call.argument<Number>("endMs")?.toLong() ?: 0L)
+                    Thread {
+                        val success = AudioTrimmer.trimAudio(srcPath, destPath, startMs, endMs)
+                        runOnUiThread {
+                            result.success(success)
+                        }
+                    }.start()
+                }
+                "setAsRingtone" -> {
+                    val filePath = call.argument<String>("filePath") ?: ""
+                    val title = call.argument<String>("title") ?: "Ringtone"
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(this)) {
+                            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                                data = Uri.parse("package:$packageName")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(intent)
+                            result.success("PERMISSION_REQUIRED")
+                            return@setMethodCallHandler
+                        }
+
+                        val file = File(filePath)
+                        if (!file.exists()) {
+                            result.error("FILE_NOT_FOUND", "File not found", null)
+                            return@setMethodCallHandler
+                        }
+
+                        val mimeType = if (filePath.endsWith(".m4a", true) || filePath.endsWith(".aac", true)) "audio/mp4" else "audio/mpeg"
+                        val values = ContentValues().apply {
+                            put(MediaStore.MediaColumns.DATA, file.absolutePath)
+                            put(MediaStore.MediaColumns.TITLE, title)
+                            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                            put(MediaStore.Audio.Media.IS_RINGTONE, true)
+                            put(MediaStore.Audio.Media.IS_NOTIFICATION, true)
+                            put(MediaStore.Audio.Media.IS_ALARM, true)
+                            put(MediaStore.Audio.Media.IS_MUSIC, false)
+                        }
+
+                        val uri = MediaStore.Audio.Media.getContentUriForPath(file.absolutePath)
+                        if (uri != null) {
+                            try {
+                                contentResolver.delete(uri, "${MediaStore.MediaColumns.DATA}=?", arrayOf(file.absolutePath))
+                            } catch (_: Exception) {}
+                            val newUri = contentResolver.insert(uri, values) ?: Uri.fromFile(file)
+                            RingtoneManager.setActualDefaultRingtoneUri(
+                                this,
+                                RingtoneManager.TYPE_RINGTONE,
+                                newUri
+                            )
+                            result.success("SUCCESS")
+                        } else {
+                            result.error("URI_ERROR", "Cannot obtain URI", null)
+                        }
+                    } catch (e: Exception) {
+                        result.error("RINGTONE_ERROR", e.message, null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
             }
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_PICK_LYRICS) {
+            if (resultCode == RESULT_OK && data?.data != null) {
+                try {
+                    val text = contentResolver.openInputStream(data.data!!)?.bufferedReader()?.use { it.readText() }
+                    pendingLyricsResult?.success(text ?: "")
+                } catch (e: Exception) {
+                    pendingLyricsResult?.error("READ_ERROR", e.message, null)
+                }
+            } else {
+                pendingLyricsResult?.success(null)
+            }
+            pendingLyricsResult = null
         }
     }
 }

@@ -191,7 +191,79 @@ extension _RingtoneCutterUI on _MainScreenState {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  if (startSec > 0) {
+                                    setModalState(() => startSec = (startSec - 1.0).clamp(0.0, endSec - 1.0));
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text('-1s', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isLight ? Colors.black87 : Colors.white70)),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () {
+                                  if (startSec < endSec - 1.0) {
+                                    setModalState(() => startSec = (startSec + 1.0).clamp(0.0, endSec - 1.0));
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text('+1s', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isLight ? Colors.black87 : Colors.white70)),
+                                ),
+                              ),
+                              const Spacer(),
+                              InkWell(
+                                onTap: () {
+                                  if (endSec > startSec + 1.0) {
+                                    setModalState(() => endSec = (endSec - 1.0).clamp(startSec + 1.0, totalDurationSec));
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text('-1s', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isLight ? Colors.black87 : Colors.white70)),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () {
+                                  if (endSec < totalDurationSec) {
+                                    setModalState(() => endSec = (endSec + 1.0).clamp(startSec + 1.0, totalDurationSec));
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text('+1s', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isLight ? Colors.black87 : Colors.white70)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
                           RangeSlider(
                             values: RangeValues(startSec, endSec),
                             min: 0.0,
@@ -209,7 +281,101 @@ extension _RingtoneCutterUI on _MainScreenState {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          side: BorderSide(
+                            color: isLight ? Colors.black26 : Colors.white24,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: Icon(
+                          isPreviewPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: isLight ? Colors.black : Colors.white,
+                        ),
+                        label: Text(
+                          isPreviewPlaying ? 'Pause Preview' : loc.playPreview,
+                          style: TextStyle(
+                            color: isLight ? Colors.black : Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onPressed: () async {
+                          if (isPreviewPlaying) {
+                            previewSession++;
+                            await previewSub?.cancel();
+                            previewSub = null;
+                            await previewPlayer?.stop();
+                            await previewPlayer?.dispose();
+                            previewPlayer = null;
+                            setModalState(() => isPreviewPlaying = false);
+                          } else {
+                            previewPlayer = AudioPlayer();
+                            try {
+                              final audioPath =
+                                  track.path.isNotEmpty
+                                      ? track.path
+                                      : track.url;
+                              if (audioPath.isNotEmpty) {
+                                if (audioPath.startsWith('http') ||
+                                    audioPath.startsWith('content://')) {
+                                  await previewPlayer!.setUrl(audioPath);
+                                } else {
+                                  await previewPlayer!.setFilePath(
+                                    audioPath,
+                                  );
+                                }
+                                await previewPlayer!.seek(
+                                  Duration(seconds: startSec.toInt()),
+                                );
+                                previewSub = previewPlayer!.positionStream
+                                    .listen((pos) {
+                                      setModalState(() {
+                                        previewCurrentSec = pos.inSeconds;
+                                      });
+                                    });
+                                previewPlayer!.play();
+                                final session = ++previewSession;
+                                setModalState(
+                                  () => isPreviewPlaying = true,
+                                );
+
+                                final previewDuration =
+                                    (endSec - startSec).toInt().clamp(0, 3600);
+                                Future.delayed(
+                                  Duration(seconds: previewDuration),
+                                  () async {
+                                    if (session == previewSession &&
+                                        isPreviewPlaying) {
+                                      await previewSub?.cancel();
+                                      previewSub = null;
+                                      await previewPlayer?.stop();
+                                      await previewPlayer?.dispose();
+                                      previewPlayer = null;
+                                      setModalState(
+                                        () => isPreviewPlaying = false,
+                                      );
+                                    }
+                                  },
+                                );
+                              }
+                            } catch (_) {
+                              await previewSub?.cancel();
+                              previewSub = null;
+                              setModalState(() => isPreviewPlaying = false);
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -224,88 +390,37 @@ extension _RingtoneCutterUI on _MainScreenState {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            icon: Icon(
-                              isPreviewPlaying
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              color: isLight ? Colors.black : Colors.white,
+                            icon: const Icon(
+                              Icons.save_alt_rounded,
+                              size: 19,
                             ),
                             label: Text(
-                              loc.playPreview,
+                              loc.saveAudioOnly,
                               style: TextStyle(
-                                color: isLight ? Colors.black : Colors.white,
+                                color: isLight ? Colors.black87 : Colors.white,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             onPressed: () async {
-                              if (isPreviewPlaying) {
-                                previewSession++;
-                                await previewSub?.cancel();
-                                previewSub = null;
-                                await previewPlayer?.stop();
-                                await previewPlayer?.dispose();
-                                previewPlayer = null;
-                                setModalState(() => isPreviewPlaying = false);
-                              } else {
-                                previewPlayer = AudioPlayer();
-                                try {
-                                  final audioPath =
-                                      track.path.isNotEmpty
-                                          ? track.path
-                                          : track.url;
-                                  if (audioPath.isNotEmpty) {
-                                    if (audioPath.startsWith('http') ||
-                                        audioPath.startsWith('content://')) {
-                                      await previewPlayer!.setUrl(audioPath);
-                                    } else {
-                                      await previewPlayer!.setFilePath(
-                                        audioPath,
-                                      );
-                                    }
-                                    await previewPlayer!.seek(
-                                      Duration(seconds: startSec.toInt()),
-                                    );
-                                    previewSub = previewPlayer!.positionStream
-                                        .listen((pos) {
-                                          setModalState(() {
-                                            previewCurrentSec = pos.inSeconds;
-                                          });
-                                        });
-                                    previewPlayer!.play();
-                                    final session = ++previewSession;
-                                    setModalState(
-                                      () => isPreviewPlaying = true,
-                                    );
-
-                                    final previewDuration =
-                                        (endSec - startSec).toInt().clamp(0, 3600);
-                                    Future.delayed(
-                                      Duration(seconds: previewDuration),
-                                      () async {
-                                        if (session == previewSession &&
-                                            isPreviewPlaying) {
-                                          await previewSub?.cancel();
-                                          previewSub = null;
-                                          await previewPlayer?.stop();
-                                          await previewPlayer?.dispose();
-                                          previewPlayer = null;
-                                          setModalState(
-                                            () => isPreviewPlaying = false,
-                                          );
-                                        }
-                                      },
-                                    );
-                                  }
-                                } catch (_) {
+                              await _handleTrimAudio(
+                                modalContext,
+                                track,
+                                startSec,
+                                endSec,
+                                shouldSetRingtone: false,
+                                onPreviewCleanup: () async {
+                                  previewSession++;
                                   await previewSub?.cancel();
                                   previewSub = null;
-                                  setModalState(() => isPreviewPlaying = false);
-                                }
-                              }
+                                  await previewPlayer?.stop();
+                                  await previewPlayer?.dispose();
+                                  previewPlayer = null;
+                                },
+                              );
                             },
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
@@ -318,7 +433,7 @@ extension _RingtoneCutterUI on _MainScreenState {
                             ),
                             icon: const Icon(
                               Icons.ring_volume_rounded,
-                              size: 20,
+                              size: 19,
                             ),
                             label: Text(
                               loc.setAsRingtone,
@@ -327,67 +442,21 @@ extension _RingtoneCutterUI on _MainScreenState {
                               ),
                             ),
                             onPressed: () async {
-                              if (isPreviewPlaying) {
-                                previewSession++;
-                                await previewSub?.cancel();
-                                previewSub = null;
-                                await previewPlayer?.stop();
-                                await previewPlayer?.dispose();
-                                previewPlayer = null;
-                              }
-                              if (modalContext.mounted) {
-                                Navigator.pop(modalContext);
-                              }
-                              final srcPath =
-                                  track.path.isNotEmpty
-                                      ? track.path
-                                      : track.url;
-                              final cleanName = track.title
-                                  .replaceAll(RegExp(r'[^\w\s\-]'), '')
-                                  .trim()
-                                  .replaceAll(' ', '_');
-                              final targetName =
-                                  cleanName.isEmpty
-                                      ? 'Ringtone_${track.id}'
-                                      : cleanName;
-
-                              try {
-                                final ringtonesDir = Directory(
-                                  '/storage/emulated/0/Ringtones',
-                                );
-                                final downloadDir = Directory(
-                                  '/storage/emulated/0/Download',
-                                );
-                                Directory targetDir;
-                                if (await ringtonesDir.exists()) {
-                                  targetDir = ringtonesDir;
-                                } else if (await downloadDir.exists()) {
-                                  targetDir = downloadDir;
-                                } else {
-                                  targetDir = Directory.systemTemp;
-                                }
-                                final destFile = File(
-                                  '${targetDir.path}/Fley_$targetName.mp3',
-                                );
-                                final srcFile = File(srcPath);
-                                if (await srcFile.exists()) {
-                                  await srcFile.copy(destFile.path);
-                                  showFlowToast(
-                                    loc.toastRingtoneSavedTo.replaceAll(
-                                      '[placeholder]',
-                                      targetName,
-                                    ),
-                                  );
-                                } else {
-                                  showFlowToast(
-                                    '${loc.ringtoneSaved} (${(endSec - startSec).toInt()}s)',
-                                  );
-                                }
-                              } catch (_) {
-                                showFlowToast(
-                                  '${loc.ringtoneSaved} (${(endSec - startSec).toInt()}s)',
-                                );
-                              }
+                              await _handleTrimAudio(
+                                modalContext,
+                                track,
+                                startSec,
+                                endSec,
+                                shouldSetRingtone: true,
+                                onPreviewCleanup: () async {
+                                  previewSession++;
+                                  await previewSub?.cancel();
+                                  previewSub = null;
+                                  await previewPlayer?.stop();
+                                  await previewPlayer?.dispose();
+                                  previewPlayer = null;
+                                },
+                              );
                             },
                           ),
                         ),
@@ -407,5 +476,92 @@ extension _RingtoneCutterUI on _MainScreenState {
       await previewPlayer?.dispose();
       previewPlayer = null;
     });
+  }
+
+  Future<void> _handleTrimAudio(
+    BuildContext modalContext,
+    Track track,
+    double startSec,
+    double endSec, {
+    required bool shouldSetRingtone,
+    required Future<void> Function() onPreviewCleanup,
+  }) async {
+    final loc = AppLocalizations.of(context);
+    await onPreviewCleanup();
+    if (modalContext.mounted) {
+      Navigator.pop(modalContext);
+    }
+    final srcPath = track.path.isNotEmpty ? track.path : track.url;
+    final cleanName = track.title
+        .replaceAll(RegExp(r'[^\w\s\-]'), '')
+        .trim()
+        .replaceAll(' ', '_');
+    final targetName = cleanName.isEmpty ? 'Ringtone_${track.id}' : cleanName;
+
+    showFleyToast(loc.trimmingAudio);
+
+    try {
+      final ringtonesDir = Directory('/storage/emulated/0/Ringtones');
+      final downloadDir = Directory('/storage/emulated/0/Download');
+      Directory targetDir;
+      if (await ringtonesDir.exists()) {
+        targetDir = ringtonesDir;
+      } else if (await downloadDir.exists()) {
+        targetDir = downloadDir;
+      } else {
+        targetDir = Directory.systemTemp;
+      }
+
+      final ext = srcPath.toLowerCase().endsWith('.m4a')
+          ? '.m4a'
+          : (srcPath.toLowerCase().endsWith('.wav') ? '.wav' : '.mp3');
+      final destFile = File('${targetDir.path}/Fley_$targetName$ext');
+
+      final startMs = (startSec * 1000).toInt();
+      final endMs = (endSec * 1000).toInt();
+
+      final bool? trimmed = await const MethodChannel(
+        'com.fley.audio/equalizer',
+      ).invokeMethod<bool>('trimAudio', {
+        'srcPath': srcPath,
+        'destPath': destFile.path,
+        'startMs': startMs,
+        'endMs': endMs,
+      });
+
+      if (trimmed != true && !await destFile.exists()) {
+        final srcFile = File(srcPath);
+        if (await srcFile.exists()) {
+          await srcFile.copy(destFile.path);
+        }
+      }
+
+      if (shouldSetRingtone) {
+        final String? res = await const MethodChannel(
+          'com.fley.audio/equalizer',
+        ).invokeMethod<String>('setAsRingtone', {
+          'filePath': destFile.path,
+          'title': 'Fley_$targetName',
+        });
+
+        if (res == 'SUCCESS') {
+          showFleyToast(loc.ringtoneSetSuccess);
+        } else if (res == 'PERMISSION_REQUIRED') {
+          showFleyToast(loc.writeSettingsRequired);
+        } else {
+          showFleyToast(
+            loc.toastRingtoneSavedTo.replaceAll('[placeholder]', targetName),
+          );
+        }
+      } else {
+        showFleyToast(
+          loc.toastRingtoneSavedTo.replaceAll('[placeholder]', targetName),
+        );
+      }
+    } catch (_) {
+      showFleyToast(
+        '${loc.ringtoneSaved} (${(endSec - startSec).toInt()}s)',
+      );
+    }
   }
 }
