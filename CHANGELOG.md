@@ -10,13 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Modern Artists & Albums View**: Interactive Grid and List layout switcher with persistent view mode preferences.
 - **Top Highlights Carousel**: Horizontal scroll highlights for top artists and albums based on track count.
+- **Native Audio Trimmer & Ringtone Cutter**: Frame-accurate Kotlin audio cutter engine (`AudioTrimmer.kt`) supporting MP3, AAC/M4A, and WAV formats with options to save cut files or set as device ringtone.
+- **Track Options Scroll Hint**: Added bottom gradient fade and floating down-indicator hint to track context menu so users know more options exist below without needing a persistent scrollbar.
 
 ### Changed
-- **Project Rebranding to Fley**: Renamed project, visual identity, and Android package ID (`com.fley`) to Fley.
+- **Project Rebranding to Fley**: Renamed project, visual identity, and Android package ID (`com.fley`) to Fley; removed all residual legacy Flow aliases and references.
+- **Track Context Menu Height**: Expanded context menu viewport to 72% screen height with a grab handle for faster option access.
+- **Lyrics Editor Timing Controls**: Reorganized offset controls into a clean two-row layout with dedicated ±0.1s and ±0.5s buttons.
 - **Rock-Solid Offline Audio Core**: Streamlined audio playback engine for pure offline playback, eliminating network timeouts and sudden playback pauses.
 - **Audio Crossfade & Volume Reliability**: Ensured target volume is consistently restored during track transitions and playback restarts.
 
 ### Fixed
+- **Lyrics Offset Clipping**: Resolved horizontal overflow and clipping of offset buttons on mobile viewports.
 - **UI Scroll Performance & Lag**: Replaced non-virtualized `shrinkWrap` grids with `CustomScrollView` and lazy `SliverGrid` / `SliverList` delegates.
 - **Binder IPC Congestion**: Removed duplicate native MediaStore artwork queries on list items, using instant memory cache and placeholders.
 - **Compositing Layer Overhead**: Bypassed unnecessary opacity layer compositing in entrance animation wrappers when animations are disabled.
