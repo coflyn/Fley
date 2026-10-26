@@ -306,7 +306,7 @@ extension _DetailViewsUI on _MainScreenState {
             SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
                   children: [
                     const SizedBox(height: 8),
@@ -324,42 +324,25 @@ extension _DetailViewsUI on _MainScreenState {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Transform.translate(
-                          offset: const Offset(-20, 0),
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.keyboard_arrow_down,
-                              color: isLight
-                                  ? const Color(
-                                      0xFF1A1A1A,
-                                    ).withValues(alpha: 0.5)
-                                  : Colors.white.withValues(alpha: 0.5),
-                              size: 28,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _selectedPlaylistDetail = null;
-                                _selectedArtistDetail = null;
-                                _selectedAlbumDetail = null;
-                              });
-                            },
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          alignment: Alignment.centerLeft,
+                          icon: Icon(
+                            Icons.keyboard_arrow_down,
+                            color: isLight
+                                ? const Color(
+                                    0xFF1A1A1A,
+                                  ).withValues(alpha: 0.5)
+                                : Colors.white.withValues(alpha: 0.5),
+                            size: 28,
                           ),
-                        ),
-                        Transform.translate(
-                          offset: const Offset(20, 0),
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.more_vert,
-                              color: isLight
-                                  ? const Color(
-                                      0xFF1A1A1A,
-                                    ).withValues(alpha: 0.5)
-                                  : Colors.white.withValues(alpha: 0.5),
-                              size: 28,
-                            ),
-                            onPressed: () =>
-                                _showDetailOptions(title, type, tracks),
-                          ),
+                          onPressed: () {
+                            setState(() {
+                              _selectedPlaylistDetail = null;
+                              _selectedArtistDetail = null;
+                              _selectedAlbumDetail = null;
+                            });
+                          },
                         ),
                       ],
                     ),
@@ -388,7 +371,7 @@ extension _DetailViewsUI on _MainScreenState {
             ),
             const SizedBox(height: 24),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -401,7 +384,7 @@ extension _DetailViewsUI on _MainScreenState {
                       height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Icon(
@@ -419,91 +402,305 @@ extension _DetailViewsUI on _MainScreenState {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          if (type == 'Playlist' &&
-                              _userPlaylists.containsKey(title))
-                            IconButton(
-                              icon: Icon(
-                                Icons.edit_note_rounded,
-                                color: isLight
-                                    ? Colors.black54
-                                    : Colors.white70,
-                                size: 28,
-                              ),
-                              onPressed: () {
+                          GestureDetector(
+                            onTap: () {
+                              if (type == AppLocalizations.of(context).album) {
+                                _showCoverSourceSelector(context).then(
+                                  (imagePath) async {
+                                    if (imagePath != null) {
+                                      setState(() {
+                                        for (final track in tracks) {
+                                          if (imagePath == 'reset') {
+                                            _metadataOverrides[track.id]
+                                                ?.remove('coverPath');
+                                          } else {
+                                            _metadataOverrides[track.id] ??= {
+                                              'title': track.title,
+                                              'artist': track.artist,
+                                              'album': track.album,
+                                            };
+                                            _metadataOverrides[track.id]![
+                                                    'coverPath'] =
+                                                imagePath;
+                                          }
+                                        }
+                                        _cachedDetailKey = null;
+                                      });
+                                      await _saveMetadataOverrides();
+                                      showFleyToast(
+                                        imagePath == 'reset'
+                                            ? 'Cover reset'
+                                            : 'Cover updated',
+                                      );
+                                    }
+                                  },
+                                );
+                              } else if (type == 'Playlist' &&
+                                  _userPlaylists.containsKey(title)) {
                                 _showEditPlaylistSongsModal(context, title);
-                              },
-                              tooltip: 'Edit Playlist',
-                            ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.sort_rounded,
-                              color: isLight ? Colors.black54 : Colors.white70,
-                              size: 26,
-                            ),
-                            onPressed: () {
-                              _showDetailSortModal(context);
+                              } else {
+                                _showDetailOptions(title, type, tracks);
+                              }
                             },
-                            tooltip: 'Sort Songs',
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isLight
+                                      ? Colors.black26
+                                      : Colors.white24,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4.5),
+                                child: tracks.isNotEmpty
+                                    ? _buildTrackArtwork(
+                                        tracks.first,
+                                        size: 32,
+                                        radius: 0,
+                                      )
+                                    : Icon(
+                                        Icons.music_note,
+                                        size: 18,
+                                        color: isLight
+                                            ? Colors.black45
+                                            : Colors.white54,
+                                      ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 18),
+                          Builder(
+                            builder: (context) {
+                              final isAllFavorited = tracks.isNotEmpty &&
+                                  tracks.every(
+                                    (t) => _favoriteTrackIds.contains(t.id),
+                                  );
+                              final iconColor =
+                                  _activeAccentColor.computeLuminance() > 0.35
+                                      ? Colors.black
+                                      : Colors.white;
+
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    if (isAllFavorited) {
+                                      for (final t in tracks) {
+                                        _favoriteTrackIds.remove(t.id);
+                                      }
+                                    } else {
+                                      for (final t in tracks) {
+                                        _favoriteTrackIds.add(t.id);
+                                      }
+                                    }
+                                  });
+                                  SharedPreferences.getInstance().then((prefs) {
+                                    prefs.setStringList(
+                                      'favorite_track_ids',
+                                      _favoriteTrackIds.toList(),
+                                    );
+                                  });
+                                  showFleyToast(
+                                    isAllFavorited
+                                        ? 'Removed from Favourites'
+                                        : 'Added to Favourites',
+                                  );
+                                },
+                                child: isAllFavorited
+                                    ? Container(
+                                        width: 26,
+                                        height: 26,
+                                        decoration: BoxDecoration(
+                                          color: _activeAccentColor,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.check,
+                                          size: 16,
+                                          color: iconColor,
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.add_circle_outline_rounded,
+                                        size: 26,
+                                        color: isLight
+                                            ? Colors.black45
+                                            : Colors.white60,
+                                      ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 18),
+                          GestureDetector(
+                            onTap: () {
+                              if (tracks.isNotEmpty) {
+                                for (final track in tracks) {
+                                  _moveTrackInQueue(
+                                    track,
+                                    _playbackQueue.length,
+                                  );
+                                }
+                                showFleyToast(
+                                  "Added ${tracks.length} tracks to queue",
+                                );
+                              }
+                            },
+                            child: Icon(
+                              Icons.arrow_circle_down_outlined,
+                              size: 26,
+                              color: isLight
+                                  ? Colors.black45
+                                  : Colors.white60,
+                            ),
+                          ),
+                          const SizedBox(width: 18),
+                          GestureDetector(
+                            onTap: () =>
+                                _showDetailOptions(title, type, tracks),
+                            child: Icon(
+                              Icons.more_vert,
+                              size: 24,
+                              color: isLight
+                                  ? Colors.black45
+                                  : Colors.white60,
+                            ),
                           ),
                         ],
                       ),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          IconButton(
-                            icon: Icon(
-                              Icons.shuffle,
-                              color: _isShuffle
-                                  ? _activeAccentColor
-                                  : (isLight ? Colors.black45 : Colors.white54),
-                              size: 30,
-                            ),
-                            onPressed: () {
+                          GestureDetector(
+                            onTap: () {
                               if (tracks.isNotEmpty) {
                                 _updatePlayingFrom();
-                                final shuffledTracks = List<Track>.from(tracks)
-                                  ..shuffle();
+                                final shuffledTracks =
+                                    List<Track>.from(tracks)..shuffle();
+                                setState(() {
+                                  _isShuffle = true;
+                                  _playbackQueue = List.from(tracks);
+                                  _shuffledIndices = List.generate(
+                                    _playbackQueue.length,
+                                    (i) => i,
+                                  )..shuffle();
+                                });
                                 _playTrack(0, sourceList: shuffledTracks);
                               }
                             },
-                          ),
-                          const SizedBox(width: 16),
-                          SizedBox(
-                            width: 56,
-                            height: 56,
-                            child: FloatingActionButton(
-                              heroTag: null,
-                              backgroundColor: _activeAccentColor,
-                              shape: const CircleBorder(),
-                              elevation: 0,
-                              onPressed: () {
-                                if (tracks.isNotEmpty) {
-                                  _updatePlayingFrom();
-                                  setState(() {
-                                    _playbackQueue = List.from(tracks);
-                                    _shuffledIndices.clear();
-                                    if (_isShuffle) {
-                                      _shuffledIndices = List.generate(
-                                        _playbackQueue.length,
-                                        (i) => i,
-                                      );
-                                      _shuffledIndices.shuffle();
-                                    }
-                                  });
-                                  _playTrack(0);
-                                }
-                              },
-                              child: const Icon(
-                                Icons.play_arrow,
-                                color: Colors.white,
-                                size: 36,
+                            child: SizedBox(
+                              width: 36,
+                              height: 36,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.shuffle_rounded,
+                                    color: _isShuffle
+                                        ? _activeAccentColor
+                                        : (isLight
+                                            ? Colors.black45
+                                            : Colors.white60),
+                                    size: 24,
+                                  ),
+                                  if (_isShuffle)
+                                    Positioned(
+                                      bottom: 2,
+                                      child: Container(
+                                        width: 4,
+                                        height: 4,
+                                        decoration: BoxDecoration(
+                                          color: _activeAccentColor,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
+                          ),
+                          const SizedBox(width: 16),
+                          Builder(
+                            builder: (context) {
+                              final isCurrentDetailPlaying = _isPlaying &&
+                                  _playingFromName == title;
+                              final playIconColor =
+                                  _activeAccentColor.computeLuminance() > 0.35
+                                      ? Colors.black
+                                      : Colors.white;
+
+                              return Container(
+                                width: 52,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: _activeAccentColor,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _activeAccentColor.withValues(
+                                        alpha: 0.35,
+                                      ),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () {
+                                      if (tracks.isNotEmpty) {
+                                        if (isCurrentDetailPlaying) {
+                                          _pauseWithFade();
+                                        } else if (!_isPlaying &&
+                                            _playingFromName == title &&
+                                            _playingTrack != null) {
+                                          _playWithFade();
+                                        } else {
+                                          _updatePlayingFrom();
+                                          setState(() {
+                                            _playbackQueue =
+                                                List.from(tracks);
+                                            _shuffledIndices.clear();
+                                            if (_isShuffle) {
+                                              _shuffledIndices =
+                                                  List.generate(
+                                                _playbackQueue.length,
+                                                (i) => i,
+                                              );
+                                              _shuffledIndices.shuffle();
+                                            }
+                                          });
+                                          _playTrack(0);
+                                        }
+                                      }
+                                    },
+                                    child: Center(
+                                      child: Icon(
+                                        isCurrentDetailPlaying
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                        color: playIconColor,
+                                        size: 32,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
