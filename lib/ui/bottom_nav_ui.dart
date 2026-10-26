@@ -37,7 +37,7 @@ extension _BottomNavUI on _MainScreenState {
                   icon: _currentNavIndex == 0
                       ? Icons.home_filled
                       : Icons.home_outlined,
-                  label: 'Home',
+                  label: AppLocalizations.of(context).home,
                   isSelected: _currentNavIndex == 0,
                   activeColor: activeColor,
                   inactiveColor: inactiveColor,
@@ -47,9 +47,7 @@ extension _BottomNavUI on _MainScreenState {
                   icon: _currentNavIndex == 1
                       ? Icons.search
                       : Icons.search_rounded,
-                  label: Localizations.localeOf(context).languageCode == 'id'
-                      ? 'Cari'
-                      : 'Search',
+                  label: AppLocalizations.of(context).search,
                   isSelected: _currentNavIndex == 1,
                   activeColor: activeColor,
                   inactiveColor: inactiveColor,

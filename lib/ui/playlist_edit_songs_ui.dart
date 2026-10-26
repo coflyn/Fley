@@ -47,7 +47,7 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Select Songs',
+                            AppLocalizations.of(context).selectSongs,
                             style: TextStyle(
                               color: isLight
                                   ? const Color(0xFF1A1A1A)

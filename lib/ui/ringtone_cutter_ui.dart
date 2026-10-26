@@ -301,7 +301,7 @@ extension _RingtoneCutterUI on _MainScreenState {
                           color: isLight ? Colors.black : Colors.white,
                         ),
                         label: Text(
-                          isPreviewPlaying ? 'Pause Preview' : loc.playPreview,
+                          isPreviewPlaying ? loc.pausePreview : loc.playPreview,
                           style: TextStyle(
                             color: isLight ? Colors.black : Colors.white,
                             fontWeight: FontWeight.w600,

@@ -335,7 +335,11 @@ extension _EditMetadataUI on _MainScreenState {
                                   if (mounted) setState(() {});
                                 },
                               );
-                              showFleyToast("Metadata updated locally");
+                              showFleyToast(
+                                lookupAppLocalizations(
+                                  Locale(FleyStrings.currentLang),
+                                ).metadataUpdatedLocal,
+                              );
                             },
                             child: Text(
                               AppLocalizations.of(context).save,

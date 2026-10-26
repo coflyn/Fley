@@ -46,13 +46,14 @@ extension _MainUIComponents on _MainScreenState {
     final isLight = isAppLight;
     final headerTextColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
 
+    final loc = AppLocalizations.of(context);
     String headerTitle;
     if (_currentNavIndex == 0) {
       headerTitle = 'Fley';
     } else if (_currentNavIndex == 1) {
-      headerTitle = 'Search';
+      headerTitle = loc.search;
     } else {
-      headerTitle = 'Your Library';
+      headerTitle = loc.yourLibrary;
     }
 
     return Padding(

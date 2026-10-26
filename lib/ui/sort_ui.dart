@@ -67,7 +67,11 @@ extension _SortModalsUI on _MainScreenState {
                         addedCount++;
                       }
                       if (addedCount > 0) {
-                        showFleyToast("Added $addedCount tracks to play next");
+                        showFleyToast(
+                          lookupAppLocalizations(
+                            Locale(FleyStrings.currentLang),
+                          ).addedPlayNext,
+                        );
                       } else {
                         showFleyToast(
                           AppLocalizations.of(context).cannotPlayNextActive,
@@ -85,7 +89,11 @@ extension _SortModalsUI on _MainScreenState {
                       for (final track in tracks) {
                         _moveTrackInQueue(track, _playbackQueue.length);
                       }
-                      showFleyToast("Added ${tracks.length} tracks to queue");
+                      showFleyToast(
+                        lookupAppLocalizations(
+                          Locale(FleyStrings.currentLang),
+                        ).addedSongsToQueue,
+                      );
                     }
                   },
                 ),
@@ -100,97 +108,121 @@ extension _SortModalsUI on _MainScreenState {
                     );
                   },
                 ),
-                _buildOptionItem(Icons.sort_rounded, 'Sort Songs', () {
-                  Navigator.pop(context);
-                  _showDetailSortModal(context);
-                }),
-                if (type == AppLocalizations.of(context).album) ...[
-                  _buildOptionItem(Icons.image, 'Edit Album Cover', () async {
+                _buildOptionItem(
+                  Icons.sort_rounded,
+                  AppLocalizations.of(context).sortSongs,
+                  () {
                     Navigator.pop(context);
-                    final String? imagePath = await _showCoverSourceSelector(
-                      this.context,
-                    );
-                    if (imagePath != null) {
-                      setState(() {
-                        for (final track in tracks) {
-                          if (imagePath == 'reset') {
-                            if (_metadataOverrides.containsKey(track.id)) {
-                              _metadataOverrides[track.id]!.remove('coverPath');
-                            }
-                          } else {
-                            _metadataOverrides[track.id] ??= {
-                              'title': track.title,
-                              'artist': track.artist,
-                              'album': track.album,
-                            };
-                            _metadataOverrides[track.id]!['coverPath'] =
-                                imagePath;
-                          }
-                        }
-                        _cachedDetailKey =
-                            null; // Force rebuild to show new cover
-                      });
-                      await _saveMetadataOverrides();
-                      if (_playingTrack != null &&
-                          tracks.any((t) => t.id == _playingTrack!.id)) {
-                        _updateDominantColor(_playingTrack!);
-                      }
-                      showFleyToast(
-                        imagePath == 'reset'
-                            ? lookupAppLocalizations(
-                                Locale(FleyStrings.currentLang),
-                              ).coverResetSuccess
-                            : "Album cover updated locally",
+                    _showDetailSortModal(context);
+                  },
+                ),
+                if (type == AppLocalizations.of(context).album) ...[
+                  _buildOptionItem(
+                    Icons.image,
+                    AppLocalizations.of(context).editAlbumCover,
+                    () async {
+                      Navigator.pop(context);
+                      final String? imagePath = await _showCoverSourceSelector(
+                        this.context,
                       );
-                    }
-                  }),
+                      if (imagePath != null) {
+                        setState(() {
+                          for (final track in tracks) {
+                            if (imagePath == 'reset') {
+                              if (_metadataOverrides.containsKey(track.id)) {
+                                _metadataOverrides[track.id]!.remove('coverPath');
+                              }
+                            } else {
+                              _metadataOverrides[track.id] ??= {
+                                'title': track.title,
+                                'artist': track.artist,
+                                'album': track.album,
+                              };
+                              _metadataOverrides[track.id]!['coverPath'] =
+                                  imagePath;
+                            }
+                          }
+                          _cachedDetailKey =
+                              null; // Force rebuild to show new cover
+                        });
+                        await _saveMetadataOverrides();
+                        if (_playingTrack != null &&
+                            tracks.any((t) => t.id == _playingTrack!.id)) {
+                          _updateDominantColor(_playingTrack!);
+                        }
+                        showFleyToast(
+                          imagePath == 'reset'
+                              ? lookupAppLocalizations(
+                                  Locale(FleyStrings.currentLang),
+                                ).coverResetSuccess
+                              : lookupAppLocalizations(
+                                  Locale(FleyStrings.currentLang),
+                                ).albumCoverUpdatedLocal,
+                        );
+                      }
+                    },
+                  ),
                 ],
                 if (type == 'Playlist') ...[
-                  _buildOptionItem(Icons.image, 'Edit Cover', () async {
-                    Navigator.pop(context);
-                    final String? imagePath = await _showCoverSourceSelector(
-                      this.context,
-                    );
-                    if (imagePath != null) {
-                      setState(() {
-                        if (imagePath == 'reset') {
-                          _playlistCovers.remove(title);
-                        } else {
-                          _playlistCovers[title] = imagePath;
-                        }
-                        _cachedDetailKey =
-                            null; // Force rebuild to show new cover
-                      });
-                      SharedPreferences.getInstance().then((prefs) {
-                        prefs.setString(
-                          'playlist_covers',
-                          jsonEncode(_playlistCovers),
-                        );
-                      });
-                      showFleyToast(
-                        imagePath == 'reset'
-                            ? lookupAppLocalizations(
-                                Locale(FleyStrings.currentLang),
-                              ).coverResetSuccess
-                            : "Cover updated",
+                  _buildOptionItem(
+                    Icons.image,
+                    AppLocalizations.of(context).editCover,
+                    () async {
+                      Navigator.pop(context);
+                      final String? imagePath = await _showCoverSourceSelector(
+                        this.context,
                       );
-                    }
-                  }),
+                      if (imagePath != null) {
+                        setState(() {
+                          if (imagePath == 'reset') {
+                            _playlistCovers.remove(title);
+                          } else {
+                            _playlistCovers[title] = imagePath;
+                          }
+                          _cachedDetailKey =
+                              null; // Force rebuild to show new cover
+                        });
+                        SharedPreferences.getInstance().then((prefs) {
+                          prefs.setString(
+                            'playlist_covers',
+                            jsonEncode(_playlistCovers),
+                          );
+                        });
+                        showFleyToast(
+                          imagePath == 'reset'
+                              ? lookupAppLocalizations(
+                                  Locale(FleyStrings.currentLang),
+                                ).coverResetSuccess
+                              : lookupAppLocalizations(
+                                  Locale(FleyStrings.currentLang),
+                                ).coverUpdatedSuccess,
+                        );
+                      }
+                    },
+                  ),
                 ],
                 if (type == 'Playlist' &&
                     _userPlaylists.containsKey(title)) ...[
-                  _buildOptionItem(Icons.edit_note_rounded, 'Edit Songs', () {
-                    Navigator.pop(context);
-                    _showEditPlaylistSongsModal(context, title);
-                  }),
-                  _buildOptionItem(Icons.add, 'Add Songs', () {
-                    Navigator.pop(context);
-                    _showMultiSelectSongsModal(
-                      context,
-                      candidateTracks: _allTracks,
-                      predefinedTargetPlaylist: title,
-                    );
-                  }),
+                  _buildOptionItem(
+                    Icons.edit_note_rounded,
+                    AppLocalizations.of(context).editSongs,
+                    () {
+                      Navigator.pop(context);
+                      _showEditPlaylistSongsModal(context, title);
+                    },
+                  ),
+                  _buildOptionItem(
+                    Icons.add,
+                    AppLocalizations.of(context).addSongs,
+                    () {
+                      Navigator.pop(context);
+                      _showMultiSelectSongsModal(
+                        context,
+                        candidateTracks: _allTracks,
+                        predefinedTargetPlaylist: title,
+                      );
+                    },
+                  ),
                   _buildOptionItem(
                     Icons.edit,
                     AppLocalizations.of(context).renamePlaylist,

@@ -188,6 +188,7 @@ extension _HomeUI on _MainScreenState {
 
   Widget _buildRecentRotationSection() {
     final isLight = isAppLight;
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
 
     final trackMap = {for (var t in _allTracks) t.id: t};
@@ -207,7 +208,7 @@ extension _HomeUI on _MainScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Your recent rotation',
+          loc.recentRotation,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -335,7 +336,7 @@ extension _HomeUI on _MainScreenState {
       items.add({
         'type': 'playlist',
         'title': name,
-        'subtitle': 'Playlist • ${pSongs.length} songs',
+        'subtitle': '${loc.playlist} • ${pSongs.length} ${loc.songsCount}',
         'coverPath': _playlistCovers[name],
         'sampleTrack': pSongs.isNotEmpty
             ? _allTracks.firstWhere((t) => t.id == pSongs.first, orElse: () => _allTracks.first)
@@ -368,7 +369,7 @@ extension _HomeUI on _MainScreenState {
         items.add({
           'type': 'album',
           'title': track.album,
-          'subtitle': 'Album • ${track.artist}',
+          'subtitle': '${loc.album} • ${track.artist}',
           'sampleTrack': track,
         });
         if (seenAlbums.length >= 6) break;
@@ -379,7 +380,7 @@ extension _HomeUI on _MainScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Recents',
+          loc.recents,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -489,6 +490,7 @@ extension _HomeUI on _MainScreenState {
 
   Widget _buildJumpBackInSection() {
     final isLight = isAppLight;
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
 
     // Artists with tracks
@@ -506,7 +508,7 @@ extension _HomeUI on _MainScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Jump back in',
+          loc.jumpBackIn,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -574,7 +576,7 @@ extension _HomeUI on _MainScreenState {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Artist',
+                        loc.artist,
                         style: TextStyle(
                           fontSize: 11,
                           color: isLight ? Colors.black54 : Colors.white54,

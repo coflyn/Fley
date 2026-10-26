@@ -818,7 +818,7 @@ extension _PlayerUI on _MainScreenState {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  isSynced ? 'LRC Synced' : 'Plain Text',
+                                  isSynced ? loc.lrcSynced : loc.plainText,
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
@@ -830,7 +830,7 @@ extension _PlayerUI on _MainScreenState {
                           ),
                           const Spacer(),
                           Text(
-                            '${textController.text.split('\n').where((l) => l.trim().isNotEmpty).length} lines',
+                            '${textController.text.split('\n').where((l) => l.trim().isNotEmpty).length} ${loc.linesCountSuffix}',
                             style: TextStyle(
                               color: isLight ? Colors.black38 : Colors.white30,
                               fontSize: 11,

@@ -48,7 +48,7 @@ extension _SongCoverPickerUI on _MainScreenState {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Select Song Cover',
+                      AppLocalizations.of(context).selectSongCover,
                       style: TextStyle(
                         color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
                         fontSize: 18,
@@ -69,7 +69,7 @@ extension _SongCoverPickerUI on _MainScreenState {
                           fontFamily: getFontFamily(_activeFont),
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Search songs...',
+                          hintText: AppLocalizations.of(context).searchSongsHint,
                           hintStyle: TextStyle(
                             color: isLight ? Colors.black54 : Colors.white54,
                             fontFamily: getFontFamily(_activeFont),
@@ -145,7 +145,9 @@ extension _SongCoverPickerUI on _MainScreenState {
                                 Navigator.pop(context, coverUri.toFilePath());
                               } else {
                                 showFleyToast(
-                                  "No cover available for this song",
+                                  lookupAppLocalizations(
+                                    Locale(FleyStrings.currentLang),
+                                  ).noCoverAvailable,
                                 );
                               }
                             },

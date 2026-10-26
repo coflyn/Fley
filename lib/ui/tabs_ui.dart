@@ -366,7 +366,7 @@ extension _TabsUI on _MainScreenState {
                             vertical: 4,
                           ),
                           child: Text(
-                            'Top Artists',
+                            AppLocalizations.of(context).topArtists,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -468,7 +468,7 @@ extension _TabsUI on _MainScreenState {
                             vertical: 4,
                           ),
                           child: Text(
-                            'All Artists',
+                            AppLocalizations.of(context).allArtists,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -863,7 +863,7 @@ extension _TabsUI on _MainScreenState {
                             vertical: 4,
                           ),
                           child: Text(
-                            'Top Albums',
+                            AppLocalizations.of(context).topAlbums,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -980,7 +980,7 @@ extension _TabsUI on _MainScreenState {
                             vertical: 4,
                           ),
                           child: Text(
-                            'All Albums',
+                            AppLocalizations.of(context).allAlbums,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -1567,31 +1567,32 @@ extension _TabsUI on _MainScreenState {
 
   Widget _buildLibrarySortRow() {
     final isLight = isAppLight;
+    final loc = AppLocalizations.of(context);
     final subtextColor = isLight ? Colors.black54 : Colors.white60;
 
     String sortLabel;
     switch (_sortBy) {
       case 'title':
-        sortLabel = 'Title';
+        sortLabel = loc.title;
         break;
       case 'artist':
-        sortLabel = 'Artist';
+        sortLabel = loc.artist;
         break;
       case 'album':
-        sortLabel = 'Album';
+        sortLabel = loc.album;
         break;
       case 'date_oldest':
-        sortLabel = 'Oldest Added';
+        sortLabel = loc.oldestAdded;
         break;
       case 'duration_longest':
-        sortLabel = 'Longest';
+        sortLabel = loc.longest;
         break;
       case 'duration_shortest':
-        sortLabel = 'Shortest';
+        sortLabel = loc.shortest;
         break;
       case 'date_newest':
       default:
-        sortLabel = 'Recently Added';
+        sortLabel = loc.recentlyAdded;
         break;
     }
 
@@ -1634,12 +1635,12 @@ extension _TabsUI on _MainScreenState {
           ),
           Text(
             _currentPageIndex == 0
-                ? '${_allTracks.length} songs'
+                ? '${_allTracks.length} ${loc.songsCount}'
                 : _currentPageIndex == 1
-                    ? '${_userPlaylists.length + 5} playlists'
+                    ? '${_userPlaylists.length + 5} ${loc.playlistsCount}'
                     : _currentPageIndex == 2
-                        ? '${_allTracks.map((t) => t.artist).toSet().length} artists'
-                        : '${_allTracks.map((t) => t.album).toSet().length} albums',
+                        ? '${_allTracks.map((t) => t.artist).toSet().length} ${loc.artistsCount}'
+                        : '${_allTracks.map((t) => t.album).toSet().length} ${loc.albumsCount}',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
@@ -1758,7 +1759,7 @@ extension _TabsUI on _MainScreenState {
             child: Padding(
               padding: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 8),
               child: Text(
-                'Recent searches',
+                loc.recentSearches,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -1902,7 +1903,7 @@ extension _TabsUI on _MainScreenState {
           child: Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
             child: Text(
-              'Browse all',
+              loc.browseAll,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,

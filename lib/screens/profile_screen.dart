@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/globals.dart';
 import '../utils/image_cropper_util.dart';
+import 'package:fley/l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
   final int totalSongs;
@@ -89,7 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: widget.activeAccentColor,
                   ),
                   title: Text(
-                    'Choose from Gallery',
+                    AppLocalizations.of(context).chooseFromGallery,
                     style: TextStyle(
                       color: textColor,
                       fontFamily: getFontFamily(),
@@ -107,7 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: Colors.redAccent,
                     ),
                     title: Text(
-                      'Remove Photo',
+                      AppLocalizations.of(context).removePhoto,
                       style: TextStyle(
                         color: Colors.redAccent,
                         fontFamily: getFontFamily(),
@@ -140,7 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            'Edit Profile',
+            AppLocalizations.of(context).editProfile,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: textColor,
@@ -154,7 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 controller: nameController,
                 maxLength: 30,
                 decoration: InputDecoration(
-                  labelText: 'Name',
+                  labelText: AppLocalizations.of(context).displayName,
                   labelStyle: TextStyle(
                     color: isLight ? Colors.black54 : Colors.white60,
                   ),
@@ -169,7 +170,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 controller: bioController,
                 maxLength: 60,
                 decoration: InputDecoration(
-                  labelText: 'Bio',
+                  labelText: AppLocalizations.of(context).bio,
                   labelStyle: TextStyle(
                     color: isLight ? Colors.black54 : Colors.white60,
                   ),
@@ -185,7 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
-                'Cancel',
+                AppLocalizations.of(context).cancel,
                 style: TextStyle(
                   color: isLight ? Colors.black54 : Colors.white54,
                   fontFamily: getFontFamily(),
@@ -201,6 +202,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
+                final navigator = Navigator.of(context);
+                final profileUpdatedMsg =
+                    AppLocalizations.of(context).profileUpdated;
                 final newName = nameController.text.trim();
                 final newBio = bioController.text.trim();
                 if (newName.isNotEmpty) {
@@ -209,11 +213,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   await prefs.setString('userProfileBio', newBio);
                   userProfileNameNotifier.value = newName;
                   userProfileBioNotifier.value = newBio;
-                  showFleyToast('Profile updated');
+                  showFleyToast(profileUpdatedMsg);
                 }
-                if (context.mounted) Navigator.pop(context);
+                if (mounted) navigator.pop();
               },
-              child: const Text('Save'),
+              child: Text(AppLocalizations.of(context).save),
             ),
           ],
         );
@@ -242,7 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Profile',
+          AppLocalizations.of(context).profile,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -255,7 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: Icon(Icons.settings_outlined, color: textColor, size: 22),
             onPressed: widget.onOpenSettings,
-            tooltip: 'Settings',
+            tooltip: AppLocalizations.of(context).settings,
           ),
         ],
       ),
@@ -391,7 +395,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: _showEditProfileDialog,
               icon: Icon(Icons.edit_outlined, size: 16, color: textColor),
               label: Text(
-                'Edit Profile',
+                AppLocalizations.of(context).editProfile,
                 style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
@@ -415,7 +419,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: _buildStatItem(
                       count: '${widget.totalSongs}',
-                      label: 'Songs',
+                      label: AppLocalizations.of(context).songsTitle,
                       textColor: textColor,
                       subTextColor: subTextColor,
                     ),
@@ -428,7 +432,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: _buildStatItem(
                       count: '${widget.totalPlaylists}',
-                      label: 'Playlists',
+                      label: AppLocalizations.of(context).playlists,
                       textColor: textColor,
                       subTextColor: subTextColor,
                     ),
@@ -441,7 +445,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: _buildStatItem(
                       count: '${widget.totalFavorites}',
-                      label: 'Favourites',
+                      label: AppLocalizations.of(context).favourites,
                       textColor: textColor,
                       subTextColor: subTextColor,
                     ),
@@ -457,7 +461,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 10),
                 child: Text(
-                  'Profile Info',
+                  AppLocalizations.of(context).profileInfo,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -477,7 +481,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   ListTile(
                     title: Text(
-                      'Display Name',
+                      AppLocalizations.of(context).displayName,
                       style: TextStyle(
                         fontSize: 14,
                         color: subTextColor,
@@ -504,7 +508,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Divider(height: 1, thickness: 0.8, color: borderColor),
                   ListTile(
                     title: Text(
-                      'Bio',
+                      AppLocalizations.of(context).bio,
                       style: TextStyle(
                         fontSize: 14,
                         color: subTextColor,
@@ -546,7 +550,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: widget.activeAccentColor,
                 ),
                 title: Text(
-                  'Settings',
+                  AppLocalizations.of(context).settings,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -555,7 +559,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 subtitle: Text(
-                  'Theme, audio equalizer, typography & backups',
+                  AppLocalizations.of(context).settingsSubtitleShort,
                   style: TextStyle(
                     fontSize: 12.5,
                     color: subTextColor,

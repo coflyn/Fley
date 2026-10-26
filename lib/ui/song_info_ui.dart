@@ -216,9 +216,13 @@ extension _SongInfoUI on _MainScreenState {
                         ),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: track.path));
-                          showFleyToast("Path copied to clipboard");
+                          showFleyToast(
+                            lookupAppLocalizations(
+                              Locale(FleyStrings.currentLang),
+                            ).pathCopied,
+                          );
                         },
-                        tooltip: 'Copy path',
+                        tooltip: AppLocalizations.of(context).copyPath,
                       ),
                     ],
                   ),

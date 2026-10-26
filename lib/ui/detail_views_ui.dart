@@ -500,8 +500,12 @@ extension _DetailViewsUI on _MainScreenState {
                                       await _saveMetadataOverrides();
                                       showFleyToast(
                                         imagePath == 'reset'
-                                            ? 'Cover reset'
-                                            : 'Cover updated',
+                                            ? lookupAppLocalizations(
+                                                Locale(FleyStrings.currentLang),
+                                              ).coverResetSuccess
+                                            : lookupAppLocalizations(
+                                                Locale(FleyStrings.currentLang),
+                                              ).coverUpdatedSuccess,
                                       );
                                     }
                                   },
