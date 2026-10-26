@@ -27,6 +27,10 @@ extension _AudioLibraryScanLogic on _MainScreenState {
       if (lastPlayed != null) {
         _lastPlayedTrackIds = List<String>.from(lastPlayed);
       }
+      List<String>? recentSearches = prefs.getStringList('recent_searched_track_ids');
+      if (recentSearches != null) {
+        _recentSearchedTrackIds = List<String>.from(recentSearches);
+      }
       if (playCountsStr != null) {
         try {
           Map<String, dynamic> decoded = jsonDecode(playCountsStr);

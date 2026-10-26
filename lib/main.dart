@@ -415,6 +415,20 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     return result;
   }
 
+  List<String> _recentSearchedTrackIds = [];
+
+  void _addToRecentSearches(String trackId) async {
+    setState(() {
+      _recentSearchedTrackIds.remove(trackId);
+      _recentSearchedTrackIds.insert(0, trackId);
+      if (_recentSearchedTrackIds.length > 20) {
+        _recentSearchedTrackIds = _recentSearchedTrackIds.sublist(0, 20);
+      }
+    });
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('recent_searched_track_ids', _recentSearchedTrackIds);
+  }
+
   Map<String, int> _playCounts = {};
   Map<String, List<String>> _userPlaylists = {};
   Map<String, String> _playlistCovers = {};

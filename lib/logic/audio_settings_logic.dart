@@ -152,6 +152,7 @@ extension _AudioSettingsLogic on _MainScreenState {
       _favoriteTrackIds.clear();
       _playCounts.clear();
       _lastPlayedTrackIds.clear();
+      _recentSearchedTrackIds.clear();
       _userPlaylists.clear();
       _metadataOverrides.clear();
       _playlistCovers.clear();
