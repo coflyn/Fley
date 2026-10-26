@@ -22,9 +22,25 @@ Fley is a clean, modern offline music player for Android built with Flutter. Des
 
 ## Features
 
+### Modern Navigation & Discoverability
+- **Intuitive 3-Tab Experience**: Smooth navigation between **Home**, **Search**, and **Your Library** with persistent header and frosted-glass blur bottom navigation bar.
+- **Dynamic Home Tab**:
+  - *Quick Pins Grid*: Rapid 1-tap access to your top playlists (*Most Played*, *Favourites*, *Recently Added*, *Forgotten Gems*).
+  - *Your Recent Rotation*: Quick 4-track local rotation with direct playback and options menu.
+  - *Recents Carousel*: Horizontal card carousel showcasing recently played playlists and albums.
+  - *Jump Back In*: Highlighted top artists with circular avatars.
+- **Dedicated Search Tab**: Instant multi-field local search with discovery category tiles (*Most Played*, *Favourites*, *Recently Added*, *Artists*).
+- **Your Library Tab**: Complete organization across *Songs*, *Playlists*, *Artists*, and *Albums* with quick filter capsules and dedicated sorting modal (*Recently Added*, *Title*, *Artist*, *Album*, *Duration*, *Oldest Added*).
+
+### User Profile & Personalization
+- **Dedicated Profile Screen**: Set custom profile picture with built-in square cropper (`1:1`), customizable display name, and bio.
+- **Live Library Statistics**: Real-time counter card displaying total songs, custom playlists, and favorites.
+- **Dynamic Author Credits**: Author row in playlist and album detail views reflecting the user's custom profile avatar, display name, and track duration.
+
 ### Audio Engine & Playback
 - **High-Fidelity Offline Playback**: Supports MP3, FLAC, WAV, AAC, M4A, and OGG formats.
 - **Background Playback & Lock Screen Controls**: Seamless OS-level background playback via Android MediaSession with lock screen notifications and swipe-to-dismiss task cleanup.
+- **Floating Mini Player**: Elevated above the bottom navigation bar with safe padding adapting to Android navigation bars.
 - **Audio Transitions**: Customizable crossfade (0ms – 3000ms) with soft volume fade-in and fade-out.
 - **Tempo & Pitch Control**: Smooth playback speed adjustment (0.5x – 2.0x) with optional Pitch Lock.
 - **Headset & Bluetooth Integration**: Auto-play when headphones or Bluetooth audio devices connect, and auto-pause on disconnect.
@@ -49,14 +65,15 @@ Fley is a clean, modern offline music player for Android built with Flutter. Des
 - **Fast Media Scanning**: Scoped storage scanning with path deduplication and duration filters to ignore short audio clips, ringtones, and voice notes.
 - **Modern Artists & Albums Views**: Grid and List layout switcher with Top Artists and Top Albums horizontal highlight carousels.
 - **Virtual Metadata Editor**: Edit song titles, artists, and album tags without modifying or corrupting the original audio file.
-- **Custom Album Art**: Set custom artwork from your device gallery with built-in 1:1 and 9:16 aspect ratio croppers.
+- **Custom Artwork**: Set custom artwork from your device gallery with built-in 1:1 and 9:16 aspect ratio croppers.
 - **Track Visibility**: Hide and unhide unwanted audio files from your music library.
-- **Multi-Field Search & Smart Sorting**: Instant filtering across titles, artists, and albums, with multiple sorting criteria (title, artist, album, date added, duration).
+- **Smart Sorting**: Instant sorting across titles, artists, albums, date added, and durations.
 
 ### Smart & Custom Playlists
 - **Dynamic Smart Playlists**: Automatically generated *Favourites*, *Recently Added*, *Last Played*, *Most Played*, and *Forgotten Gems* based on real play statistics.
 - **Custom Playlists**: Create, rename, and manage custom playlists with personalized playlist cover images.
 - **Multi-Select Batch Actions**: Intuitive hold-to-select mode across all song lists for rapid queueing or mass additions.
+- **Modern Action Row**: Quick-access favorite toggles, queue button, overflow options, shuffle toggle with indicator, and play button in playlist & album views.
 
 ### Utilities
 - **Built-in Ringtone Cutter**: Dual-handle slider waveform editor with real-time preview and 1-tap save to `/Ringtones/`.
