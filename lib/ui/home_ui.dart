@@ -10,6 +10,8 @@ extension _HomeUI on _MainScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
+          _buildHomeBanner(),
+          const SizedBox(height: 20),
           _buildQuickPinsGrid(),
           const SizedBox(height: 28),
           _buildRecentRotationSection(),
@@ -19,6 +21,34 @@ extension _HomeUI on _MainScreenState {
           _buildJumpBackInSection(),
           SizedBox(height: _bottomListPadding + 20), // Dynamic padding above miniplayer + bottom navbar
         ],
+      ),
+    );
+  }
+
+  Widget _buildHomeBanner() {
+    final isLight = isAppLight;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isLight ? 0.08 : 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Image.asset(
+            'assets/hey.gif',
+            fit: BoxFit.cover,
+          ),
+        ),
       ),
     );
   }

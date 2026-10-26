@@ -27,6 +27,7 @@ import 'widgets/custom_track_shape.dart';
 
 import 'screens/settings_screen.dart';
 import 'screens/profile_screen.dart';
+import 'ui/animated_splash_screen.dart';
 import 'utils/globals.dart';
 import 'utils/artwork_cache.dart';
 import 'utils/image_cropper_util.dart';
@@ -347,6 +348,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   List<Track> _allTracks = [];
   bool _isLoading = true;
+  bool _showSplash = true;
   bool _isPlayerOpen = false;
   bool _showLyrics = false;
   String? _currentLyricsPlain;
@@ -752,7 +754,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                                 _buildLibraryTab(),
                               ],
                             ),
-                            if (_isLoading)
+                            if (_isLoading && !_showSplash)
                               Positioned.fill(
                                 child: Container(
                                   color: Colors.black.withValues(alpha: 0.5),
@@ -842,6 +844,22 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   },
                 ),
               ),
+
+              if (_showSplash)
+                Positioned.fill(
+                  child: AnimatedSplashScreen(
+                    accentColor: _activeAccentColor,
+                    isReady: !_isLoading,
+                    fontFamily: getFontFamily(activeFontNotifier.value),
+                    onFinish: () {
+                      if (mounted) {
+                        setState(() {
+                          _showSplash = false;
+                        });
+                      }
+                    },
+                  ),
+                ),
             ],
           ),
         ),
