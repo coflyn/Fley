@@ -83,21 +83,22 @@ extension _BottomNavUI on _MainScreenState {
     return Expanded(
       child: InkWell(
         onTap: () {
-          if (_currentNavIndex != index) {
-            setState(() {
-              _currentNavIndex = index;
-            });
-          }
+          _switchToNavTab(index);
         },
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected ? activeColor : inactiveColor,
+            AnimatedScale(
+              scale: isSelected ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutBack,
+              child: Icon(
+                icon,
+                size: 24,
+                color: isSelected ? activeColor : inactiveColor,
+              ),
             ),
             const SizedBox(height: 3),
             Text(

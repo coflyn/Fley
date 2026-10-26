@@ -16,16 +16,9 @@ extension _TabsUI on _MainScreenState {
       return _buildEmptyState();
     }
 
-    final isDetailView =
-        (_currentPageIndex == 1 && _selectedPlaylistDetail != null) ||
-        (_currentPageIndex == 2 && _selectedArtistDetail != null) ||
-        (_currentPageIndex == 3 && _selectedAlbumDetail != null);
-
     return PageView(
       controller: _pageController,
-      physics: isDetailView
-          ? const NeverScrollableScrollPhysics()
-          : const BouncingScrollPhysics(),
+      physics: const NeverScrollableScrollPhysics(),
       onPageChanged: (index) {
         setState(() {
           _currentPageIndex = index;
@@ -1942,26 +1935,26 @@ extension _TabsUI on _MainScreenState {
                 return GestureDetector(
                   onTap: () {
                     if (title == loc.artists) {
+                      _switchToNavTab(2);
                       setState(() {
-                        _currentNavIndex = 2;
                         _currentPageIndex = 2;
                         _pageController.jumpToPage(2);
                       });
                     } else if (title == loc.albums) {
+                      _switchToNavTab(2);
                       setState(() {
-                        _currentNavIndex = 2;
                         _currentPageIndex = 3;
                         _pageController.jumpToPage(3);
                       });
                     } else if (title == loc.playlists) {
+                      _switchToNavTab(2);
                       setState(() {
-                        _currentNavIndex = 2;
                         _currentPageIndex = 1;
                         _pageController.jumpToPage(1);
                       });
                     } else if (title == loc.songsTitle) {
+                      _switchToNavTab(2);
                       setState(() {
-                        _currentNavIndex = 2;
                         _currentPageIndex = 0;
                         _pageController.jumpToPage(0);
                       });

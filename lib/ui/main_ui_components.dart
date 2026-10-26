@@ -101,17 +101,37 @@ extension _MainUIComponents on _MainScreenState {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                headerTitle,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.8,
-                  color: headerTextColor,
-                  fontFamily: getFontFamily(activeFontNotifier.value),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                layoutBuilder: (currentChild, previousChildren) {
+                  return Stack(
+                    alignment: Alignment.centerLeft,
+                    children: <Widget>[
+                      ...previousChildren,
+                      ?currentChild,
+                    ],
+                  );
+                },
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: child,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                child: Align(
+                  key: ValueKey<String>(headerTitle),
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    headerTitle,
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.8,
+                      color: headerTextColor,
+                      fontFamily: getFontFamily(activeFontNotifier.value),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
             ),
             IconButton(

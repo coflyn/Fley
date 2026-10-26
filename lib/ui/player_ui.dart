@@ -561,6 +561,7 @@ extension _PlayerUI on _MainScreenState {
                               icon: const Icon(Icons.file_open_rounded, size: 16),
                               label: Text(loc.importLrcFile),
                               style: OutlinedButton.styleFrom(
+                                foregroundColor: _activeAccentColor,
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 side: BorderSide(
                                   color: isLight ? Colors.black12 : Colors.white12,
@@ -582,6 +583,7 @@ extension _PlayerUI on _MainScreenState {
                               icon: const Icon(Icons.content_paste_rounded, size: 16),
                               label: Text(loc.pasteFromClipboard),
                               style: OutlinedButton.styleFrom(
+                                foregroundColor: _activeAccentColor,
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 side: BorderSide(
                                   color: isLight ? Colors.black12 : Colors.white12,
@@ -600,6 +602,7 @@ extension _PlayerUI on _MainScreenState {
                               icon: const Icon(Icons.clear_all_rounded, size: 16),
                               label: Text(loc.clearLyrics),
                               style: OutlinedButton.styleFrom(
+                                foregroundColor: _activeAccentColor,
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 side: BorderSide(
                                   color: isLight ? Colors.black12 : Colors.white12,
@@ -631,6 +634,7 @@ extension _PlayerUI on _MainScreenState {
                               icon: const Icon(Icons.travel_explore_rounded, size: 16),
                               label: Text(loc.searchLyricsOnline),
                               style: OutlinedButton.styleFrom(
+                                foregroundColor: _activeAccentColor,
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 side: BorderSide(
                                   color: isLight ? Colors.black12 : Colors.white12,
@@ -800,7 +804,7 @@ extension _PlayerUI on _MainScreenState {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: (isSynced ? Colors.green : Colors.blueGrey)
+                              color: (isSynced ? _activeAccentColor : Colors.blueGrey)
                                   .withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
@@ -810,7 +814,7 @@ extension _PlayerUI on _MainScreenState {
                                 Icon(
                                   isSynced ? Icons.sync_rounded : Icons.notes_rounded,
                                   size: 13,
-                                  color: isSynced ? Colors.green : Colors.blueGrey,
+                                  color: isSynced ? _activeAccentColor : Colors.blueGrey,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
@@ -818,7 +822,7 @@ extension _PlayerUI on _MainScreenState {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    color: isSynced ? Colors.green : Colors.blueGrey,
+                                    color: isSynced ? _activeAccentColor : Colors.blueGrey,
                                   ),
                                 ),
                               ],

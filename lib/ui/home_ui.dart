@@ -105,9 +105,21 @@ extension _HomeUI on _MainScreenState {
               if (sorted.isNotEmpty && (_playCounts[sorted.first.id] ?? 0) > 0) {
                 sampleTrack = sorted.first;
               }
+            } else if (title == loc.forgottenGems) {
+              final gems = _allTracks.reversed
+                  .where((t) => (_playCounts[t.id] ?? 0) <= 1);
+              if (gems.isNotEmpty) {
+                sampleTrack = gems.first;
+              } else if (_allTracks.isNotEmpty) {
+                sampleTrack = _allTracks.last;
+              }
             } else if (_allTracks.isNotEmpty) {
               sampleTrack = _allTracks.first;
             }
+
+            final customCover = _playlistCovers[title];
+            final hasCustomCover =
+                customCover != null && File(customCover).existsSync();
 
             return GestureDetector(
               onTap: () {
@@ -115,7 +127,10 @@ extension _HomeUI on _MainScreenState {
                   _selectedPlaylistDetail = title;
                   _searchQuery = '';
                   _searchController.clear();
-                  _detailColorFuture = _getDetailColor(sampleTrack);
+                  _detailColorFuture = _getDetailColor(
+                    sampleTrack,
+                    playlistName: title,
+                  );
                 });
               },
               child: Container(
@@ -133,9 +148,17 @@ extension _HomeUI on _MainScreenState {
                         width: 54,
                         height: 54,
                         color: color.withValues(alpha: 0.15),
-                        child: sampleTrack != null
-                            ? _buildTrackArtwork(sampleTrack, size: 54, radius: 0)
-                            : Icon(icon, color: color, size: 24),
+                        child: hasCustomCover
+                            ? Image(
+                                image: ResizeImage(
+                                  FileImage(File(customCover)),
+                                  width: 150,
+                                ),
+                                fit: BoxFit.cover,
+                              )
+                            : (sampleTrack != null
+                                ? _buildTrackArtwork(sampleTrack, size: 54, radius: 0)
+                                : Icon(icon, color: color, size: 24)),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -248,13 +271,46 @@ extension _HomeUI on _MainScreenState {
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: isLight ? Colors.black45 : Colors.white54,
-                      size: 20,
-                    ),
-                    onPressed: () => _showTrackOptions(context, track),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isPlayingThis)
+                        SizedBox(
+                          width: 16,
+                          height: 14,
+                          child: MiniMusicVisualizer(
+                            color: _activeAccentColor,
+                            width: 4,
+                            height: 14,
+                            radius: 2,
+                            animate: _isPlaying,
+                          ),
+                        )
+                      else
+                        Text(
+                          _formatDuration(
+                            Duration(milliseconds: track.duration),
+                          ),
+                          style: TextStyle(
+                            color: isLight ? Colors.black45 : Colors.white38,
+                            fontSize: 12,
+                            fontFeatures: const [
+                              FontFeature.tabularFigures(),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          Icons.more_vert,
+                          color: isLight ? Colors.black45 : Colors.white54,
+                          size: 20,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _showTrackOptions(context, track),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -292,6 +348,7 @@ extension _HomeUI on _MainScreenState {
       'type': 'playlist',
       'title': loc.favourites,
       'subtitle': 'Playlist • ${_favoriteTrackIds.length} songs',
+      'coverPath': _playlistCovers[loc.favourites],
       'sampleTrack': _favoriteTrackIds.isNotEmpty
           ? _allTracks.firstWhere((t) => _favoriteTrackIds.contains(t.id), orElse: () => _allTracks.first)
           : null,
@@ -300,6 +357,7 @@ extension _HomeUI on _MainScreenState {
       'type': 'playlist',
       'title': loc.mostPlayed,
       'subtitle': 'Playlist',
+      'coverPath': _playlistCovers[loc.mostPlayed],
       'sampleTrack': _allTracks.isNotEmpty ? _allTracks.first : null,
     });
 
@@ -356,7 +414,10 @@ extension _HomeUI on _MainScreenState {
                     }
                     _searchQuery = '';
                     _searchController.clear();
-                    _detailColorFuture = _getDetailColor(sampleTrack);
+                    _detailColorFuture = _getDetailColor(
+                      sampleTrack,
+                      playlistName: type == 'album' ? null : title,
+                    );
                   });
                 },
                 child: SizedBox(

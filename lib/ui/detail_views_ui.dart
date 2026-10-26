@@ -39,7 +39,8 @@ extension _DetailViewsUI on _MainScreenState {
       dynamicKeyPart = _userPlaylists[baseName]?.length.toString() ?? '0';
     }
 
-    String baseKey = "${baseName}_${_searchQuery}_${type}_$dynamicKeyPart";
+    final coverKeyPart = _playlistCovers[baseName] ?? '';
+    String baseKey = "${baseName}_${_searchQuery}_${type}_${dynamicKeyPart}_$coverKeyPart";
 
     if (_cachedDetailKey != baseKey ||
         _cachedDetailSongs == null ||
@@ -526,19 +527,28 @@ extension _DetailViewsUI on _MainScreenState {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(4.5),
-                                child: tracks.isNotEmpty
-                                    ? _buildTrackArtwork(
-                                        tracks.first,
-                                        size: 32,
-                                        radius: 0,
+                                child: _playlistCovers.containsKey(title) &&
+                                        File(_playlistCovers[title]!).existsSync()
+                                    ? Image(
+                                        image: ResizeImage(
+                                          FileImage(File(_playlistCovers[title]!)),
+                                          width: 100,
+                                        ),
+                                        fit: BoxFit.cover,
                                       )
-                                    : Icon(
-                                        Icons.music_note,
-                                        size: 18,
-                                        color: isLight
-                                            ? Colors.black45
-                                            : Colors.white54,
-                                      ),
+                                    : (tracks.isNotEmpty
+                                        ? _buildTrackArtwork(
+                                            tracks.first,
+                                            size: 32,
+                                            radius: 0,
+                                          )
+                                        : Icon(
+                                            Icons.music_note,
+                                            size: 18,
+                                            color: isLight
+                                                ? Colors.black45
+                                                : Colors.white54,
+                                          )),
                               ),
                             ),
                           ),

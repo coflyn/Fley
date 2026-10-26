@@ -73,6 +73,42 @@ final ValueNotifier<String> themeAccentPresetNotifier = ValueNotifier<String>(
   'spotify',
 );
 
+Color resolveThemeAccentColor(String preset, Color? dominantColor) {
+  if (preset == 'dynamic') {
+    final baseColor = dominantColor ?? const Color(0xFF8E8E93);
+    final hsl = HSLColor.fromColor(baseColor);
+    if (hsl.lightness < 0.55) {
+      if (hsl.saturation < 0.12) {
+        return const Color(0xFFB3B3B3);
+      }
+      return hsl.withLightness(0.6).toColor();
+    }
+    return baseColor;
+  }
+  switch (preset) {
+    case 'spotify':
+      return const Color(0xFF1DB954);
+    case 'apple':
+      return const Color(0xFFFC3C44);
+    case 'purple':
+      return const Color(0xFF8E2DE2);
+    case 'tidal':
+      return const Color(0xFF00F2FE);
+    case 'orange':
+      return const Color(0xFFFF9233);
+    case 'sakura':
+      return const Color(0xFFFF2A6D);
+    case 'gold':
+      return const Color(0xFFDFBA59);
+    case 'blue':
+      return const Color(0xFF007AFF);
+    case 'lime':
+      return const Color(0xFFCCFF00);
+    default:
+      return const Color(0xFF1DB954);
+  }
+}
+
 // User Profile Notifiers
 final ValueNotifier<String> userProfileNameNotifier =
     ValueNotifier<String>('User');

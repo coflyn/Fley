@@ -20,6 +20,7 @@ import 'package:palette_generator/palette_generator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'models/track.dart';
 import 'models/lyrics_line.dart';
@@ -194,62 +195,71 @@ class FleyApp extends StatelessWidget {
                             return ValueListenableBuilder<String>(
                               valueListenable: languageNotifier,
                               builder: (context, lang, child) {
-                                return MaterialApp(
-                                  title: 'Fley',
-                                  debugShowCheckedModeBanner: false,
-                                  localizationsDelegates:
-                                      AppLocalizations.localizationsDelegates,
-                                  supportedLocales:
-                                      AppLocalizations.supportedLocales,
-                                  locale: Locale(lang),
-                                  builder: (context, child) {
-                                    return MediaQuery(
-                                      data: MediaQuery.of(context).copyWith(
-                                        textScaler: TextScaler.linear(scale),
+                                return ValueListenableBuilder<String>(
+                                  valueListenable: themeAccentPresetNotifier,
+                                  builder: (context, accentPreset, child) {
+                                    final activeAccent = resolveThemeAccentColor(
+                                      accentPreset,
+                                      dominantColor,
+                                    );
+                                    return MaterialApp(
+                                      title: 'Fley',
+                                      debugShowCheckedModeBanner: false,
+                                      localizationsDelegates:
+                                          AppLocalizations.localizationsDelegates,
+                                      supportedLocales:
+                                          AppLocalizations.supportedLocales,
+                                      locale: Locale(lang),
+                                      builder: (context, child) {
+                                        return MediaQuery(
+                                          data: MediaQuery.of(context).copyWith(
+                                            textScaler: TextScaler.linear(scale),
+                                          ),
+                                          child: child!,
+                                        );
+                                      },
+                                      theme: ThemeData(
+                                        useMaterial3: true,
+                                        fontFamily: getFontFamily(fontName),
+                                        brightness: isLight
+                                            ? Brightness.light
+                                            : Brightness.dark,
+                                        scaffoldBackgroundColor: appBgColor,
+                                        textTheme: textTheme.apply(
+                                          bodyColor: isLight
+                                              ? const Color(0xFF1A1A1A)
+                                              : Colors.white,
+                                          displayColor: isLight
+                                              ? const Color(0xFF1A1A1A)
+                                              : Colors.white,
+                                        ),
+                                        colorScheme: ColorScheme(
+                                          brightness: isLight
+                                              ? Brightness.light
+                                              : Brightness.dark,
+                                          primary: activeAccent,
+                                          onPrimary: Colors.black,
+                                          secondary: activeAccent,
+                                          onSecondary: Colors.black,
+                                          error: Colors.red,
+                                          onError: Colors.white,
+                                          surface: appCardColor,
+                                          onSurface: isLight
+                                              ? const Color(0xFF1A1A1A)
+                                              : Colors.white,
+                                          outline: isLight
+                                              ? Colors.black12
+                                              : Colors.white10,
+                                        ),
+                                        listTileTheme: ListTileThemeData(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                        ),
                                       ),
-                                      child: child!,
+                                      home: const MainScreen(),
                                     );
                                   },
-                                  theme: ThemeData(
-                                    useMaterial3: true,
-                                    fontFamily: getFontFamily(fontName),
-                                    brightness: isLight
-                                        ? Brightness.light
-                                        : Brightness.dark,
-                                    scaffoldBackgroundColor: appBgColor,
-                                    textTheme: textTheme.apply(
-                                      bodyColor: isLight
-                                          ? const Color(0xFF1A1A1A)
-                                          : Colors.white,
-                                      displayColor: isLight
-                                          ? const Color(0xFF1A1A1A)
-                                          : Colors.white,
-                                    ),
-                                    colorScheme: ColorScheme(
-                                      brightness: isLight
-                                          ? Brightness.light
-                                          : Brightness.dark,
-                                      primary: const Color(0xFF1DB954),
-                                      onPrimary: Colors.black,
-                                      secondary: const Color(0xFF1DB954),
-                                      onSecondary: Colors.black,
-                                      error: Colors.red,
-                                      onError: Colors.white,
-                                      surface: appCardColor,
-                                      onSurface: isLight
-                                          ? const Color(0xFF1A1A1A)
-                                          : Colors.white,
-                                      outline: isLight
-                                          ? Colors.black12
-                                          : Colors.white10,
-                                    ),
-                                    listTileTheme: ListTileThemeData(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                  home: const MainScreen(),
                                 );
                               },
                             );
@@ -397,8 +407,32 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   late PageController _pageController;
+  late PageController _rootNavPageController;
   int _currentPageIndex = 0;
   int _currentNavIndex = 0;
+
+  double _tabContentOpacity = 1.0;
+
+  void _switchToNavTab(int index) {
+    if (_currentNavIndex == 1 && index != 1) {
+      _searchFocusNode.unfocus();
+    }
+    if (_currentNavIndex == index) return;
+    setState(() {
+      _currentNavIndex = index;
+      _tabContentOpacity = 0.0;
+    });
+    if (_rootNavPageController.hasClients) {
+      _rootNavPageController.jumpToPage(index);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _tabContentOpacity = 1.0;
+        });
+      }
+    });
+  }
 
   List<String> _lastPlayedTrackIds = [];
   List<String> get _allPlayedTrackIdsOrdered {
@@ -473,34 +507,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     return color;
   }
 
-  Color get _activeAccentColor {
-    if (themeAccentPresetNotifier.value == 'dynamic') {
-      final baseColor = _dominantColor ?? const Color(0xFF8E8E93);
-      return _ensureLuminance(baseColor);
-    }
-    switch (themeAccentPresetNotifier.value) {
-      case 'spotify':
-        return const Color(0xFF1DB954);
-      case 'apple':
-        return const Color(0xFFFC3C44);
-      case 'purple':
-        return const Color(0xFF8E2DE2);
-      case 'tidal':
-        return const Color(0xFF00F2FE);
-      case 'orange':
-        return const Color(0xFFFF9233);
-      case 'sakura':
-        return const Color(0xFFFF2A6D);
-      case 'gold':
-        return const Color(0xFFDFBA59);
-      case 'blue':
-        return const Color(0xFF007AFF);
-      case 'lime':
-        return const Color(0xFFCCFF00);
-      default:
-        return const Color(0xFF1DB954);
-    }
-  }
+  Color get _activeAccentColor =>
+      resolveThemeAccentColor(themeAccentPresetNotifier.value, _dominantColor);
 
   Future<Color?>? _detailColorFuture;
   final Map<String, Color> _detailColorCache = {};
@@ -523,6 +531,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     mainScreenState = this;
     _pageController = PageController();
+    _rootNavPageController = PageController(initialPage: _currentNavIndex);
     _loadSettings();
     _requestPermissionAndScan();
     _setupAudioStreams();
@@ -623,6 +632,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _lyricsScrollController.dispose();
     _detailScrollController.dispose();
     _pageController.dispose();
+    _rootNavPageController.dispose();
     super.dispose();
   }
 
@@ -656,9 +666,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               _selectedAlbumDetail = null;
             });
           } else if (_currentNavIndex != 0) {
-            setState(() {
-              _currentNavIndex = 0;
-            });
+            _switchToNavTab(0);
           }
         },
         child: Scaffold(
@@ -760,13 +768,29 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       Expanded(
                         child: Stack(
                           children: [
-                            IndexedStack(
-                              index: _currentNavIndex,
-                              children: [
-                                _buildHomeScreen(),
-                                _buildSearchTab(),
-                                _buildLibraryTab(),
-                              ],
+                            AnimatedOpacity(
+                              opacity: _tabContentOpacity,
+                              duration: const Duration(milliseconds: 160),
+                              curve: Curves.easeOut,
+                              child: PageView(
+                                controller: _rootNavPageController,
+                                physics: (isDetailView || _isPlayerOpen)
+                                    ? const NeverScrollableScrollPhysics()
+                                    : const ClampingScrollPhysics(),
+                                onPageChanged: (index) {
+                                  if (_currentNavIndex == 1 && index != 1) {
+                                    _searchFocusNode.unfocus();
+                                  }
+                                  setState(() {
+                                    _currentNavIndex = index;
+                                  });
+                                },
+                                children: [
+                                  _KeepAliveWrapper(child: _buildHomeScreen()),
+                                  _KeepAliveWrapper(child: _buildSearchTab()),
+                                  _KeepAliveWrapper(child: _buildLibraryTab()),
+                                ],
+                              ),
                             ),
                             if (_isLoading && !_showSplash)
                               Positioned.fill(
