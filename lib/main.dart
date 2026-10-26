@@ -26,6 +26,7 @@ import 'models/lyrics_line.dart';
 import 'widgets/custom_track_shape.dart';
 
 import 'screens/settings_screen.dart';
+import 'screens/profile_screen.dart';
 import 'utils/globals.dart';
 import 'utils/artwork_cache.dart';
 import 'utils/image_cropper_util.dart';
@@ -50,6 +51,8 @@ part 'ui/modals_utility_ui.dart';
 part 'ui/equalizer_sheet_ui.dart';
 part 'services/audio_handler.dart';
 part 'ui/main_ui_components.dart';
+part 'ui/bottom_nav_ui.dart';
+part 'ui/home_ui.dart';
 part 'logic/audio_settings_logic.dart';
 part 'logic/audio_streams_logic.dart';
 part 'logic/audio_equalizer_logic.dart';
@@ -91,6 +94,11 @@ void main() async {
   customThemeBgNotifier.value = prefs.getString('customThemeBg') ?? 'dynamic';
   languageNotifier.value = prefs.getString('language') ?? 'en';
   fontScaleNotifier.value = prefs.getDouble('fontScale') ?? 1.0;
+  userProfileNameNotifier.value =
+      prefs.getString('userProfileName') ?? 'User';
+  userProfileImageNotifier.value = prefs.getString('userProfileImage');
+  userProfileBioNotifier.value =
+      prefs.getString('userProfileBio') ?? 'Music enthusiast';
 
   // Preload selected Google font to avoid default-font flash on first frame.
   try {
@@ -388,6 +396,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   late PageController _pageController;
   int _currentPageIndex = 0;
+  int _currentNavIndex = 0;
 
   List<String> _lastPlayedTrackIds = [];
   List<String> get _allPlayedTrackIdsOrdered {
@@ -604,9 +613,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final isDetailView =
-        (_currentPageIndex == 1 && _selectedPlaylistDetail != null) ||
-        (_currentPageIndex == 2 && _selectedArtistDetail != null) ||
-        (_currentPageIndex == 3 && _selectedAlbumDetail != null);
+        _selectedPlaylistDetail != null ||
+        _selectedArtistDetail != null ||
+        _selectedAlbumDetail != null;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -616,7 +625,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: PopScope(
-        canPop: !_isPlayerOpen && !isDetailView,
+        canPop: !_isPlayerOpen && !isDetailView && _currentNavIndex == 0,
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) return;
           if (_isPlayerOpen) {
@@ -629,6 +638,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               _selectedPlaylistDetail = null;
               _selectedArtistDetail = null;
               _selectedAlbumDetail = null;
+            });
+          } else if (_currentNavIndex != 0) {
+            setState(() {
+              _currentNavIndex = 0;
             });
           }
         },
@@ -720,6 +733,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 },
               ),
               SafeArea(
+                bottom: false,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -727,27 +741,32 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                       _buildMultiSelectHeader()
                     else ...[
                       _buildHeader(),
-                      _buildSearchBar(),
-                      _buildFilterCapsules(),
-                    ],
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          _buildBodyContent(),
-                          if (_isLoading)
-                            Positioned.fill(
-                              child: Container(
-                                color: Colors.black.withValues(alpha: 0.5),
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    color: _activeAccentColor,
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            IndexedStack(
+                              index: _currentNavIndex,
+                              children: [
+                                _buildHomeScreen(),
+                                _buildSearchTab(),
+                                _buildLibraryTab(),
+                              ],
+                            ),
+                            if (_isLoading)
+                              Positioned.fill(
+                                child: Container(
+                                  color: Colors.black.withValues(alpha: 0.5),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: _activeAccentColor,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -789,6 +808,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               ),
 
               if (_playingTrack != null) _buildMiniPlayer(_playingTrack!),
+
+              if (!isDetailView) _buildBottomNavBar(),
 
               Positioned.fill(
                 child: ListenableBuilder(

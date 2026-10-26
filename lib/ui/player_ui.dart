@@ -4,6 +4,12 @@ part of '../main.dart';
 extension _PlayerUI on _MainScreenState {
   Widget _buildMiniPlayer(Track currentTrack) {
     final double bottomInset = MediaQuery.of(context).padding.bottom;
+    final isDetailView =
+        _selectedPlaylistDetail != null ||
+        _selectedArtistDetail != null ||
+        _selectedAlbumDetail != null;
+    final double navBarHeight = isDetailView ? 0.0 : 60.0;
+
     return Positioned(
       bottom: 0,
       left: 0,
@@ -56,7 +62,7 @@ extension _PlayerUI on _MainScreenState {
               margin: EdgeInsets.only(
                 left: 12,
                 right: 12,
-                bottom: bottomInset > 0 ? bottomInset + 4 : 12,
+                bottom: navBarHeight + (bottomInset > 0 ? bottomInset + 4 : 12),
               ),
               decoration: BoxDecoration(
                 color: color,
@@ -267,7 +273,7 @@ extension _PlayerUI on _MainScreenState {
                               rawText.toLowerCase() == 'instrumental' ||
                               rawText.toLowerCase() == '(instrumental)';
 
-                          // Spotify-style: past lines hidden while auto-following,
+                          // Past lines hidden while auto-following,
                           // all lines visible once the user scrolls manually.
                           double alpha;
                           if (_lyricsUserScrolling) {

@@ -2,6 +2,15 @@
 part of '../main.dart';
 
 extension _TabsUI on _MainScreenState {
+  double get _bottomListPadding {
+    final isDetailView = _selectedPlaylistDetail != null ||
+        _selectedArtistDetail != null ||
+        _selectedAlbumDetail != null;
+    final double bottomInset = MediaQuery.of(context).padding.bottom;
+    final navPadding = isDetailView ? 0.0 : 64.0;
+    return navPadding + bottomInset + (_playingTrack != null ? 88.0 : 24.0);
+  }
+
   Widget _buildBodyContent() {
     if (_allTracks.isEmpty) {
       return _buildEmptyState();
@@ -174,7 +183,7 @@ extension _TabsUI on _MainScreenState {
         left: 16,
         right: 16,
         top: 12,
-        bottom: _playingTrack != null ? 84 : 12,
+        bottom: _bottomListPadding,
       ),
       itemCount: children.length,
       itemBuilder: (context, index) {
@@ -486,7 +495,7 @@ extension _TabsUI on _MainScreenState {
                     padding: EdgeInsets.only(
                       left: 24,
                       right: 24,
-                      bottom: _playingTrack != null ? 84 : 16,
+                      bottom: _bottomListPadding,
                     ),
                     sliver: SliverGrid(
                       gridDelegate:
@@ -600,7 +609,7 @@ extension _TabsUI on _MainScreenState {
                     padding: EdgeInsets.only(
                       left: 24,
                       right: 24,
-                      bottom: _playingTrack != null ? 84 : 16,
+                      bottom: _bottomListPadding,
                     ),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
@@ -998,7 +1007,7 @@ extension _TabsUI on _MainScreenState {
                     padding: EdgeInsets.only(
                       left: 24,
                       right: 24,
-                      bottom: _playingTrack != null ? 84 : 16,
+                      bottom: _bottomListPadding,
                     ),
                     sliver: SliverGrid(
                       gridDelegate:
@@ -1160,7 +1169,7 @@ extension _TabsUI on _MainScreenState {
                     padding: EdgeInsets.only(
                       left: 24,
                       right: 24,
-                      bottom: _playingTrack != null ? 84 : 16,
+                      bottom: _bottomListPadding,
                     ),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
@@ -1278,7 +1287,7 @@ extension _TabsUI on _MainScreenState {
         left: 16,
         right: 16,
         top: 12,
-        bottom: _playingTrack != null ? 84 : 12,
+        bottom: _bottomListPadding,
       ),
       itemCount: list.length + (header != null ? 1 : 0),
       itemBuilder: (context, index) {
@@ -1522,7 +1531,7 @@ extension _TabsUI on _MainScreenState {
       AppLocalizations.of(context).albums,
     ];
     return Padding(
-      padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 8),
+      padding: const EdgeInsets.only(left: 24, right: 24, top: 8, bottom: 8),
       child: SizedBox(
         height: 32,
         child: Row(
@@ -1573,6 +1582,251 @@ extension _TabsUI on _MainScreenState {
             );
           }).toList(),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLibrarySortRow() {
+    final isLight = isAppLight;
+    final subtextColor = isLight ? Colors.black54 : Colors.white60;
+
+    String sortLabel;
+    switch (_sortBy) {
+      case 'title':
+        sortLabel = 'Title';
+        break;
+      case 'artist':
+        sortLabel = 'Artist';
+        break;
+      case 'album':
+        sortLabel = 'Album';
+        break;
+      case 'date_oldest':
+        sortLabel = 'Oldest Added';
+        break;
+      case 'duration_longest':
+        sortLabel = 'Longest';
+        break;
+      case 'duration_shortest':
+        sortLabel = 'Shortest';
+        break;
+      case 'date_newest':
+      default:
+        sortLabel = 'Recently Added';
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          GestureDetector(
+            onTap: () => _showSortModal(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: isLight
+                    ? Colors.black.withValues(alpha: 0.05)
+                    : Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.swap_vert_rounded,
+                    size: 16,
+                    color: _activeAccentColor,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    sortLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
+                      fontFamily: getFontFamily(activeFontNotifier.value),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Text(
+            _currentPageIndex == 0
+                ? '${_allTracks.length} songs'
+                : _currentPageIndex == 1
+                    ? '${_userPlaylists.length + 5} playlists'
+                    : _currentPageIndex == 2
+                        ? '${_allTracks.map((t) => t.artist).toSet().length} artists'
+                        : '${_allTracks.map((t) => t.album).toSet().length} albums',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: subtextColor,
+              fontFamily: getFontFamily(activeFontNotifier.value),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLibraryTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFilterCapsules(),
+        _buildLibrarySortRow(),
+        Expanded(
+          child: _buildBodyContent(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchTab() {
+    List<Track> searchResults = [];
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      searchResults = _allTracks.where((t) =>
+        t.title.toLowerCase().contains(q) ||
+        t.artist.toLowerCase().contains(q) ||
+        t.album.toLowerCase().contains(q)
+      ).toList();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        _buildSearchBar(),
+        const SizedBox(height: 12),
+        Expanded(
+          child: _searchQuery.isEmpty
+              ? _buildSearchBrowseCategories()
+              : _buildSongList(
+                  searchResults,
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBrowseCategories() {
+    final isLight = isAppLight;
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
+
+    final categories = [
+      {
+        'title': loc.mostPlayed,
+        'color': const Color(0xFFE91E63),
+        'icon': Icons.local_fire_department,
+      },
+      {
+        'title': loc.favourites,
+        'color': const Color(0xFF9C27B0),
+        'icon': Icons.favorite,
+      },
+      {
+        'title': loc.recentlyAdded,
+        'color': const Color(0xFF2196F3),
+        'icon': Icons.new_releases,
+      },
+      {
+        'title': loc.artists,
+        'color': const Color(0xFFFF9800),
+        'icon': Icons.person,
+      },
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          Text(
+            'Browse all',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
+              fontFamily: getFontFamily(activeFontNotifier.value),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: GridView.builder(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.only(bottom: _bottomListPadding),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.6,
+              ),
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                final cat = categories[index];
+                final title = cat['title'] as String;
+                final color = cat['color'] as Color;
+                final icon = cat['icon'] as IconData;
+
+                return GestureDetector(
+                  onTap: () {
+                    if (title == loc.artists) {
+                      setState(() {
+                        _currentNavIndex = 2;
+                        _currentPageIndex = 2;
+                        _pageController.jumpToPage(2);
+                      });
+                    } else {
+                      setState(() {
+                        _selectedPlaylistDetail = title;
+                        _searchQuery = '';
+                        _searchController.clear();
+                      });
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Stack(
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 2,
+                        ),
+                        Positioned(
+                          right: -4,
+                          bottom: -4,
+                          child: Transform.rotate(
+                            angle: 0.3,
+                            child: Icon(
+                              icon,
+                              size: 44,
+                              color: Colors.white.withValues(alpha: 0.35),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

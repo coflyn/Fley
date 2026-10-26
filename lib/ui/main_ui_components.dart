@@ -2,53 +2,121 @@
 part of '../main.dart';
 
 extension _MainUIComponents on _MainScreenState {
+  void _openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfileScreen(
+          totalSongs: _allTracks.length,
+          totalPlaylists: _userPlaylists.length,
+          totalFavorites: _favoriteTrackIds.length,
+          activeAccentColor: _activeAccentColor,
+          onOpenSettings: _openSettings,
+        ),
+      ),
+    );
+  }
+
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          onSettingsChanged: _loadSettings,
+          onRescanLibrary: () {
+            _loadSettings();
+            _requestPermissionAndScan();
+          },
+          onSetSleepTimer: _startSleepTimer,
+          onResetData: _resetAppData,
+          sleepTimerNotifier: _sleepTimerNotifier,
+          onManageFolders: () => _showFolderScanDialog(context),
+          onSetSkipSilence: (val) {
+            setState(() {
+              _skipSilence = val;
+            });
+            _audioPlayer.setSkipSilenceEnabled(val);
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader() {
     final isLight = isAppLight;
     final headerTextColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
 
+    String headerTitle;
+    if (_currentNavIndex == 0) {
+      headerTitle = 'Fley';
+    } else if (_currentNavIndex == 1) {
+      headerTitle = 'Search';
+    } else {
+      headerTitle = 'Your Library';
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: SizedBox(
         height: 48,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Fley',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -1.0,
-                color: headerTextColor,
+            GestureDetector(
+              onTap: _openProfile,
+              child: ValueListenableBuilder<String?>(
+                valueListenable: userProfileImageNotifier,
+                builder: (context, imagePath, child) {
+                  final hasImage =
+                      imagePath != null && File(imagePath).existsSync();
+
+                  return Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _activeAccentColor.withValues(alpha: 0.2),
+                      border: Border.all(
+                        color: _activeAccentColor.withValues(alpha: 0.4),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: hasImage
+                          ? Image.file(
+                              File(imagePath),
+                              width: 34,
+                              height: 34,
+                              fit: BoxFit.cover,
+                            )
+                          : Icon(
+                              Icons.person_rounded,
+                              size: 18,
+                              color: _activeAccentColor,
+                            ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                headerTitle,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
+                  color: headerTextColor,
+                  fontFamily: getFontFamily(activeFontNotifier.value),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             IconButton(
               icon: Icon(Icons.settings, color: headerTextColor),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SettingsScreen(
-                      onSettingsChanged: _loadSettings,
-                      onRescanLibrary: () {
-                        _loadSettings();
-                        _requestPermissionAndScan();
-                      },
-                      onSetSleepTimer: _startSleepTimer,
-                      onResetData: _resetAppData,
-                      sleepTimerNotifier: _sleepTimerNotifier,
-                      onManageFolders: () => _showFolderScanDialog(context),
-                      onSetSkipSilence: (val) {
-                        setState(() {
-                          _skipSilence = val;
-                        });
-                        _audioPlayer.setSkipSilenceEnabled(val);
-                      },
-                    ),
-                  ),
-                );
-              },
+              onPressed: _openSettings,
             ),
           ],
         ),
