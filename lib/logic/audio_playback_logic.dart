@@ -223,7 +223,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
           : (Uri.tryParse(track.url) ?? Uri.parse(''));
       final currentCover = await _getCoverUriForTrack(
         track,
-        fetchNativeIfMissing: false,
+        fetchNativeIfMissing: true,
       );
       if (requestId != _playRequestId) return;
 

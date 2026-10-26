@@ -14,8 +14,13 @@ class MyAudioHandler extends BaseAudioHandler {
 
       final currentSource = sequenceState.currentSource;
       if (currentSource != null) {
-        final item = currentSource.tag as MediaItem?;
+        var item = currentSource.tag as MediaItem?;
         if (item != null) {
+          if (item.artUri == null &&
+              mediaItem.value?.id == item.id &&
+              mediaItem.value?.artUri != null) {
+            item = item.copyWith(artUri: mediaItem.value!.artUri);
+          }
           mediaItem.add(item);
         }
       }

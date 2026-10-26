@@ -455,24 +455,41 @@ extension _AudioLibraryScanLogic on _MainScreenState {
   }) async {
     if (_metadataOverrides.containsKey(track.id) &&
         _metadataOverrides[track.id]!['coverPath'] != null) {
-      return Uri.file(_metadataOverrides[track.id]!['coverPath']!);
+      final customPath = _metadataOverrides[track.id]!['coverPath']!;
+      if (File(customPath).existsSync()) {
+        return Uri.file(customPath);
+      }
     }
     try {
-      final cacheDir = Directory.systemTemp;
+      final cacheDir = await getTemporaryDirectory();
       final cacheFile = File('${cacheDir.path}/album_art_${track.id}.png');
-      if (await cacheFile.exists()) {
+      if (await cacheFile.exists() && (await cacheFile.length()) > 0) {
         return Uri.file(cacheFile.path);
       }
-      if (!fetchNativeIfMissing) return null;
-      final bytes = await _audioQuery.queryArtwork(
-        int.parse(track.id),
-        ArtworkType.AUDIO,
-        size: 1000,
-        quality: 100,
-      );
-      if (bytes != null) {
-        await cacheFile.writeAsBytes(bytes);
+
+      // 1. Check memory cache first
+      final memBytes = ArtworkCacheManager.getCachedArtwork(track.id);
+      if (memBytes != null && memBytes.isNotEmpty) {
+        await cacheFile.writeAsBytes(memBytes);
         return Uri.file(cacheFile.path);
+      }
+
+      if (!fetchNativeIfMissing) return null;
+
+      // 2. Fetch via on_audio_query or ArtworkCacheManager
+      final id = int.tryParse(track.id);
+      if (id != null) {
+        Uint8List? bytes = await _audioQuery.queryArtwork(
+          id,
+          ArtworkType.AUDIO,
+          size: 500,
+          quality: 85,
+        );
+        bytes ??= await ArtworkCacheManager.fetchAndCacheNativeArtwork(track.id);
+        if (bytes != null && bytes.isNotEmpty) {
+          await cacheFile.writeAsBytes(bytes);
+          return Uri.file(cacheFile.path);
+        }
       }
     } catch (_) {}
     return null;
