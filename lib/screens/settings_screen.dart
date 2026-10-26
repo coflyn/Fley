@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 import '../main.dart';
 import '../utils/globals.dart';
 import '../utils/image_cropper_util.dart';
+import 'profile_screen.dart';
 
 import '../widgets/settings/settings_ui_components.dart';
 import 'package:fley/l10n/app_localizations.dart';
@@ -414,6 +415,103 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
+          // Profile Banner Card
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: SettingsPremiumCard(
+              isLight: isLight,
+              children: [
+                ValueListenableBuilder<String?>(
+                  valueListenable: userProfileImageNotifier,
+                  builder: (context, imagePath, child) {
+                    final hasImage =
+                        imagePath != null && File(imagePath).existsSync();
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      leading: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _activeAccentColor.withValues(alpha: 0.15),
+                          border: Border.all(
+                            color: _activeAccentColor.withValues(alpha: 0.4),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: hasImage
+                              ? Image.file(
+                                  File(imagePath),
+                                  width: 44,
+                                  height: 44,
+                                  fit: BoxFit.cover,
+                                )
+                              : Icon(
+                                  Icons.person_rounded,
+                                  color: _activeAccentColor,
+                                  size: 22,
+                                ),
+                        ),
+                      ),
+                      title: ValueListenableBuilder<String>(
+                        valueListenable: userProfileNameNotifier,
+                        builder: (context, name, child) {
+                          return Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: isLight
+                                  ? const Color(0xFF1A1A1A)
+                                  : Colors.white,
+                              fontFamily: getFontFamily(),
+                            ),
+                          );
+                        },
+                      ),
+                      subtitle: ValueListenableBuilder<String>(
+                        valueListenable: userProfileBioNotifier,
+                        builder: (context, bio, child) {
+                          return Text(
+                            bio,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isLight ? Colors.black54 : Colors.white54,
+                              fontFamily: getFontFamily(),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        },
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: isLight ? Colors.black45 : Colors.white54,
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProfileScreen(
+                              totalSongs: 0,
+                              totalPlaylists: 0,
+                              totalFavorites: 0,
+                              activeAccentColor: _activeAccentColor,
+                              onOpenSettings: () {},
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
           SettingsSectionHeader(
             title: AppLocalizations.of(context).appearance,
             activeAccentColor: _activeAccentColor,

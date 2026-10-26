@@ -384,20 +384,81 @@ extension _DetailViewsUI on _MainScreenState {
                       height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
+                  // User Profile Row (Avatar + Name)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      ValueListenableBuilder<String?>(
+                        valueListenable: userProfileImageNotifier,
+                        builder: (context, imagePath, child) {
+                          final hasImage =
+                              imagePath != null && File(imagePath).existsSync();
+
+                          return Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _activeAccentColor.withValues(alpha: 0.2),
+                              border: Border.all(
+                                color: _activeAccentColor.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: ClipOval(
+                              child: hasImage
+                                  ? Image.file(
+                                      File(imagePath),
+                                      width: 24,
+                                      height: 24,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Icon(
+                                      Icons.person_rounded,
+                                      size: 14,
+                                      color: _activeAccentColor,
+                                    ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ValueListenableBuilder<String>(
+                        valueListenable: userProfileNameNotifier,
+                        builder: (context, name, child) {
+                          return Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: isLight
+                                  ? const Color(0xFF1A1A1A)
+                                  : Colors.white,
+                              fontFamily:
+                                  getFontFamily(activeFontNotifier.value),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Icon(
                         Icons.public,
                         size: 14,
-                        color: isLight ? Colors.black54 : Colors.white70,
+                        color: isLight ? Colors.black45 : Colors.white60,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         subtitle,
                         style: TextStyle(
-                          fontSize: 14,
-                          color: isLight ? Colors.black54 : Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: isLight ? Colors.black45 : Colors.white60,
+                          fontFamily: getFontFamily(activeFontNotifier.value),
                         ),
                       ),
                     ],

@@ -73,6 +73,14 @@ final ValueNotifier<String> themeAccentPresetNotifier = ValueNotifier<String>(
   'spotify',
 );
 
+// User Profile Notifiers
+final ValueNotifier<String> userProfileNameNotifier =
+    ValueNotifier<String>('User');
+final ValueNotifier<String?> userProfileImageNotifier =
+    ValueNotifier<String?>(null);
+final ValueNotifier<String> userProfileBioNotifier =
+    ValueNotifier<String>('Music enthusiast');
+
 // Lyrics viewer behavior
 final ValueNotifier<bool> lyricsHidePastNotifier = ValueNotifier<bool>(true);
 final ValueNotifier<bool> lyricsAutoFollowNotifier = ValueNotifier<bool>(true);
