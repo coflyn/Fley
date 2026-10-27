@@ -435,6 +435,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   List<String> _lastPlayedTrackIds = [];
+  int _lastPlaybackPositionMs = 0;
+  String? _lastPlaybackTrackId;
   List<String> get _allPlayedTrackIdsOrdered {
     final result = <String>[];
     final added = <String>{};

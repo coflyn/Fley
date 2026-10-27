@@ -35,7 +35,7 @@ extension _BottomNavUI on _MainScreenState {
                 _buildNavItem(
                   index: 0,
                   icon: _currentNavIndex == 0
-                      ? Icons.home_filled
+                      ? Icons.home
                       : Icons.home_outlined,
                   label: AppLocalizations.of(context).home,
                   isSelected: _currentNavIndex == 0,

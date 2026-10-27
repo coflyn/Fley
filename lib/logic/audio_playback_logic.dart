@@ -160,6 +160,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
     int index, {
     bool playImmediately = true,
     List<Track>? sourceList,
+    Duration? initialPosition,
   }) async {
     final int requestId = ++_playRequestId;
     final listToPlay = sourceList ?? _playbackQueue;
@@ -209,8 +210,13 @@ extension _AudioPlaybackLogic on _MainScreenState {
 
     _updateDominantColor(track);
 
+    final startPosMs = initialPosition?.inMilliseconds ?? 0;
+    _lastPlaybackPositionMs = startPosMs;
+    _lastPlaybackTrackId = track.id;
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString('last_playing_track_id', track.id);
+      prefs.setString('last_playback_track_id', track.id);
+      prefs.setInt('last_playback_position_ms', startPosMs);
       if (playImmediately) {
         prefs.setStringList('last_played_track_ids', _lastPlayedTrackIds);
       }
@@ -393,7 +399,11 @@ extension _AudioPlaybackLogic on _MainScreenState {
       }
 
       if (requestId != _playRequestId) return;
-      await _audioPlayer.setAudioSource(source, initialIndex: initialIndex);
+      await _audioPlayer.setAudioSource(
+        source,
+        initialIndex: initialIndex,
+        initialPosition: initialPosition,
+      );
 
       if (requestId != _playRequestId) return;
 
@@ -1007,6 +1017,15 @@ extension _AudioPlaybackLogic on _MainScreenState {
       }
     }
     await _audioPlayer.pause();
+    if (_playingTrack != null) {
+      final posMs = _audioPlayer.position.inMilliseconds;
+      _lastPlaybackPositionMs = posMs;
+      _lastPlaybackTrackId = _playingTrack!.id;
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('last_playback_track_id', _playingTrack!.id);
+        prefs.setInt('last_playback_position_ms', posMs);
+      });
+    }
     await _audioPlayer.setVolume(currentVol);
     _isFading = false;
   }

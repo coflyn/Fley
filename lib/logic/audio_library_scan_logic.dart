@@ -27,6 +27,8 @@ extension _AudioLibraryScanLogic on _MainScreenState {
       if (lastPlayed != null) {
         _lastPlayedTrackIds = List<String>.from(lastPlayed);
       }
+      _lastPlaybackPositionMs = prefs.getInt('last_playback_position_ms') ?? 0;
+      _lastPlaybackTrackId = prefs.getString('last_playback_track_id');
       List<String>? recentSearches = prefs.getStringList('recent_searched_track_ids');
       if (recentSearches != null) {
         _recentSearchedTrackIds = List<String>.from(recentSearches);

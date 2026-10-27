@@ -241,10 +241,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           AppLocalizations.of(context).profile,
           style: TextStyle(
@@ -257,9 +254,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.settings_outlined, color: textColor, size: 22),
-            onPressed: widget.onOpenSettings,
-            tooltip: AppLocalizations.of(context).settings,
+            icon: Icon(Icons.arrow_forward_ios_rounded, color: textColor, size: 20),
+            onPressed: () => Navigator.pop(context),
           ),
         ],
       ),

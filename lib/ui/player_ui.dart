@@ -76,7 +76,37 @@ extension _PlayerUI on _MainScreenState {
                   ),
                 ],
               ),
-              child: child,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Stack(
+                  children: [
+                    child!,
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: StreamBuilder<Duration>(
+                        stream: _audioPlayer.positionStream,
+                        builder: (context, snapshot) {
+                          final pos = snapshot.data ?? _audioPlayer.position;
+                          final total = currentTrack.duration > 0
+                              ? currentTrack.duration
+                              : (_audioPlayer.duration?.inMilliseconds ?? 1);
+                          final progress =
+                              (pos.inMilliseconds / total).clamp(0.0, 1.0);
+
+                          return LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 2.5,
+                            backgroundColor: Colors.white.withValues(alpha: 0.08),
+                            valueColor: AlwaysStoppedAnimation<Color>(_activeAccentColor),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             );
           },
           child: Row(

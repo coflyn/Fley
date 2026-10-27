@@ -5,14 +5,26 @@ extension _MainUIComponents on _MainScreenState {
   void _openProfile() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => ProfileScreen(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 280),
+        reverseTransitionDuration: const Duration(milliseconds: 240),
+        pageBuilder: (context, animation, secondaryAnimation) => ProfileScreen(
           totalSongs: _allTracks.length,
           totalPlaylists: _userPlaylists.length,
           totalFavorites: _favoriteTrackIds.length,
           activeAccentColor: _activeAccentColor,
           onOpenSettings: _openSettings,
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final tween = Tween<Offset>(
+            begin: const Offset(-1.0, 0.0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeOutCubic));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
       ),
     );
   }

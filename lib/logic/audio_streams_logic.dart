@@ -112,6 +112,18 @@ extension _AudioStreamsLogic on _MainScreenState {
         }
       }
 
+      if (_playingTrack != null && pos.inSeconds > 0 && pos.inSeconds % 4 == 0) {
+        final posMs = pos.inMilliseconds;
+        if ((_lastPlaybackPositionMs - posMs).abs() > 3000) {
+          _lastPlaybackPositionMs = posMs;
+          _lastPlaybackTrackId = _playingTrack!.id;
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.setString('last_playback_track_id', _playingTrack!.id);
+            prefs.setInt('last_playback_position_ms', posMs);
+          });
+        }
+      }
+
       if (_sleepAtEndOfTrack && _hasResetPosition) {
         final duration = _audioPlayer.duration ?? Duration.zero;
         if (duration > Duration.zero &&
