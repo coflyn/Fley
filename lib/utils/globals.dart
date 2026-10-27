@@ -58,6 +58,11 @@ final ValueNotifier<double> playerCustomBgOffsetYNotifier =
 // Player Background Settings
 final ValueNotifier<String> playerBackgroundStyleNotifier =
     ValueNotifier<String>('gradient');
+final ValueNotifier<String> detailViewBackgroundStyleNotifier =
+    ValueNotifier<String>('gradient');
+final ValueNotifier<String?> homeBannerPathNotifier =
+    ValueNotifier<String?>(null);
+final ValueNotifier<bool> showHomeBannerNotifier = ValueNotifier<bool>(true);
 final ValueNotifier<String?> playerCustomBgPathNotifier =
     ValueNotifier<String?>(null);
 final ValueNotifier<double> playerCustomBgBlurNotifier = ValueNotifier<double>(

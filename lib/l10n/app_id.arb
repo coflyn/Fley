@@ -446,5 +446,17 @@
   "selectSongs": "Pilih Lagu",
   "copyPath": "Salin path file",
   "pathCopied": "Path berhasil disalin ke papan klip",
-  "pausePreview": "Jeda Pratinjau"
+  "pausePreview": "Jeda Pratinjau",
+  "resumeSession": "Lanjutkan sesi terakhir",
+  "detailViewBackground": "Latar Belakang Detail",
+  "detailViewBgDesc": "Gaya latar belakang untuk detail album dan playlist",
+  "homeBanner": "Banner Beranda",
+  "homeBannerDesc": "Kustomisasi banner GIF atau gambar di beranda",
+  "changeBannerGif": "Ganti Banner (Foto / GIF)",
+  "resetDefaultBanner": "Kembalikan ke Banner Default",
+  "defaultBanner": "Default",
+  "hideBanner": "Sembunyikan Banner",
+  "showBanner": "Tampilkan Banner",
+  "bannerHidden": "Banner disembunyikan",
+  "bannerShown": "Banner ditampilkan"
 }

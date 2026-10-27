@@ -57,6 +57,10 @@ extension _AudioSettingsLogic on _MainScreenState {
       customThemeStyleNotifier.value = _customThemeStyle;
       playerBackgroundStyleNotifier.value =
           prefs.getString('playerBackgroundStyle') ?? 'gradient';
+      detailViewBackgroundStyleNotifier.value =
+          prefs.getString('detailViewBackgroundStyle') ?? 'gradient';
+      homeBannerPathNotifier.value = prefs.getString('homeBannerPath');
+      showHomeBannerNotifier.value = prefs.getBool('showHomeBanner') ?? true;
       playerCustomBgPathNotifier.value = prefs.getString('playerCustomBgPath');
       playerCustomBgBlurNotifier.value =
           prefs.getDouble('playerCustomBgBlur') ?? 0.0;

@@ -446,5 +446,17 @@
   "selectSongs": "Select Songs",
   "copyPath": "Copy path",
   "pathCopied": "Path copied to clipboard",
-  "pausePreview": "Pause Preview"
+  "pausePreview": "Pause Preview",
+  "resumeSession": "Resume playback",
+  "detailViewBackground": "Detail View Background",
+  "detailViewBgDesc": "Background style for album and playlist details",
+  "homeBanner": "Home Banner",
+  "homeBannerDesc": "Customize the GIF or image banner on Home screen",
+  "changeBannerGif": "Change Banner (Image / GIF)",
+  "resetDefaultBanner": "Reset to Default Banner",
+  "defaultBanner": "Default",
+  "hideBanner": "Hide Banner",
+  "showBanner": "Show Banner",
+  "bannerHidden": "Banner hidden",
+  "bannerShown": "Banner visible"
 }

@@ -76,6 +76,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   double _customThemeBgDim = 0.65;
   String _customThemeStyle = 'dark';
   String _playerBackgroundStyle = 'gradient';
+  String _detailViewBackgroundStyle = 'gradient';
   String? _playerCustomBgPath;
   double _playerCustomBgBlur = 0.0;
   double _playerCustomBgDim = 0.4;
@@ -317,6 +318,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _customThemeStyle = prefs.getString('customThemeStyle') ?? 'dark';
       _playerBackgroundStyle =
           prefs.getString('playerBackgroundStyle') ?? 'gradient';
+      _detailViewBackgroundStyle =
+          prefs.getString('detailViewBackgroundStyle') ?? 'gradient';
       _playerCustomBgPath = prefs.getString('playerCustomBgPath');
       _playerCustomBgBlur = prefs.getDouble('playerCustomBgBlur') ?? 0.0;
       _playerCustomBgDim = prefs.getDouble('playerCustomBgDim') ?? 0.4;
@@ -361,6 +364,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
       if (!mounted) return;
+      if (image.path.toLowerCase().endsWith('.gif')) {
+        final appDir = await getApplicationDocumentsDirectory();
+        final gifFile = File(
+          '${appDir.path}/${prefKey}_${DateTime.now().millisecondsSinceEpoch}.gif',
+        );
+        await File(image.path).copy(gifFile.path);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(prefKey, gifFile.path);
+        onSetStatePath(gifFile.path);
+        onSave(gifFile.path);
+        showFleyToast(
+          lookupAppLocalizations(
+            Locale(FleyStrings.currentLang),
+          ).wallpaperUpdated,
+        );
+        return;
+      }
       final croppedPath = await ImageCropperUtil.cropImage(
         context: context,
         sourcePath: image.path,
@@ -396,7 +416,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(
-            Icons.arrow_back,
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
             color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
           ),
           onPressed: () => Navigator.pop(context),
@@ -1291,6 +1312,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ],
+              const Divider(color: Colors.white10, height: 1),
+              SettingsPremiumListTile(
+                isLight: _selectedThemeMode == 'light',
+                activeAccentColor: _activeAccentColor,
+                icon: Icons.layers_outlined,
+                title: AppLocalizations.of(context).detailViewBackground,
+                subtitle: _getDetailViewBackgroundStyleLabel(
+                  _detailViewBackgroundStyle,
+                ),
+                onTap: () => _showDetailViewBackgroundStyleDialog(),
+              ),
+              const Divider(color: Colors.white10, height: 1),
+              ValueListenableBuilder<bool>(
+                valueListenable: showHomeBannerNotifier,
+                builder: (context, showBanner, _) {
+                  return ValueListenableBuilder<String?>(
+                    valueListenable: homeBannerPathNotifier,
+                    builder: (context, bannerPath, child) {
+                      final hasCustom =
+                          bannerPath != null && File(bannerPath).existsSync();
+                      final loc = AppLocalizations.of(context);
+                      final String subtitleText;
+                      if (!showBanner) {
+                        subtitleText = loc.hideBanner;
+                      } else if (hasCustom) {
+                        subtitleText = 'Custom (GIF / Image)';
+                      } else {
+                        subtitleText = loc.defaultBanner;
+                      }
+                      return SettingsPremiumListTile(
+                        isLight: _selectedThemeMode == 'light',
+                        activeAccentColor: _activeAccentColor,
+                        icon: showBanner
+                            ? Icons.gif_box_outlined
+                            : Icons.visibility_off_outlined,
+                        title: loc.homeBanner,
+                        subtitle: subtitleText,
+                        onTap: () => _showHomeBannerOptionsModal(),
+                      );
+                    },
+                  );
+                },
+              ),
             ],
           ),
           SettingsSectionHeader(

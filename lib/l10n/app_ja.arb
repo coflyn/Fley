@@ -446,5 +446,17 @@
   "selectSongs": "曲を選択",
   "copyPath": "パスをコピー",
   "pathCopied": "パスをクリップボードにコピーしました",
-  "pausePreview": "プレビューを一時停止"
+  "pausePreview": "プレビューを一時停止",
+  "resumeSession": "前回の続きを再生",
+  "detailViewBackground": "詳細画面の背景スタイル",
+  "detailViewBgDesc": "アルバムやプレイリスト詳細の背景スタイル",
+  "homeBanner": "ホームバナー",
+  "homeBannerDesc": "ホーム画面のGIFや画像バナーをカスタマイズ",
+  "changeBannerGif": "バナーを変更 (画像 / GIF)",
+  "resetDefaultBanner": "デフォルトバナーに戻す",
+  "defaultBanner": "デフォルト",
+  "hideBanner": "バナーを非表示",
+  "showBanner": "バナーを表示",
+  "bannerHidden": "バナーを非表示にしました",
+  "bannerShown": "バナーを表示しました"
 }

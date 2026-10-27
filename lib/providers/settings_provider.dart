@@ -8,6 +8,9 @@ class SettingsState {
   final double fontScale;
   final String themeAccentPreset;
   final String playerBackgroundStyle;
+  final String detailViewBackgroundStyle;
+  final String? homeBannerPath;
+  final bool showHomeBanner;
   final String? playerCustomBgPath;
   final double playerCustomBgBlur;
   final double playerCustomBgDim;
@@ -26,6 +29,9 @@ class SettingsState {
     this.fontScale = 1.0,
     this.themeAccentPreset = 'spotify',
     this.playerBackgroundStyle = 'gradient',
+    this.detailViewBackgroundStyle = 'gradient',
+    this.homeBannerPath,
+    this.showHomeBanner = true,
     this.playerCustomBgPath,
     this.playerCustomBgBlur = 0.0,
     this.playerCustomBgDim = 0.4,
@@ -45,6 +51,9 @@ class SettingsState {
     double? fontScale,
     String? themeAccentPreset,
     String? playerBackgroundStyle,
+    String? detailViewBackgroundStyle,
+    String? homeBannerPath,
+    bool? showHomeBanner,
     String? playerCustomBgPath,
     double? playerCustomBgBlur,
     double? playerCustomBgDim,
@@ -64,6 +73,12 @@ class SettingsState {
       themeAccentPreset: themeAccentPreset ?? this.themeAccentPreset,
       playerBackgroundStyle:
           playerBackgroundStyle ?? this.playerBackgroundStyle,
+      detailViewBackgroundStyle:
+          detailViewBackgroundStyle ?? this.detailViewBackgroundStyle,
+      homeBannerPath: homeBannerPath != null
+          ? (homeBannerPath.isEmpty ? null : homeBannerPath)
+          : this.homeBannerPath,
+      showHomeBanner: showHomeBanner ?? this.showHomeBanner,
       playerCustomBgPath: playerCustomBgPath != null
           ? (playerCustomBgPath.isEmpty ? null : playerCustomBgPath)
           : this.playerCustomBgPath,
@@ -99,6 +114,10 @@ class SettingsNotifier extends Notifier<SettingsState> {
       themeAccentPreset: prefs.getString('themeAccentPreset') ?? 'spotify',
       playerBackgroundStyle:
           prefs.getString('playerBackgroundStyle') ?? 'gradient',
+      detailViewBackgroundStyle:
+          prefs.getString('detailViewBackgroundStyle') ?? 'gradient',
+      homeBannerPath: prefs.getString('homeBannerPath'),
+      showHomeBanner: prefs.getBool('showHomeBanner') ?? true,
       playerCustomBgPath: prefs.getString('playerCustomBgPath'),
       playerCustomBgBlur: prefs.getDouble('playerCustomBgBlur') ?? 0.0,
       playerCustomBgDim: prefs.getDouble('playerCustomBgDim') ?? 0.4,
@@ -123,6 +142,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
     customThemeBgScaleNotifier.value = state.customThemeBgScale;
     customThemeStyleNotifier.value = state.customThemeStyle;
     playerBackgroundStyleNotifier.value = state.playerBackgroundStyle;
+    detailViewBackgroundStyleNotifier.value = state.detailViewBackgroundStyle;
+    homeBannerPathNotifier.value = state.homeBannerPath;
+    showHomeBannerNotifier.value = state.showHomeBanner;
     playerCustomBgPathNotifier.value = state.playerCustomBgPath;
     playerCustomBgBlurNotifier.value = state.playerCustomBgBlur;
     playerCustomBgDimNotifier.value = state.playerCustomBgDim;
@@ -136,6 +158,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
     double? fontScale,
     String? themeAccentPreset,
     String? playerBackgroundStyle,
+    String? detailViewBackgroundStyle,
+    String? homeBannerPath,
+    bool? showHomeBanner,
     String? playerCustomBgPath,
     double? playerCustomBgBlur,
     double? playerCustomBgDim,
@@ -164,6 +189,18 @@ class SettingsNotifier extends Notifier<SettingsState> {
     }
     if (playerBackgroundStyle != null) {
       await prefs.setString('playerBackgroundStyle', playerBackgroundStyle);
+    }
+    if (detailViewBackgroundStyle != null) {
+      await prefs.setString(
+        'detailViewBackgroundStyle',
+        detailViewBackgroundStyle,
+      );
+    }
+    if (homeBannerPath != null) {
+      await prefs.setString('homeBannerPath', homeBannerPath);
+    }
+    if (showHomeBanner != null) {
+      await prefs.setBool('showHomeBanner', showHomeBanner);
     }
     if (playerCustomBgPath != null) {
       await prefs.setString('playerCustomBgPath', playerCustomBgPath);
@@ -205,6 +242,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
       fontScale: fontScale,
       themeAccentPreset: themeAccentPreset,
       playerBackgroundStyle: playerBackgroundStyle,
+      detailViewBackgroundStyle: detailViewBackgroundStyle,
+      homeBannerPath: homeBannerPath,
+      showHomeBanner: showHomeBanner,
       playerCustomBgPath: playerCustomBgPath,
       playerCustomBgBlur: playerCustomBgBlur,
       playerCustomBgDim: playerCustomBgDim,
@@ -248,6 +288,15 @@ class SettingsNotifier extends Notifier<SettingsState> {
     }
     if (playerBackgroundStyle != null) {
       playerBackgroundStyleNotifier.value = playerBackgroundStyle;
+    }
+    if (detailViewBackgroundStyle != null) {
+      detailViewBackgroundStyleNotifier.value = detailViewBackgroundStyle;
+    }
+    if (homeBannerPath != null) {
+      homeBannerPathNotifier.value = homeBannerPath;
+    }
+    if (showHomeBanner != null) {
+      showHomeBannerNotifier.value = showHomeBanner;
     }
     if (playerCustomBgPath != null) {
       playerCustomBgPathNotifier.value = playerCustomBgPath;

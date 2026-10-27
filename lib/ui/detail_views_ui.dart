@@ -796,7 +796,7 @@ extension _DetailViewsUI on _MainScreenState {
         children: [
           Positioned.fill(
             child: ValueListenableBuilder<String>(
-              valueListenable: playerBackgroundStyleNotifier,
+              valueListenable: detailViewBackgroundStyleNotifier,
               builder: (context, style, child) {
                 if (style == 'amoled') {
                   return Container(
