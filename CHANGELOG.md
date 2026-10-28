@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0]
+
+### Added
+- **In-App Music Downloader & OTA Dynamic Engine**: Integrated multi-platform audio resolver supporting Spotify, Apple Music, Bandcamp, and YouTube with live percentage progress, instant library injection, and OTA dynamic engine updates without APK recompile.
+- **Unified Custom Wallpaper Studio**: Consolidated theme, player, and detail view background customization into a single interactive studio card in Settings featuring live mockups and segmented tab previews.
+- **Detail View Custom Background**: Dedicated background styling for album, artist, and playlist detail views with independent blur (0–60) and dimming (0–90%) adjustments.
+- **Edit Lyrics Auto 3-Dots Wave Toggle**: Per-song and global toggle controls in Edit Lyrics and Settings to enable or disable automatic instrumental 3-dot wave indicators.
+- **Dedicated User Profile System**: Profile screen accessible from top header featuring custom photo upload with 1:1 square cropper, editable display name, bio, and real-time library counters (songs, playlists, favorites).
+- **Interactive Search Discovery**: Dedicated Search tab with 8 category discovery tiles, instant search filtering, and dedicated local search history.
+- **Resume Playback Session**: Inline resume card in Home screen restoring exact playback position and timestamp with smooth transition animations.
+- **Mini-Player Progress Indicator**: Live linear playback progress bar along the bottom edge of the floating mini player.
+- **Ambient Animated Splash Intro**: AMOLED launch intro with glowing Fley neon bloom and drifting micro-particle music visualizer.
+- **Home Banner GIF Support**: Support for animated `.gif` and custom image banners with 1-tap hide/show collapse toggle.
+
+### Changed
+- **Spotify-Style Detail View Control Bar**: Redesigned detail view action bar featuring inline cover thumbnail, fast favorite toggle, queue action, inline options menu, shuffle state dot indicator, and prominent play/pause button.
+- **Modern Library Filter Capsules**: Redesigned library pills into sleek 36px fully rounded capsules with active theme accent glow and 16px horizontal alignment matching Home and Search.
+- **Swipeable 3-Tab Architecture**: Replaced static stack with fluid swipeable PageView navigation across Home, Search, and Your Library with instant bottom navbar jumps.
+- **Unified Top App Bar**: Global persistent header displaying dynamic tab titles, user profile avatar with live thumbnail, download manager shortcut, and settings shortcut.
+
+---
+
 ## [1.1.0]
 
 ### Added
