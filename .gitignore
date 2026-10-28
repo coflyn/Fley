@@ -59,3 +59,4 @@ android/.gradle/
 
 # Auto-generated localization Dart files (only track .arb files)
 lib/l10n/*.dart
+fley-demo

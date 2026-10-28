@@ -23,28 +23,26 @@ Fley is a clean, modern offline music player for Android built with Flutter. Des
 ## Features
 
 ### Modern Navigation & Discoverability
+
 - **Intuitive 3-Tab Experience**: Fluid swipeable PageView navigation between **Home**, **Search**, and **Your Library** with persistent header and frosted-glass blur bottom navigation bar.
 - **Dynamic Home Tab**:
-  - *Quick Pins Grid*: Rapid 1-tap access to your top playlists (*Most Played*, *Favourites*, *Recently Added*, *Forgotten Gems*).
-  - *Resume Playback Session*: Inline resume card in Home screen restoring exact playback position and timestamp with smooth transition animations.
-  - *Your Recent Rotation*: Quick 4-track local rotation with direct playback and options menu.
-  - *Recents Carousel*: Horizontal card carousel showcasing recently played playlists and albums.
-  - *Jump Back In*: Highlighted top artists with circular avatars.
-  - *Custom Banner*: Customizable animated `.gif` or image banner with 1-tap hide/collapse toggle.
-- **Dedicated Search Tab**: Instant multi-field local search with discovery category tiles (*Most Played*, *Favourites*, *Recently Added*, *Forgotten Gems*, *Artists*, *Albums*, *Playlists*, *All Songs*) and dedicated search history.
-- **Your Library Tab**: Complete organization across *Songs*, *Playlists*, *Artists*, and *Albums* with sleek 36px rounded filter capsules and dedicated sorting modal (*Recently Added*, *Title*, *Artist*, *Album*, *Duration*, *Oldest Added*).
-
-### In-App Music Downloader
-- **Multi-Platform Music Resolver**: Download music directly from Spotify, Apple Music, Bandcamp, and YouTube using integrated Scrapr engine.
-- **OTA Dynamic Engine Updates**: In-app OTA updates for scraping resolver definitions without requiring APK recompile.
-- **Instant Library Injection**: Streams downloads directly to local storage (`/Music/Fley/`) and immediately injects them into your music library and Recently Added.
+  - _Quick Pins Grid_: Rapid 1-tap access to your top playlists (_Most Played_, _Favourites_, _Recently Added_, _Forgotten Gems_).
+  - _Resume Playback Session_: Inline resume card in Home screen restoring exact playback position and timestamp with smooth transition animations.
+  - _Your Recent Rotation_: Quick 4-track local rotation with direct playback and options menu.
+  - _Recents Carousel_: Horizontal card carousel showcasing recently played playlists and albums.
+  - _Jump Back In_: Highlighted top artists with circular avatars.
+  - _Custom Banner_: Customizable animated `.gif` or image banner with 1-tap hide/collapse toggle.
+- **Dedicated Search Tab**: Instant multi-field local search with discovery category tiles (_Most Played_, _Favourites_, _Recently Added_, _Forgotten Gems_, _Artists_, _Albums_, _Playlists_, _All Songs_) and dedicated search history.
+- **Your Library Tab**: Complete organization across _Songs_, _Playlists_, _Artists_, and _Albums_ with sleek 36px rounded filter capsules and dedicated sorting modal (_Recently Added_, _Title_, _Artist_, _Album_, _Duration_, _Oldest Added_).
 
 ### User Profile & Personalization
+
 - **Dedicated Profile Screen**: Set custom profile picture with built-in square cropper (`1:1`), customizable display name, and bio.
 - **Live Library Statistics**: Real-time counter card displaying total songs, custom playlists, and favorites.
 - **Dynamic Author Credits**: Author row in playlist and album detail views reflecting the user's custom profile avatar, display name, and track duration.
 
 ### Audio Engine & Playback
+
 - **High-Fidelity Offline Playback**: Supports MP3, FLAC, WAV, AAC, M4A, and OGG formats.
 - **Background Playback & Lock Screen Controls**: Seamless OS-level background playback via Android MediaSession with lock screen notifications and swipe-to-dismiss task cleanup.
 - **Floating Mini Player with Progress Bar**: Elevated above the bottom navigation bar with live linear duration progress bar and safe padding adapting to Android navigation bars.
@@ -54,6 +52,7 @@ Fley is a clean, modern offline music player for Android built with Flutter. Des
 - **Equalizer Access**: Direct shortcut integration to system equalizer presets and sound effects.
 
 ### Synced Lyrics Engine
+
 - **Synchronized LRC & Embedded Lyrics**: Real-time synced line highlighting with smooth auto-scroll to the active line.
 - **Instrumental Detection & Wave Toggle**: Automatic melody indicator (3-dot wave) during instrumental intros and breaks, with per-song and global on/off toggles in Edit Lyrics and Settings.
 - **Manual Timing Offset**: Fine-tune lyric timing per-track (±0.1s / ±0.5s) directly from the player.
@@ -61,6 +60,7 @@ Fley is a clean, modern offline music player for Android built with Flutter. Des
 - **Customization Options**: Configurable auto-follow mode and past-line dimming toggles.
 
 ### Adaptive Theming & Visuals
+
 - **Dynamic Palette Extraction**: Real-time color matching extracted from the currently playing album artwork.
 - **Unified Custom Wallpaper Studio**: Consolidated studio in Settings featuring live mockups and tab previews across Theme, Player, and Detail View.
 - **Background Styling Modes**: Dynamic Gradient, Apple-style Blurred Cover (with adjustable blur & dimming sliders), AMOLED Deep Black, and Custom Gallery Wallpaper for Player and Detail Views.
@@ -71,6 +71,7 @@ Fley is a clean, modern offline music player for Android built with Flutter. Des
 - **Mini Equalizer Visualizer**: Animated equalizer visualizer bars on currently playing songs.
 
 ### Library & Smart Management
+
 - **Fast Media Scanning**: Scoped storage scanning with path deduplication and duration filters to ignore short audio clips, ringtones, and voice notes.
 - **Modern Artists & Albums Views**: Grid and List layout switcher with Top Artists and Top Albums horizontal highlight carousels.
 - **Virtual Metadata Editor**: Edit song titles, artists, and album tags without modifying or corrupting the original audio file.
@@ -79,12 +80,14 @@ Fley is a clean, modern offline music player for Android built with Flutter. Des
 - **Smart Sorting**: Instant sorting across titles, artists, albums, date added, and durations.
 
 ### Smart & Custom Playlists
-- **Dynamic Smart Playlists**: Automatically generated *Favourites*, *Recently Added*, *Last Played*, *Most Played*, and *Forgotten Gems* based on real play statistics.
+
+- **Dynamic Smart Playlists**: Automatically generated _Favourites_, _Recently Added_, _Last Played_, _Most Played_, and _Forgotten Gems_ based on real play statistics.
 - **Custom Playlists**: Create, rename, and manage custom playlists with personalized playlist cover images.
 - **Multi-Select Batch Actions**: Intuitive hold-to-select mode across all song lists for rapid queueing or mass additions.
 - **Spotify-Style Action Row**: Quick-access favorite toggles, batch queue button, inline options, shuffle toggle with indicator, and play button in playlist & album views.
 
 ### Utilities
+
 - **Built-in Ringtone Cutter**: Dual-handle slider waveform editor with real-time preview and 1-tap save to `/Ringtones/`.
 - **Dynamic Sleep Timer**: Set auto-stop timers (15m, 30m, 60m, or custom duration) with gentle volume fade-out.
 - **Backup & Restore**: Fail-safe backup and restore of playlists, favorites, play statistics, and user settings across Android 10–15 scoped storage.
@@ -101,6 +104,7 @@ Download the latest release APKs directly from the [Releases](https://github.com
 ## Building from Source
 
 ### Prerequisites
+
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) (3.24+)
 - Android SDK (`minSdk` 21, `targetSdk` 34+)
 - Java Development Kit (JDK 17)
