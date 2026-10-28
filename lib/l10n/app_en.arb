@@ -391,6 +391,8 @@
   "lyricsHidePastSubtitle": "Fade out lyrics that have already played",
   "lyricsAutoFollow": "Auto-follow Lyrics",
   "lyricsAutoFollowSubtitle": "Smoothly scroll to the active lyric line",
+  "lyricsAutoWave": "Auto 3-Dots Wave",
+  "lyricsAutoWaveSubtitle": "Generate 3-dots wave for instrumental breaks",
   "lyricsOffsetLabel": "Offset (seconds):",
   "lyricsPasteHint": "Paste plain lyrics or synced LRC format lyrics below.",
   "editLyrics": "Edit Lyrics",

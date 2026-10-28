@@ -15,6 +15,9 @@ class SettingsState {
   final double playerCustomBgBlur;
   final double playerCustomBgDim;
   final double playerCustomBgScale;
+  final String? detailViewCustomBgPath;
+  final double detailViewCustomBgBlur;
+  final double detailViewCustomBgDim;
   final String themeMode;
   final String customThemeBg;
   final String? customThemeBgPath;
@@ -36,6 +39,9 @@ class SettingsState {
     this.playerCustomBgBlur = 0.0,
     this.playerCustomBgDim = 0.4,
     this.playerCustomBgScale = 1.0,
+    this.detailViewCustomBgPath,
+    this.detailViewCustomBgBlur = 0.0,
+    this.detailViewCustomBgDim = 0.4,
     this.themeMode = 'dark',
     this.customThemeBg = 'dynamic',
     this.customThemeBgPath,
@@ -58,6 +64,9 @@ class SettingsState {
     double? playerCustomBgBlur,
     double? playerCustomBgDim,
     double? playerCustomBgScale,
+    String? detailViewCustomBgPath,
+    double? detailViewCustomBgBlur,
+    double? detailViewCustomBgDim,
     String? themeMode,
     String? customThemeBg,
     String? customThemeBgPath,
@@ -85,6 +94,13 @@ class SettingsState {
       playerCustomBgBlur: playerCustomBgBlur ?? this.playerCustomBgBlur,
       playerCustomBgDim: playerCustomBgDim ?? this.playerCustomBgDim,
       playerCustomBgScale: playerCustomBgScale ?? this.playerCustomBgScale,
+      detailViewCustomBgPath: detailViewCustomBgPath != null
+          ? (detailViewCustomBgPath.isEmpty ? null : detailViewCustomBgPath)
+          : this.detailViewCustomBgPath,
+      detailViewCustomBgBlur:
+          detailViewCustomBgBlur ?? this.detailViewCustomBgBlur,
+      detailViewCustomBgDim:
+          detailViewCustomBgDim ?? this.detailViewCustomBgDim,
       themeMode: themeMode ?? this.themeMode,
       customThemeBg: customThemeBg ?? this.customThemeBg,
       customThemeBgPath: customThemeBgPath != null
@@ -122,6 +138,10 @@ class SettingsNotifier extends Notifier<SettingsState> {
       playerCustomBgBlur: prefs.getDouble('playerCustomBgBlur') ?? 0.0,
       playerCustomBgDim: prefs.getDouble('playerCustomBgDim') ?? 0.4,
       playerCustomBgScale: prefs.getDouble('playerCustomBgScale') ?? 1.0,
+      detailViewCustomBgPath: prefs.getString('detailViewCustomBgPath'),
+      detailViewCustomBgBlur:
+          prefs.getDouble('detailViewCustomBgBlur') ?? 0.0,
+      detailViewCustomBgDim: prefs.getDouble('detailViewCustomBgDim') ?? 0.4,
       themeMode: prefs.getString('themeMode') ?? 'dark',
       customThemeBg: prefs.getString('customThemeBg') ?? 'dynamic',
       customThemeBgPath: prefs.getString('customThemeBgPath'),
@@ -149,6 +169,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
     playerCustomBgBlurNotifier.value = state.playerCustomBgBlur;
     playerCustomBgDimNotifier.value = state.playerCustomBgDim;
     playerCustomBgScaleNotifier.value = state.playerCustomBgScale;
+    detailViewCustomBgPathNotifier.value = state.detailViewCustomBgPath;
+    detailViewCustomBgBlurNotifier.value = state.detailViewCustomBgBlur;
+    detailViewCustomBgDimNotifier.value = state.detailViewCustomBgDim;
     themeAccentPresetNotifier.value = state.themeAccentPreset;
   }
 
@@ -165,6 +188,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
     double? playerCustomBgBlur,
     double? playerCustomBgDim,
     double? playerCustomBgScale,
+    String? detailViewCustomBgPath,
+    double? detailViewCustomBgBlur,
+    double? detailViewCustomBgDim,
     String? themeMode,
     String? customThemeBg,
     String? customThemeBgPath,
@@ -214,6 +240,15 @@ class SettingsNotifier extends Notifier<SettingsState> {
     if (playerCustomBgScale != null) {
       await prefs.setDouble('playerCustomBgScale', playerCustomBgScale);
     }
+    if (detailViewCustomBgPath != null) {
+      await prefs.setString('detailViewCustomBgPath', detailViewCustomBgPath);
+    }
+    if (detailViewCustomBgBlur != null) {
+      await prefs.setDouble('detailViewCustomBgBlur', detailViewCustomBgBlur);
+    }
+    if (detailViewCustomBgDim != null) {
+      await prefs.setDouble('detailViewCustomBgDim', detailViewCustomBgDim);
+    }
     if (themeMode != null) {
       await prefs.setString('themeMode', themeMode);
     }
@@ -249,6 +284,9 @@ class SettingsNotifier extends Notifier<SettingsState> {
       playerCustomBgBlur: playerCustomBgBlur,
       playerCustomBgDim: playerCustomBgDim,
       playerCustomBgScale: playerCustomBgScale,
+      detailViewCustomBgPath: detailViewCustomBgPath,
+      detailViewCustomBgBlur: detailViewCustomBgBlur,
+      detailViewCustomBgDim: detailViewCustomBgDim,
       themeMode: themeMode,
       customThemeBg: customThemeBg,
       customThemeBgPath: customThemeBgPath,
@@ -309,6 +347,15 @@ class SettingsNotifier extends Notifier<SettingsState> {
     }
     if (playerCustomBgScale != null) {
       playerCustomBgScaleNotifier.value = playerCustomBgScale;
+    }
+    if (detailViewCustomBgPath != null) {
+      detailViewCustomBgPathNotifier.value = detailViewCustomBgPath;
+    }
+    if (detailViewCustomBgBlur != null) {
+      detailViewCustomBgBlurNotifier.value = detailViewCustomBgBlur;
+    }
+    if (detailViewCustomBgDim != null) {
+      detailViewCustomBgDimNotifier.value = detailViewCustomBgDim;
     }
     if (themeAccentPreset != null) {
       themeAccentPresetNotifier.value = themeAccentPreset;

@@ -30,6 +30,7 @@ extension _AudioSettingsLogic on _MainScreenState {
       lyricsHidePastNotifier.value = prefs.getBool('lyricsHidePast') ?? true;
       lyricsAutoFollowNotifier.value =
           prefs.getBool('lyricsAutoFollow') ?? true;
+      lyricsAutoWaveNotifier.value = prefs.getBool('lyricsAutoWave') ?? true;
 
       _applyPlaybackSpeedAndPitch();
       _sortBy = prefs.getString('sortBy') ?? 'date';
@@ -59,6 +60,12 @@ extension _AudioSettingsLogic on _MainScreenState {
           prefs.getString('playerBackgroundStyle') ?? 'gradient';
       detailViewBackgroundStyleNotifier.value =
           prefs.getString('detailViewBackgroundStyle') ?? 'gradient';
+      detailViewCustomBgPathNotifier.value =
+          prefs.getString('detailViewCustomBgPath');
+      detailViewCustomBgBlurNotifier.value =
+          prefs.getDouble('detailViewCustomBgBlur') ?? 0.0;
+      detailViewCustomBgDimNotifier.value =
+          prefs.getDouble('detailViewCustomBgDim') ?? 0.4;
       homeBannerPathNotifier.value = prefs.getString('homeBannerPath');
       showHomeBannerNotifier.value = prefs.getBool('showHomeBanner') ?? true;
       playerCustomBgPathNotifier.value = prefs.getString('playerCustomBgPath');

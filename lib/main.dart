@@ -364,6 +364,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   String? _currentLyricsPlain;
   List<LyricsLine> _currentLyricsSynced = [];
   double _lyricsOffsetSec = 0.0;
+  bool _lyricsAutoWave = true;
   bool _isLyricsLoading = false;
   bool _isLyricsSynced = false;
   int _lastActiveLyricsIndex = -1;

@@ -447,6 +447,7 @@ extension _PlayerUI on _MainScreenState {
       text: _currentLyricsPlain ?? '',
     );
     double currentOffset = _lyricsOffsetSec;
+    bool currentAutoWave = _lyricsAutoWave;
 
     SharedPreferences.getInstance().then((prefs) {
       final manualKey = 'lyrics_manual_${currentTrack.id}';
@@ -464,6 +465,10 @@ extension _PlayerUI on _MainScreenState {
             }
           } catch (_) {}
         }
+      }
+      final autoWaveKey = 'lyrics_autowave_${currentTrack.id}';
+      if (prefs.containsKey(autoWaveKey)) {
+        currentAutoWave = prefs.getBool(autoWaveKey) ?? lyricsAutoWaveNotifier.value;
       }
     });
 
@@ -548,6 +553,8 @@ extension _PlayerUI on _MainScreenState {
                               } else {
                                 await prefs.setDouble(offsetKey, currentOffset);
                               }
+                              final autoWaveKey = 'lyrics_autowave_${currentTrack.id}';
+                              await prefs.setBool(autoWaveKey, currentAutoWave);
                               navigator.pop();
                               _loadLyricsForTrack(currentTrack);
                               showFleyToast(
@@ -674,6 +681,43 @@ extension _PlayerUI on _MainScreenState {
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                setModalState(() {
+                                  currentAutoWave = !currentAutoWave;
+                                });
+                              },
+                              icon: Icon(
+                                currentAutoWave
+                                    ? Icons.more_horiz_rounded
+                                    : Icons.do_not_disturb_on_outlined,
+                                size: 16,
+                                color: currentAutoWave
+                                    ? _activeAccentColor
+                                    : (isLight ? Colors.black45 : Colors.white38),
+                              ),
+                              label: Text(
+                                currentAutoWave ? 'Auto 3-Dots: ON' : 'Auto 3-Dots: OFF',
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: currentAutoWave
+                                    ? _activeAccentColor
+                                    : (isLight ? Colors.black54 : Colors.white60),
+                                backgroundColor: currentAutoWave
+                                    ? _activeAccentColor.withValues(alpha: 0.12)
+                                    : Colors.transparent,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                side: BorderSide(
+                                  color: currentAutoWave
+                                      ? _activeAccentColor.withValues(alpha: 0.4)
+                                      : (isLight ? Colors.black12 : Colors.white12),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -780,6 +824,86 @@ extension _PlayerUI on _MainScreenState {
                                     ),
                                   ),
                                 ],
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Divider(
+                              height: 1,
+                              color: isLight ? Colors.black12 : Colors.white10,
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.more_horiz_rounded,
+                                  size: 18,
+                                  color: isLight ? Colors.black54 : Colors.white60,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        loc.lyricsAutoWave,
+                                        style: TextStyle(
+                                          color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        loc.lyricsAutoWaveSubtitle,
+                                        style: TextStyle(
+                                          color: isLight ? Colors.black54 : Colors.white38,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () {
+                                    setModalState(() {
+                                      currentAutoWave = !currentAutoWave;
+                                    });
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: currentAutoWave
+                                          ? _activeAccentColor.withValues(alpha: 0.15)
+                                          : (isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.08)),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: currentAutoWave
+                                            ? _activeAccentColor.withValues(alpha: 0.5)
+                                            : (isLight ? Colors.black12 : Colors.white12),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          currentAutoWave ? Icons.check_circle_rounded : Icons.do_not_disturb_on_outlined,
+                                          size: 13,
+                                          color: currentAutoWave ? _activeAccentColor : (isLight ? Colors.black45 : Colors.white38),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          currentAutoWave ? 'ON' : 'OFF',
+                                          style: TextStyle(
+                                            color: currentAutoWave ? _activeAccentColor : (isLight ? Colors.black54 : Colors.white60),
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ],

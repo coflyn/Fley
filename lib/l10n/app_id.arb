@@ -391,6 +391,8 @@
   "lyricsHidePastSubtitle": "Redupkan lirik yang sudah diputar",
   "lyricsAutoFollow": "Ikuti Lirik Otomatis",
   "lyricsAutoFollowSubtitle": "Gulir halus ke baris lirik aktif",
+  "lyricsAutoWave": "Auto 3-Dots Wave",
+  "lyricsAutoWaveSubtitle": "Otomatis tampilkan 3-dots saat jeda instrumen",
   "lyricsOffsetLabel": "Offset (detik):",
   "lyricsPasteHint": "Tempel lirik biasa atau lirik format LRC tersinkron di bawah.",
   "editLyrics": "Edit Lirik",

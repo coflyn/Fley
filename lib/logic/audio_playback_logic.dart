@@ -810,7 +810,11 @@ extension _AudioPlaybackLogic on _MainScreenState {
     _playTrack(prevIndex);
   }
 
-  List<LyricsLine> _parseLrc(String lrcContent, {double offsetSec = 0.0}) {
+  List<LyricsLine> _parseLrc(
+    String lrcContent, {
+    double offsetSec = 0.0,
+    bool autoWave = true,
+  }) {
     final List<LyricsLine> lines = [];
     final offset = Duration(milliseconds: (offsetSec * 1000).round());
     final RegExp regExp = RegExp(r'\[(\d+):(\d+)(?:\.(\d+))?\](.*)');
@@ -843,39 +847,43 @@ extension _AudioPlaybackLogic on _MainScreenState {
 
     final List<LyricsLine> processedLines = [];
 
-    bool isWaveLine(LyricsLine line) {
-      final t = line.text.trim().toLowerCase();
-      return t.isEmpty ||
-          t == '♪' ||
-          t == '[music]' ||
-          t == 'instrumental' ||
-          t == '(instrumental)';
-    }
+    if (autoWave) {
+      bool isWaveLine(LyricsLine line) {
+        final t = line.text.trim().toLowerCase();
+        return t.isEmpty ||
+            t == '♪' ||
+            t == '[music]' ||
+            t == 'instrumental' ||
+            t == '(instrumental)';
+      }
 
-    // Auto-insert 3-dots wave for intro melody if first lyric starts after >= 4s and first line is not already wave
-    if (lines.first.time >= const Duration(seconds: 4) &&
-        !isWaveLine(lines.first)) {
-      processedLines.add(LyricsLine(time: Duration.zero, text: '♪'));
-    }
+      // Auto-insert 3-dots wave for intro melody if first lyric starts after >= 4s and first line is not already wave
+      if (lines.first.time >= const Duration(seconds: 4) &&
+          !isWaveLine(lines.first)) {
+        processedLines.add(LyricsLine(time: Duration.zero, text: '♪'));
+      }
 
-    for (int i = 0; i < lines.length; i++) {
-      final currentLine = lines[i];
-      processedLines.add(currentLine);
+      for (int i = 0; i < lines.length; i++) {
+        final currentLine = lines[i];
+        processedLines.add(currentLine);
 
-      // Skip if currentLine or nextLine is already an explicit empty/instrumental line in LRC
-      if (i < lines.length - 1) {
-        final nextLine = lines[i + 1];
-        if (!isWaveLine(currentLine) && !isWaveLine(nextLine)) {
-          final gap = nextLine.time - currentLine.time;
-          if (gap >= const Duration(seconds: 8)) {
-            final instTime =
-                currentLine.time + const Duration(milliseconds: 6000);
-            if (nextLine.time - instTime >= const Duration(seconds: 2)) {
-              processedLines.add(LyricsLine(time: instTime, text: '♪'));
+        // Skip if currentLine or nextLine is already an explicit empty/instrumental line in LRC
+        if (i < lines.length - 1) {
+          final nextLine = lines[i + 1];
+          if (!isWaveLine(currentLine) && !isWaveLine(nextLine)) {
+            final gap = nextLine.time - currentLine.time;
+            if (gap >= const Duration(seconds: 8)) {
+              final instTime =
+                  currentLine.time + const Duration(milliseconds: 6000);
+              if (nextLine.time - instTime >= const Duration(seconds: 2)) {
+                processedLines.add(LyricsLine(time: instTime, text: '♪'));
+              }
             }
           }
         }
       }
+    } else {
+      processedLines.addAll(lines);
     }
 
     return processedLines;
@@ -889,10 +897,15 @@ extension _AudioPlaybackLogic on _MainScreenState {
     }
     _lastActiveLyricsIndex = -1;
     _lyricsOffsetSec = 0.0;
+    _lyricsAutoWave = lyricsAutoWaveNotifier.value;
     final offsetKey = 'lyrics_offset_${track.id}';
+    final autoWaveKey = 'lyrics_autowave_${track.id}';
     final prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey(offsetKey)) {
       _lyricsOffsetSec = prefs.getDouble(offsetKey) ?? 0.0;
+    }
+    if (prefs.containsKey(autoWaveKey)) {
+      _lyricsAutoWave = prefs.getBool(autoWaveKey) ?? lyricsAutoWaveNotifier.value;
     }
     setState(() {
       _isLyricsLoading = true;
@@ -971,7 +984,8 @@ extension _AudioPlaybackLogic on _MainScreenState {
     final plain = data['plainLyrics'] as String?;
 
     if (synced != null && synced.trim().isNotEmpty) {
-      _currentLyricsSynced = _parseLrc(synced, offsetSec: _lyricsOffsetSec);
+      _currentLyricsSynced =
+          _parseLrc(synced, offsetSec: _lyricsOffsetSec, autoWave: _lyricsAutoWave);
       _currentLyricsPlain = plain ?? _stripLrcTimestamps(synced);
       _isLyricsSynced = _currentLyricsSynced.isNotEmpty;
     } else if (plain != null && plain.trim().isNotEmpty) {
@@ -987,7 +1001,8 @@ extension _AudioPlaybackLogic on _MainScreenState {
 
   void _parsePlainOrLrcLyrics(String text) {
     if (text.contains(RegExp(r'\[\d+:\d+'))) {
-      _currentLyricsSynced = _parseLrc(text, offsetSec: _lyricsOffsetSec);
+      _currentLyricsSynced =
+          _parseLrc(text, offsetSec: _lyricsOffsetSec, autoWave: _lyricsAutoWave);
       _currentLyricsPlain = _stripLrcTimestamps(text);
       _isLyricsSynced = _currentLyricsSynced.isNotEmpty;
     } else {

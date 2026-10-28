@@ -80,6 +80,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String? _playerCustomBgPath;
   double _playerCustomBgBlur = 0.0;
   double _playerCustomBgDim = 0.4;
+  String? _detailViewCustomBgPath;
+  double _detailViewCustomBgBlur = 0.0;
+  double _detailViewCustomBgDim = 0.4;
+  String _customBgActiveTab = 'player';
   bool _autoCheckUpdates = true;
   String _libraryDensity = 'standard';
   bool _autoPlayOnConnect = false;
@@ -88,6 +92,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   double _lyricFontSize = 22.0;
   bool _lyricsHidePast = true;
   bool _lyricsAutoFollow = true;
+  bool _lyricsAutoWave = true;
   String _appVersion = 'Loading...';
   Future<List<SongModel>>? _songsFuture;
 
@@ -323,6 +328,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _playerCustomBgPath = prefs.getString('playerCustomBgPath');
       _playerCustomBgBlur = prefs.getDouble('playerCustomBgBlur') ?? 0.0;
       _playerCustomBgDim = prefs.getDouble('playerCustomBgDim') ?? 0.4;
+      _detailViewCustomBgPath = prefs.getString('detailViewCustomBgPath');
+      _detailViewCustomBgBlur =
+          prefs.getDouble('detailViewCustomBgBlur') ?? 0.0;
+      _detailViewCustomBgDim = prefs.getDouble('detailViewCustomBgDim') ?? 0.4;
       _autoCheckUpdates = prefs.getBool('auto_check_updates') ?? true;
       _libraryDensity = prefs.getString('libraryDensity') ?? 'standard';
       _autoPlayOnConnect = prefs.getBool('autoPlayOnConnect') ?? false;
@@ -331,6 +340,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _lyricFontSize = prefs.getDouble('lyricFontSize') ?? 18.0;
       _lyricsHidePast = prefs.getBool('lyricsHidePast') ?? true;
       _lyricsAutoFollow = prefs.getBool('lyricsAutoFollow') ?? true;
+      _lyricsAutoWave = prefs.getBool('lyricsAutoWave') ?? true;
     });
 
     final packageInfo = await PackageInfo.fromPlatform();
@@ -524,6 +534,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
               const Divider(color: Colors.white10, height: 1),
+              SettingsPremiumSwitchTile(
+                isLight: _selectedThemeMode == 'light',
+                activeAccentColor: _activeAccentColor,
+                icon: Icons.more_horiz_rounded,
+                title: AppLocalizations.of(context).lyricsAutoWave,
+                subtitle: AppLocalizations.of(context).lyricsAutoWaveSubtitle,
+                value: _lyricsAutoWave,
+                onChanged: (val) {
+                  setState(() => _lyricsAutoWave = val);
+                  _saveBool('lyricsAutoWave', val);
+                  lyricsAutoWaveNotifier.value = val;
+                },
+              ),
+              const Divider(color: Colors.white10, height: 1),
               SettingsPremiumListTile(
                 isLight: _selectedThemeMode == 'light',
                 activeAccentColor: _activeAccentColor,
@@ -621,382 +645,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ],
-              if (_selectedThemeMode == 'custom' &&
-                  _customThemeBg == 'custom_image') ...[
-                const Divider(color: Colors.white10, height: 1),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  color: isLight
-                      ? Colors.black.withValues(alpha: 0.01)
-                      : Colors.white.withValues(alpha: 0.02),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            AppLocalizations.of(context).themeWallpaperSettings,
-                            style: TextStyle(
-                              color: _activeAccentColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              fontFamily: getFontFamily(_activeFont),
-                            ),
-                          ),
-                          TextButton.icon(
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              foregroundColor: isLight
-                                  ? Colors.black54
-                                  : Colors.white70,
-                            ),
-                            icon: const Icon(
-                              Icons.photo_library_outlined,
-                              size: 14,
-                            ),
-                            label: Text(
-                              AppLocalizations.of(context).changePhoto,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontFamily: getFontFamily(_activeFont),
-                              ),
-                            ),
-                            onPressed: () => _pickAndSaveImage(
-                              prefKey: 'customThemeBgPath',
-                              onSave: (path) => ref
-                                  .read(settingsProvider.notifier)
-                                  .updateSetting(customThemeBgPath: path),
-                              onSetStatePath: (path) =>
-                                  setState(() => _customThemeBgPath = path),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (_customThemeBgPath != null &&
-                          File(_customThemeBgPath!).existsSync()) ...[
-                        const SizedBox(height: 12),
-                        Builder(
-                          builder: (context) {
-                            bool isMockLight = false;
-                            if (_customThemeStyle == 'light') {
-                              isMockLight = true;
-                            } else if (_customThemeStyle == 'dynamic') {
-                              final activeCol =
-                                  dominantColorNotifier.value ??
-                                  const Color(0xFF8E8E93);
-                              isMockLight = activeCol.computeLuminance() > 0.45;
-                            }
-                            return Center(
-                              child: Container(
-                                width: 144,
-                                height: 256,
-                                decoration: BoxDecoration(
-                                  color: isMockLight
-                                      ? Colors.white
-                                      : const Color(0xFF0A0A0A),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: isMockLight
-                                        ? Colors.black12
-                                        : Colors.white10,
-                                    width: 1.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.3,
-                                      ),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Stack(
-                                    children: [
-                                      // Live blurred custom background image preview
-                                      Positioned.fill(
-                                        child: ClipRect(
-                                          child: ImageFiltered(
-                                            imageFilter: ImageFilter.blur(
-                                              sigmaX: _customThemeBgBlur / 2.0,
-                                              sigmaY: _customThemeBgBlur / 2.0,
-                                            ),
-                                            child: Image.file(
-                                              File(_customThemeBgPath!),
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      // Theme dimming overlay
-                                      Positioned.fill(
-                                        child: Container(
-                                          color: isMockLight
-                                              ? Colors.white.withValues(
-                                                  alpha: 0.15,
-                                                )
-                                              : Colors.black.withValues(
-                                                  alpha: _customThemeBgDim,
-                                                ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.all(10),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const SizedBox(height: 4),
-                                            Container(
-                                              width: 45,
-                                              height: 8,
-                                              decoration: BoxDecoration(
-                                                color: isMockLight
-                                                    ? const Color(0xFF1A1A1A)
-                                                    : Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(2),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 12),
-                                            Container(
-                                              height: 14,
-                                              decoration: BoxDecoration(
-                                                color: isMockLight
-                                                    ? Colors.black.withValues(
-                                                        alpha: 0.06,
-                                                      )
-                                                    : Colors.white10,
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  const SizedBox(width: 4),
-                                                  Icon(
-                                                    Icons.search,
-                                                    size: 8,
-                                                    color: isMockLight
-                                                        ? Colors.black38
-                                                        : Colors.white38,
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Container(
-                                                    width: 50,
-                                                    height: 4,
-                                                    decoration: BoxDecoration(
-                                                      color: isMockLight
-                                                          ? Colors.black26
-                                                          : Colors.white24,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            1,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 16),
-                                            for (int i = 0; i < 3; i++) ...[
-                                              Row(
-                                                children: [
-                                                  Container(
-                                                    width: 16,
-                                                    height: 16,
-                                                    decoration: BoxDecoration(
-                                                      color: _activeAccentColor
-                                                          .withValues(
-                                                            alpha: 0.2,
-                                                          ),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            3,
-                                                          ),
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.music_note,
-                                                      size: 9,
-                                                      color: _activeAccentColor,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                  Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Container(
-                                                        width: 38,
-                                                        height: 4,
-                                                        decoration: BoxDecoration(
-                                                          color: isMockLight
-                                                              ? const Color(
-                                                                  0xFF1A1A1A,
-                                                                )
-                                                              : Colors.white,
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                1,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(height: 3),
-                                                      Container(
-                                                        width: 25,
-                                                        height: 3,
-                                                        decoration: BoxDecoration(
-                                                          color: isMockLight
-                                                              ? Colors.black45
-                                                              : Colors.white38,
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                1,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 10),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        Row(
-                          children: [
-                            Expanded(child: _buildStylePill('dark', 'Dark')),
-                            const SizedBox(width: 8),
-                            Expanded(child: _buildStylePill('light', 'Light')),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStylePill('dynamic', 'Dynamic'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Blur Slider
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              AppLocalizations.of(context).blurLevel,
-                              style: TextStyle(
-                                color: isLight
-                                    ? Colors.black54
-                                    : Colors.white70,
-                                fontSize: 13,
-                                fontFamily: getFontFamily(_activeFont),
-                              ),
-                            ),
-                            Text(
-                              '${_customThemeBgBlur.round()}',
-                              style: TextStyle(
-                                color: isLight
-                                    ? Colors.black38
-                                    : Colors.white38,
-                                fontSize: 13,
-                                fontFamily: getFontFamily(_activeFont),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Slider(
-                          value: _customThemeBgBlur,
-                          min: 0.0,
-                          max: 60.0,
-                          activeColor: _activeAccentColor,
-                          inactiveColor: isLight
-                              ? Colors.black.withValues(alpha: 0.08)
-                              : Colors.white10,
-                          onChanged: (val) {
-                            setState(() {
-                              _customThemeBgBlur = val;
-                            });
-                            ref
-                                .read(settingsProvider.notifier)
-                                .updateSetting(customThemeBgBlur: val);
-                          },
-                        ),
-                        // Dim Level (Opacity)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              AppLocalizations.of(context).dimLevel,
-                              style: TextStyle(
-                                color: isLight
-                                    ? Colors.black54
-                                    : Colors.white70,
-                                fontSize: 13,
-                                fontFamily: getFontFamily(_activeFont),
-                              ),
-                            ),
-                            Text(
-                              '${(_customThemeBgDim * 100).round()}%',
-                              style: TextStyle(
-                                color: isLight
-                                    ? Colors.black38
-                                    : Colors.white38,
-                                fontSize: 13,
-                                fontFamily: getFontFamily(_activeFont),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Slider(
-                          value: _customThemeBgDim,
-                          min: 0.0,
-                          max: 0.90,
-                          activeColor: _activeAccentColor,
-                          inactiveColor: isLight
-                              ? Colors.black.withValues(alpha: 0.08)
-                              : Colors.white10,
-                          onChanged: (val) {
-                            setState(() {
-                              _customThemeBgDim = val;
-                            });
-                            ref
-                                .read(settingsProvider.notifier)
-                                .updateSetting(customThemeBgDim: val);
-                          },
-                        ),
-                      ] else ...[
-                        const SizedBox(height: 12),
-                        Center(
-                          child: Text(
-                            AppLocalizations.of(context).noWallpaper,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: isLight ? Colors.black54 : Colors.white54,
-                              fontSize: 12,
-                              fontFamily: getFontFamily(_activeFont),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
               const Divider(color: Colors.white10, height: 1),
               SettingsPremiumListTile(
                 isLight: _selectedThemeMode == 'light',
@@ -1008,310 +656,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 onTap: () => _showPlayerBackgroundStyleDialog(),
               ),
-              if (_playerBackgroundStyle == 'custom') ...[
-                const Divider(color: Colors.white10, height: 1),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  color: isLight
-                      ? Colors.black.withValues(alpha: 0.01)
-                      : Colors.white.withValues(alpha: 0.02),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            AppLocalizations.of(context).wallpaperSettings,
-                            style: TextStyle(
-                              color: _activeAccentColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              fontFamily: getFontFamily(_activeFont),
-                            ),
-                          ),
-                          TextButton.icon(
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              foregroundColor: isLight
-                                  ? Colors.black54
-                                  : Colors.white70,
-                            ),
-                            icon: const Icon(
-                              Icons.photo_library_outlined,
-                              size: 14,
-                            ),
-                            label: Text(
-                              AppLocalizations.of(context).changePhoto,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontFamily: getFontFamily(_activeFont),
-                              ),
-                            ),
-                            onPressed: () => _pickAndSaveImage(
-                              prefKey: 'playerCustomBgPath',
-                              onSave: (path) => ref
-                                  .read(settingsProvider.notifier)
-                                  .updateSetting(playerCustomBgPath: path),
-                              onSetStatePath: (path) =>
-                                  setState(() => _playerCustomBgPath = path),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (_playerCustomBgPath != null &&
-                          File(_playerCustomBgPath!).existsSync()) ...[
-                        const SizedBox(height: 12),
-                        Center(
-                          child: Container(
-                            width: 144,
-                            height: 256,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0A0A0A),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.white10,
-                                width: 1.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: Stack(
-                                children: [
-                                  // Live blurred, scaled custom background image preview
-                                  Positioned.fill(
-                                    child: ClipRect(
-                                      child: ImageFiltered(
-                                        imageFilter: ImageFilter.blur(
-                                          sigmaX: _playerCustomBgBlur,
-                                          sigmaY: _playerCustomBgBlur,
-                                        ),
-                                        child: Image.file(
-                                          File(_playerCustomBgPath!),
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  // Real-time custom dimming overlay
-                                  Positioned.fill(
-                                    child: Container(
-                                      color: Colors.black.withValues(
-                                        alpha: _playerCustomBgDim,
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 24,
-                                      horizontal: 16,
-                                    ),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        Container(
-                                          width: 90,
-                                          height: 90,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white10,
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.white24,
-                                              width: 0.5,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(
-                                                  alpha: 0.2,
-                                                ),
-                                                blurRadius: 10,
-                                                offset: const Offset(0, 4),
-                                              ),
-                                            ],
-                                          ),
-                                          child: const Icon(
-                                            Icons.music_note,
-                                            color: Colors.white54,
-                                            size: 24,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        Container(
-                                          width: 80,
-                                          height: 6,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(
-                                              3,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Container(
-                                          width: 50,
-                                          height: 4,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white54,
-                                            borderRadius: BorderRadius.circular(
-                                              2,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Container(
-                                          width: double.infinity,
-                                          height: 2,
-                                          color: Colors.white30,
-                                          child: Align(
-                                            alignment: Alignment.centerLeft,
-                                            child: Container(
-                                              width: 40,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        const Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceEvenly,
-                                          children: [
-                                            Icon(
-                                              Icons.skip_previous,
-                                              color: Colors.white70,
-                                              size: 16,
-                                              shadows: [
-                                                Shadow(
-                                                  color: Colors.black54,
-                                                  blurRadius: 4,
-                                                ),
-                                              ],
-                                            ),
-                                            Icon(
-                                              Icons.play_circle_fill,
-                                              color: Colors.white,
-                                              size: 32,
-                                              shadows: [
-                                                Shadow(
-                                                  color: Colors.black54,
-                                                  blurRadius: 4,
-                                                ),
-                                              ],
-                                            ),
-                                            Icon(
-                                              Icons.skip_next,
-                                              color: Colors.white70,
-                                              size: 16,
-                                              shadows: [
-                                                Shadow(
-                                                  color: Colors.black54,
-                                                  blurRadius: 4,
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      // Blur Slider
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            AppLocalizations.of(context).blurLevel,
-                            style: TextStyle(
-                              color: isLight ? Colors.black54 : Colors.white70,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            '${_playerCustomBgBlur.round()}',
-                            style: TextStyle(
-                              color: isLight ? Colors.black38 : Colors.white38,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Slider(
-                        value: _playerCustomBgBlur,
-                        min: 0.0,
-                        max: 60.0,
-                        activeColor: _activeAccentColor,
-                        inactiveColor: isLight
-                            ? Colors.black.withValues(alpha: 0.08)
-                            : Colors.white10,
-                        onChanged: (val) {
-                          setState(() {
-                            _playerCustomBgBlur = val;
-                          });
-                          ref
-                              .read(settingsProvider.notifier)
-                              .updateSetting(playerCustomBgBlur: val);
-                        },
-                      ),
-                      // Dim Level (Opacity)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            AppLocalizations.of(context).dimLevel,
-                            style: TextStyle(
-                              color: isLight ? Colors.black54 : Colors.white70,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            '${(_playerCustomBgDim * 100).round()}%',
-                            style: TextStyle(
-                              color: isLight ? Colors.black38 : Colors.white38,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Slider(
-                        value: _playerCustomBgDim,
-                        min: 0.0,
-                        max: 0.90,
-                        activeColor: _activeAccentColor,
-                        inactiveColor: isLight
-                            ? Colors.black.withValues(alpha: 0.08)
-                            : Colors.white10,
-                        onChanged: (val) {
-                          setState(() {
-                            _playerCustomBgDim = val;
-                          });
-                          ref
-                              .read(settingsProvider.notifier)
-                              .updateSetting(playerCustomBgDim: val);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               const Divider(color: Colors.white10, height: 1),
               SettingsPremiumListTile(
                 isLight: _selectedThemeMode == 'light',
@@ -1355,6 +699,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                 },
               ),
+              if (_hasAnyCustomBackground) ...[
+                const Divider(color: Colors.white10, height: 1),
+                _buildUnifiedCustomWallpaperStudio(),
+              ],
             ],
           ),
           SettingsSectionHeader(
@@ -1795,4 +1143,802 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+
+  bool get _hasAnyCustomBackground {
+    final bool isThemeCustomImage =
+        _selectedThemeMode == 'custom' && _customThemeBg == 'custom_image';
+    final bool isPlayerCustom = _playerBackgroundStyle == 'custom';
+    final bool isDetailCustom = _detailViewBackgroundStyle == 'custom';
+    return isThemeCustomImage || isPlayerCustom || isDetailCustom;
+  }
+
+  Widget _buildUnifiedCustomWallpaperStudio() {
+    final isLight = _selectedThemeMode == 'light';
+    final loc = AppLocalizations.of(context);
+
+    final bool isThemeCustom =
+        _selectedThemeMode == 'custom' && _customThemeBg == 'custom_image';
+    final bool isPlayerCustom = _playerBackgroundStyle == 'custom';
+    final bool isDetailCustom = _detailViewBackgroundStyle == 'custom';
+
+    final availableTabs = <String>[];
+    if (isThemeCustom) availableTabs.add('theme');
+    if (isPlayerCustom) availableTabs.add('player');
+    if (isDetailCustom) availableTabs.add('detail');
+
+    if (availableTabs.isEmpty) return const SizedBox.shrink();
+
+    if (!availableTabs.contains(_customBgActiveTab)) {
+      _customBgActiveTab = availableTabs.first;
+    }
+
+    final String? currentPath;
+    final double currentBlur;
+    final double currentDim;
+
+    if (_customBgActiveTab == 'theme') {
+      currentPath = _customThemeBgPath;
+      currentBlur = _customThemeBgBlur;
+      currentDim = _customThemeBgDim;
+    } else if (_customBgActiveTab == 'player') {
+      currentPath = _playerCustomBgPath;
+      currentBlur = _playerCustomBgBlur;
+      currentDim = _playerCustomBgDim;
+    } else {
+      currentPath = _detailViewCustomBgPath;
+      currentBlur = _detailViewCustomBgBlur;
+      currentDim = _detailViewCustomBgDim;
+    }
+
+    final hasCustomFile = currentPath != null && File(currentPath).existsSync();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      color: isLight
+          ? Colors.black.withValues(alpha: 0.01)
+          : Colors.white.withValues(alpha: 0.02),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.tune_rounded,
+                    size: 16,
+                    color: _activeAccentColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    loc.wallpaperSettings.toUpperCase(),
+                    style: TextStyle(
+                      color: _activeAccentColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      letterSpacing: 1.2,
+                      fontFamily: getFontFamily(_activeFont),
+                    ),
+                  ),
+                ],
+              ),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: isLight ? Colors.black54 : Colors.white70,
+                ),
+                icon: const Icon(Icons.photo_library_outlined, size: 14),
+                label: Text(
+                  loc.changePhoto,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontFamily: getFontFamily(_activeFont),
+                  ),
+                ),
+                onPressed: () {
+                  if (_customBgActiveTab == 'theme') {
+                    _pickAndSaveImage(
+                      prefKey: 'customThemeBgPath',
+                      onSave: (path) => ref
+                          .read(settingsProvider.notifier)
+                          .updateSetting(customThemeBgPath: path),
+                      onSetStatePath: (path) =>
+                          setState(() => _customThemeBgPath = path),
+                    );
+                  } else if (_customBgActiveTab == 'player') {
+                    _pickAndSaveImage(
+                      prefKey: 'playerCustomBgPath',
+                      onSave: (path) => ref
+                          .read(settingsProvider.notifier)
+                          .updateSetting(playerCustomBgPath: path),
+                      onSetStatePath: (path) =>
+                          setState(() => _playerCustomBgPath = path),
+                    );
+                  } else {
+                    _pickAndSaveImage(
+                      prefKey: 'detailViewCustomBgPath',
+                      onSave: (path) => ref
+                          .read(settingsProvider.notifier)
+                          .updateSetting(detailViewCustomBgPath: path),
+                      onSetStatePath: (path) =>
+                          setState(() => _detailViewCustomBgPath = path),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          if (availableTabs.length > 1) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isLight
+                    ? Colors.black.withValues(alpha: 0.05)
+                    : Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: availableTabs.map((tabId) {
+                  final isSelected = _customBgActiveTab == tabId;
+                  final String tabLabel;
+                  final IconData tabIcon;
+                  if (tabId == 'theme') {
+                    tabLabel = loc.themeMode;
+                    tabIcon = Icons.palette_outlined;
+                  } else if (tabId == 'player') {
+                    tabLabel = loc.playerBackground;
+                    tabIcon = Icons.play_circle_outline;
+                  } else {
+                    tabLabel = loc.detailViewBackground;
+                    tabIcon = Icons.layers_outlined;
+                  }
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _customBgActiveTab = tabId),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 7),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? _activeAccentColor
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: _activeAccentColor.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              tabIcon,
+                              size: 13,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isLight ? Colors.black54 : Colors.white60),
+                            ),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(
+                                tabLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : (isLight
+                                          ? Colors.black87
+                                          : Colors.white70),
+                                  fontSize: 11,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  fontFamily: getFontFamily(_activeFont),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (hasCustomFile) ...[
+            Center(
+              child: _buildCustomBgMockup(
+                target: _customBgActiveTab,
+                filePath: currentPath,
+                blur: currentBlur,
+                dim: currentDim,
+                isLight: isLight,
+              ),
+            ),
+            if (_customBgActiveTab == 'theme') ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: _buildStylePill('dark', 'Dark')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildStylePill('light', 'Light')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildStylePill('dynamic', 'Dynamic')),
+                ],
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  loc.blurLevel,
+                  style: TextStyle(
+                    color: isLight ? Colors.black54 : Colors.white70,
+                    fontSize: 13,
+                    fontFamily: getFontFamily(_activeFont),
+                  ),
+                ),
+                Text(
+                  '${currentBlur.round()}',
+                  style: TextStyle(
+                    color: isLight ? Colors.black38 : Colors.white38,
+                    fontSize: 13,
+                    fontFamily: getFontFamily(_activeFont),
+                  ),
+                ),
+              ],
+            ),
+            Slider(
+              value: currentBlur,
+              min: 0.0,
+              max: 60.0,
+              activeColor: _activeAccentColor,
+              inactiveColor: isLight
+                  ? Colors.black.withValues(alpha: 0.08)
+                  : Colors.white10,
+              onChanged: (val) {
+                setState(() {
+                  if (_customBgActiveTab == 'theme') {
+                    _customThemeBgBlur = val;
+                  } else if (_customBgActiveTab == 'player') {
+                    _playerCustomBgBlur = val;
+                  } else {
+                    _detailViewCustomBgBlur = val;
+                  }
+                });
+                if (_customBgActiveTab == 'theme') {
+                  ref
+                      .read(settingsProvider.notifier)
+                      .updateSetting(customThemeBgBlur: val);
+                } else if (_customBgActiveTab == 'player') {
+                  ref
+                      .read(settingsProvider.notifier)
+                      .updateSetting(playerCustomBgBlur: val);
+                } else {
+                  ref
+                      .read(settingsProvider.notifier)
+                      .updateSetting(detailViewCustomBgBlur: val);
+                }
+              },
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  loc.dimLevel,
+                  style: TextStyle(
+                    color: isLight ? Colors.black54 : Colors.white70,
+                    fontSize: 13,
+                    fontFamily: getFontFamily(_activeFont),
+                  ),
+                ),
+                Text(
+                  '${(currentDim * 100).round()}%',
+                  style: TextStyle(
+                    color: isLight ? Colors.black38 : Colors.white38,
+                    fontSize: 13,
+                    fontFamily: getFontFamily(_activeFont),
+                  ),
+                ),
+              ],
+            ),
+            Slider(
+              value: currentDim,
+              min: 0.0,
+              max: 0.90,
+              activeColor: _activeAccentColor,
+              inactiveColor: isLight
+                  ? Colors.black.withValues(alpha: 0.08)
+                  : Colors.white10,
+              onChanged: (val) {
+                setState(() {
+                  if (_customBgActiveTab == 'theme') {
+                    _customThemeBgDim = val;
+                  } else if (_customBgActiveTab == 'player') {
+                    _playerCustomBgDim = val;
+                  } else {
+                    _detailViewCustomBgDim = val;
+                  }
+                });
+                if (_customBgActiveTab == 'theme') {
+                  ref
+                      .read(settingsProvider.notifier)
+                      .updateSetting(customThemeBgDim: val);
+                } else if (_customBgActiveTab == 'player') {
+                  ref
+                      .read(settingsProvider.notifier)
+                      .updateSetting(playerCustomBgDim: val);
+                } else {
+                  ref
+                      .read(settingsProvider.notifier)
+                      .updateSetting(detailViewCustomBgDim: val);
+                }
+              },
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            Center(
+              child: GestureDetector(
+                onTap: () {
+                  if (_customBgActiveTab == 'theme') {
+                    _pickAndSaveImage(
+                      prefKey: 'customThemeBgPath',
+                      onSave: (path) => ref
+                          .read(settingsProvider.notifier)
+                          .updateSetting(customThemeBgPath: path),
+                      onSetStatePath: (path) =>
+                          setState(() => _customThemeBgPath = path),
+                    );
+                  } else if (_customBgActiveTab == 'player') {
+                    _pickAndSaveImage(
+                      prefKey: 'playerCustomBgPath',
+                      onSave: (path) => ref
+                          .read(settingsProvider.notifier)
+                          .updateSetting(playerCustomBgPath: path),
+                      onSetStatePath: (path) =>
+                          setState(() => _playerCustomBgPath = path),
+                    );
+                  } else {
+                    _pickAndSaveImage(
+                      prefKey: 'detailViewCustomBgPath',
+                      onSave: (path) => ref
+                          .read(settingsProvider.notifier)
+                          .updateSetting(detailViewCustomBgPath: path),
+                      onSetStatePath: (path) =>
+                          setState(() => _detailViewCustomBgPath = path),
+                    );
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  decoration: BoxDecoration(
+                    color: isLight
+                        ? Colors.black.withValues(alpha: 0.03)
+                        : Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isLight ? Colors.black12 : Colors.white12,
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 32,
+                        color: _activeAccentColor,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        loc.noWallpaper,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isLight ? Colors.black54 : Colors.white54,
+                          fontSize: 12,
+                          fontFamily: getFontFamily(_activeFont),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomBgMockup({
+    required String target,
+    required String filePath,
+    required double blur,
+    required double dim,
+    required bool isLight,
+  }) {
+    bool isMockLight = false;
+    if (target == 'theme') {
+      if (_customThemeStyle == 'light') {
+        isMockLight = true;
+      } else if (_customThemeStyle == 'dynamic') {
+        final activeCol =
+            dominantColorNotifier.value ?? const Color(0xFF8E8E93);
+        isMockLight = activeCol.computeLuminance() > 0.45;
+      }
+    } else {
+      isMockLight = isLight;
+    }
+
+    final effectiveBlur = target == 'theme' ? blur / 2.0 : blur;
+
+    return Container(
+      width: 144,
+      height: 256,
+      decoration: BoxDecoration(
+        color: isMockLight ? Colors.white : const Color(0xFF0A0A0A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isMockLight ? Colors.black12 : Colors.white10,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ClipRect(
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(
+                    sigmaX: effectiveBlur,
+                    sigmaY: effectiveBlur,
+                  ),
+                  child: Image.file(
+                    File(filePath),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: Container(
+                color: isMockLight
+                    ? Colors.white.withValues(
+                        alpha: target == 'theme' ? 0.15 : dim * 0.7,
+                      )
+                    : Colors.black.withValues(alpha: dim),
+              ),
+            ),
+            if (target == 'theme')
+              _buildThemeMockupContent(isMockLight)
+            else if (target == 'player')
+              _buildPlayerMockupContent()
+            else
+              _buildDetailMockupContent(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeMockupContent(bool isMockLight) {
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          Container(
+            width: 45,
+            height: 8,
+            decoration: BoxDecoration(
+              color: isMockLight ? const Color(0xFF1A1A1A) : Colors.white,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 14,
+            decoration: BoxDecoration(
+              color: isMockLight
+                  ? Colors.black.withValues(alpha: 0.06)
+                  : Colors.white10,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.search,
+                  size: 8,
+                  color: isMockLight ? Colors.black38 : Colors.white38,
+                ),
+                const SizedBox(width: 4),
+                Container(
+                  width: 50,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isMockLight ? Colors.black26 : Colors.white24,
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          for (int i = 0; i < 3; i++) ...[
+            Row(
+              children: [
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: _activeAccentColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Icon(
+                    Icons.music_note,
+                    size: 9,
+                    color: _activeAccentColor,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isMockLight
+                            ? const Color(0xFF1A1A1A)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Container(
+                      width: 25,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: isMockLight ? Colors.black45 : Colors.white38,
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerMockupContent() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              color: Colors.white10,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white24, width: 0.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.music_note,
+              color: Colors.white54,
+              size: 24,
+            ),
+          ),
+          const Spacer(),
+          Container(
+            width: 80,
+            height: 6,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: 50,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white54,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            height: 2,
+            color: Colors.white30,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                width: 40,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              Icon(
+                Icons.skip_previous,
+                color: Colors.white70,
+                size: 16,
+                shadows: [
+                  Shadow(color: Colors.black54, blurRadius: 4),
+                ],
+              ),
+              Icon(
+                Icons.play_circle_fill,
+                color: Colors.white,
+                size: 32,
+                shadows: [
+                  Shadow(color: Colors.black54, blurRadius: 4),
+                ],
+              ),
+              Icon(
+                Icons.skip_next,
+                color: Colors.white70,
+                size: 16,
+                shadows: [
+                  Shadow(color: Colors.black54, blurRadius: 4),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailMockupContent() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(Icons.arrow_back, size: 12, color: Colors.white70),
+              Icon(Icons.more_vert, size: 12, color: Colors.white70),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.white12,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white24, width: 0.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.album_rounded,
+                size: 26,
+                color: Colors.white54,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Container(
+              width: 55,
+              height: 6,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: Container(
+              width: 35,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white38,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (int i = 0; i < 3; i++) ...[
+            Row(
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: _activeAccentColor.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Icon(
+                    Icons.music_note,
+                    size: 8,
+                    color: _activeAccentColor,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      width: 26,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: Colors.white38,
+                        borderRadius: BorderRadius.circular(1.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (i < 2) const SizedBox(height: 6),
+          ],
+        ],
+      ),
+    );
+  }
+
 }

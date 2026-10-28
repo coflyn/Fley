@@ -858,21 +858,18 @@ extension _DetailViewsUI on _MainScreenState {
                   );
                 } else if (style == 'custom') {
                   return ValueListenableBuilder<String?>(
-                    valueListenable: playerCustomBgPathNotifier,
-                    builder: (context, customPath, child) {
-                      return ValueListenableBuilder<double>(
-                        valueListenable: playerCustomBgBlurNotifier,
-                        builder: (context, blurVal, child) {
+                    valueListenable: detailViewCustomBgPathNotifier,
+                    builder: (context, detailCustomPath, child) {
+                      return ValueListenableBuilder<String?>(
+                        valueListenable: playerCustomBgPathNotifier,
+                        builder: (context, playerCustomPath, child) {
+                          final customPath = detailCustomPath ?? playerCustomPath;
                           return ValueListenableBuilder<double>(
-                            valueListenable: playerCustomBgDimNotifier,
-                            builder: (context, dimVal, child) {
-                              return AnimatedBuilder(
-                                animation: Listenable.merge([
-                                  playerCustomBgScaleNotifier,
-                                  playerCustomBgOffsetXNotifier,
-                                  playerCustomBgOffsetYNotifier,
-                                ]),
-                                builder: (context, child) {
+                            valueListenable: detailViewCustomBgBlurNotifier,
+                            builder: (context, blurVal, child) {
+                              return ValueListenableBuilder<double>(
+                                valueListenable: detailViewCustomBgDimNotifier,
+                                builder: (context, dimVal, child) {
                                   final dimColor = isLight
                                       ? Colors.white
                                       : Colors.black;
@@ -893,20 +890,9 @@ extension _DetailViewsUI on _MainScreenState {
                                                   sigmaX: blurVal,
                                                   sigmaY: blurVal,
                                                 ),
-                                                child: Transform.scale(
-                                                  scale:
-                                                      playerCustomBgScaleNotifier
-                                                          .value,
-                                                  alignment: Alignment(
-                                                    playerCustomBgOffsetXNotifier
-                                                        .value,
-                                                    playerCustomBgOffsetYNotifier
-                                                        .value,
-                                                  ),
-                                                  child: Image.file(
-                                                    File(customPath),
-                                                    fit: BoxFit.cover,
-                                                  ),
+                                                child: Image.file(
+                                                  File(customPath),
+                                                  fit: BoxFit.cover,
                                                 ),
                                               ),
                                             ),

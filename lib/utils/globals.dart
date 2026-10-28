@@ -74,6 +74,12 @@ final ValueNotifier<double> playerCustomBgDimNotifier = ValueNotifier<double>(
 final ValueNotifier<double> playerCustomBgScaleNotifier = ValueNotifier<double>(
   1.0,
 );
+final ValueNotifier<String?> detailViewCustomBgPathNotifier =
+    ValueNotifier<String?>(null);
+final ValueNotifier<double> detailViewCustomBgBlurNotifier =
+    ValueNotifier<double>(0.0);
+final ValueNotifier<double> detailViewCustomBgDimNotifier =
+    ValueNotifier<double>(0.4);
 final ValueNotifier<String> themeAccentPresetNotifier = ValueNotifier<String>(
   'spotify',
 );
@@ -125,6 +131,7 @@ final ValueNotifier<String> userProfileBioNotifier =
 // Lyrics viewer behavior
 final ValueNotifier<bool> lyricsHidePastNotifier = ValueNotifier<bool>(true);
 final ValueNotifier<bool> lyricsAutoFollowNotifier = ValueNotifier<bool>(true);
+final ValueNotifier<bool> lyricsAutoWaveNotifier = ValueNotifier<bool>(true);
 
 void showFleyToast(String msg, {bool isLong = false}) {
   Fluttertoast.showToast(

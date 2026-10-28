@@ -391,6 +391,8 @@
   "lyricsHidePastSubtitle": "再生済みの歌詞をフェードアウト",
   "lyricsAutoFollow": "歌詞を自動追従",
   "lyricsAutoFollowSubtitle": "アクティブな歌詞行へスムーズにスクロール",
+  "lyricsAutoWave": "自動3ドット波アニメーション",
+  "lyricsAutoWaveSubtitle": "間奏やイントロで3ドット波を自動生成",
   "lyricsOffsetLabel": "オフセット（秒）:",
   "lyricsPasteHint": "下にプレーンの歌詞または同期済みLRC形式の歌詞を貼り付けてください。",
   "editLyrics": "歌詞を編集",

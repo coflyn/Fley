@@ -738,21 +738,31 @@ extension _HomeUI on _MainScreenState {
     }
 
     // System playlists
+    final favTracks = _allTracks.where((t) => _favoriteTrackIds.contains(t.id)).toList();
     items.add({
       'type': 'playlist',
       'title': loc.favourites,
-      'subtitle': 'Playlist • ${_favoriteTrackIds.length} songs',
+      'subtitle': '${loc.playlist} • ${_favoriteTrackIds.length} ${loc.songsCount}',
       'coverPath': _playlistCovers[loc.favourites],
-      'sampleTrack': _favoriteTrackIds.isNotEmpty
-          ? _allTracks.firstWhere((t) => _favoriteTrackIds.contains(t.id), orElse: () => _allTracks.first)
-          : null,
+      'sampleTrack': favTracks.isNotEmpty ? favTracks.first : null,
+      'fallbackIcon': Icons.favorite,
+      'fallbackColor': const Color(0xFFE91E63),
     });
+
+    final mostPlayedTracks = _allTracks.where((t) => (_playCounts[t.id] ?? 0) > 0).toList()
+      ..sort((a, b) => (_playCounts[b.id] ?? 0).compareTo(_playCounts[a.id] ?? 0));
+    final Track? mostPlayedSampleTrack = mostPlayedTracks.isNotEmpty ? mostPlayedTracks.first : null;
+
     items.add({
       'type': 'playlist',
       'title': loc.mostPlayed,
-      'subtitle': 'Playlist',
+      'subtitle': mostPlayedTracks.isNotEmpty
+          ? '${loc.playlist} • ${mostPlayedTracks.length} ${loc.songsCount}'
+          : loc.playlist,
       'coverPath': _playlistCovers[loc.mostPlayed],
-      'sampleTrack': _allTracks.isNotEmpty ? _allTracks.first : null,
+      'sampleTrack': mostPlayedSampleTrack,
+      'fallbackIcon': Icons.local_fire_department,
+      'fallbackColor': const Color(0xFFF44336),
     });
 
     // Recent albums
@@ -842,8 +852,13 @@ extension _HomeUI on _MainScreenState {
                               : sampleTrack != null
                                   ? _buildTrackArtwork(sampleTrack, size: 136, radius: 0)
                                   : Container(
-                                      color: const Color(0xFF2A2A2A),
-                                      child: const Icon(Icons.music_note, color: Colors.white54, size: 40),
+                                      color: (item['fallbackColor'] as Color?)?.withValues(alpha: 0.15) ??
+                                          (isLight ? Colors.black.withValues(alpha: 0.05) : const Color(0xFF2A2A2A)),
+                                      child: Icon(
+                                        (item['fallbackIcon'] as IconData?) ?? Icons.music_note,
+                                        color: (item['fallbackColor'] as Color?) ?? (isLight ? Colors.black38 : Colors.white54),
+                                        size: 40,
+                                      ),
                                     ),
                         ),
                       ),

@@ -425,23 +425,75 @@ extension SettingsThemeModeModals on _SettingsScreenState {
                     title: loc.customImage,
                     subtitle: loc.playerBgDescCustom,
                     icon: Icons.image_outlined,
-                    customPath: _playerCustomBgPath,
+                    customPath: _detailViewCustomBgPath,
                     onTap: () async {
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString(
-                        'detailViewBackgroundStyle',
-                        'custom',
-                      );
-                      if (!mounted) return;
-                      setState(() => _detailViewBackgroundStyle = 'custom');
-                      setModalState(() {});
-                      ref
-                          .read(settingsProvider.notifier)
-                          .updateSetting(detailViewBackgroundStyle: 'custom');
-                      showFleyToast(
-                        '${loc.toastBgStyleSet} ${loc.customImage}',
-                      );
-                      if (context.mounted) Navigator.pop(context);
+                      if (_detailViewCustomBgPath != null &&
+                          File(_detailViewCustomBgPath!).existsSync()) {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setString(
+                          'detailViewBackgroundStyle',
+                          'custom',
+                        );
+                        if (!mounted) return;
+                        setState(() => _detailViewBackgroundStyle = 'custom');
+                        setModalState(() {});
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateSetting(detailViewBackgroundStyle: 'custom');
+                        showFleyToast(
+                          '${loc.toastBgStyleSet} ${loc.customImage}',
+                        );
+                        if (context.mounted) Navigator.pop(context);
+                      } else {
+                        final picker = ImagePicker();
+                        final image = await picker.pickImage(
+                          source: ImageSource.gallery,
+                        );
+                        if (image != null) {
+                          String? targetPath;
+                          if (image.path.toLowerCase().endsWith('.gif')) {
+                            final appDir =
+                                await getApplicationDocumentsDirectory();
+                            final gifFile = File(
+                              '${appDir.path}/custom_detail_bg_${DateTime.now().millisecondsSinceEpoch}.gif',
+                            );
+                            await File(image.path).copy(gifFile.path);
+                            targetPath = gifFile.path;
+                          } else {
+                            if (!context.mounted) return;
+                            targetPath = await ImageCropperUtil.cropImage(
+                              context: context,
+                              sourcePath: image.path,
+                            );
+                          }
+                          if (targetPath != null) {
+                            final prefs =
+                                await SharedPreferences.getInstance();
+                            await prefs.setString(
+                              'detailViewBackgroundStyle',
+                              'custom',
+                            );
+                            await prefs.setString(
+                              'detailViewCustomBgPath',
+                              targetPath,
+                            );
+                            if (!mounted) return;
+                            setState(() {
+                              _detailViewBackgroundStyle = 'custom';
+                              _detailViewCustomBgPath = targetPath;
+                            });
+                            setModalState(() {});
+                            ref.read(settingsProvider.notifier).updateSetting(
+                                  detailViewBackgroundStyle: 'custom',
+                                  detailViewCustomBgPath: targetPath,
+                                );
+                            showFleyToast(
+                              '${loc.toastBgStyleSet} ${loc.customImage}',
+                            );
+                            if (context.mounted) Navigator.pop(context);
+                          }
+                        }
+                      }
                     },
                   ),
                   const SizedBox(height: 24),

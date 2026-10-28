@@ -1510,14 +1510,18 @@ extension _TabsUI on _MainScreenState {
       AppLocalizations.of(context).albums,
     ];
     return Padding(
-      padding: const EdgeInsets.only(left: 24, right: 24, top: 8, bottom: 8),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 6, bottom: 8),
       child: SizedBox(
-        height: 32,
+        height: 36,
         child: Row(
           children: filters.asMap().entries.map((entry) {
             final index = entry.key;
             final filter = entry.value;
             final isSelected = _currentPageIndex == index;
+            final selectedTextColor = _activeAccentColor.computeLuminance() > 0.45
+                ? const Color(0xFF1A1A1A)
+                : Colors.white;
+
             return Expanded(
               child: GestureDetector(
                 onTap: () {
@@ -1531,29 +1535,50 @@ extension _TabsUI on _MainScreenState {
                     _pageController.jumpToPage(index);
                   }
                 },
-                child: Container(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
                   margin: EdgeInsets.only(
                     right: index == filters.length - 1 ? 0 : 8,
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 6),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? (isLight ? const Color(0xFF1A1A1A) : Colors.white)
+                        ? _activeAccentColor
                         : (isLight
                               ? Colors.black.withValues(alpha: 0.05)
-                              : const Color(0xFF161616)),
-                    borderRadius: BorderRadius.circular(8),
+                              : const Color(0xFF1C1C1E)),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.transparent
+                          : (isLight
+                                ? Colors.black.withValues(alpha: 0.06)
+                                : Colors.white.withValues(alpha: 0.06)),
+                      width: 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: _activeAccentColor.withValues(alpha: 0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Center(
                     child: Text(
                       filter,
                       style: TextStyle(
                         color: isSelected
-                            ? (isLight ? Colors.white : Colors.black)
-                            : (isLight ? Colors.black54 : Colors.white70),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                            ? selectedTextColor
+                            : (isLight ? Colors.black54 : Colors.white60),
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                        fontSize: 12.5,
+                        fontFamily: getFontFamily(activeFontNotifier.value),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -1597,7 +1622,7 @@ extension _TabsUI on _MainScreenState {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
