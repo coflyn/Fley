@@ -86,9 +86,7 @@ extension _SortModalsUI on _MainScreenState {
                   () {
                     Navigator.pop(context);
                     if (tracks.isNotEmpty) {
-                      for (final track in tracks) {
-                        _moveTrackInQueue(track, _playbackQueue.length);
-                      }
+                      _addTracksToQueue(tracks);
                       showFleyToast(
                         lookupAppLocalizations(
                           Locale(FleyStrings.currentLang),

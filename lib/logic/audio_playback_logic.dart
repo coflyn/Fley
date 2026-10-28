@@ -60,6 +60,45 @@ extension _AudioPlaybackLogic on _MainScreenState {
     _updateCurrentSourceSilently();
   }
 
+  void _addTracksToQueue(List<Track> tracks) {
+    if (tracks.isEmpty) return;
+    if (_playbackQueue.isEmpty || _playingTrack == null || _currentIndex < 0) {
+      _playTrack(0, sourceList: tracks);
+      return;
+    }
+
+    setState(() {
+      for (final track in tracks) {
+        if (_playingTrack?.id == track.id) continue;
+
+        final existingIndex = _playbackQueue.indexWhere((t) => t.id == track.id);
+        if (existingIndex != -1) {
+          _playbackQueue.removeAt(existingIndex);
+          _shuffledIndices.remove(existingIndex);
+          for (int i = 0; i < _shuffledIndices.length; i++) {
+            if (_shuffledIndices[i] > existingIndex) {
+              _shuffledIndices[i]--;
+            }
+          }
+          if (existingIndex < _currentIndex) {
+            _currentIndex--;
+          }
+        }
+
+        final targetIndex = _playbackQueue.length;
+        _playbackQueue.add(track);
+
+        if (_isShuffle && _shuffledIndices.isNotEmpty) {
+          _shuffledIndices.add(targetIndex);
+        } else {
+          _shuffledIndices = List.generate(_playbackQueue.length, (i) => i);
+        }
+      }
+    });
+
+    _updateCurrentSourceSilently();
+  }
+
   void _removeFromQueueAndPlayer(String trackId) {
     setState(() {
       final actualRemoveIndex = _playbackQueue.indexWhere(

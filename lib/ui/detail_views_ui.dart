@@ -557,87 +557,113 @@ extension _DetailViewsUI on _MainScreenState {
                             ),
                           ),
                           const SizedBox(width: 18),
-                          Builder(
-                            builder: (context) {
-                              final isAllFavorited = tracks.isNotEmpty &&
-                                  tracks.every(
-                                    (t) => _favoriteTrackIds.contains(t.id),
-                                  );
-                              final iconColor =
-                                  _activeAccentColor.computeLuminance() > 0.35
-                                      ? Colors.black
-                                      : Colors.white;
-
-                              return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    if (isAllFavorited) {
-                                      for (final t in tracks) {
-                                        _favoriteTrackIds.remove(t.id);
-                                      }
-                                    } else {
-                                      for (final t in tracks) {
-                                        _favoriteTrackIds.add(t.id);
-                                      }
-                                    }
-                                  });
-                                  SharedPreferences.getInstance().then((prefs) {
-                                    prefs.setStringList(
-                                      'favorite_track_ids',
-                                      _favoriteTrackIds.toList(),
+                          if (!(type == 'Playlist' &&
+                              title == AppLocalizations.of(context).favourites)) ...[
+                            Builder(
+                              builder: (context) {
+                                final isAllFavorited = tracks.isNotEmpty &&
+                                    tracks.every(
+                                      (t) => _favoriteTrackIds.contains(t.id),
                                     );
-                                  });
-                                  showFleyToast(
-                                    isAllFavorited
-                                        ? 'Removed from Favourites'
-                                        : 'Added to Favourites',
-                                  );
-                                },
-                                child: isAllFavorited
-                                    ? Container(
-                                        width: 26,
-                                        height: 26,
-                                        decoration: BoxDecoration(
-                                          color: _activeAccentColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          Icons.check,
-                                          size: 16,
-                                          color: iconColor,
-                                        ),
-                                      )
-                                    : Icon(
-                                        Icons.add_circle_outline_rounded,
-                                        size: 26,
-                                        color: isLight
-                                            ? Colors.black45
-                                            : Colors.white60,
+                                final iconColor =
+                                    _activeAccentColor.computeLuminance() > 0.35
+                                        ? Colors.black
+                                        : Colors.white;
+
+                                return Tooltip(
+                                  message: isAllFavorited
+                                      ? AppLocalizations.of(context)
+                                          .removeFromFavourites
+                                      : AppLocalizations.of(context)
+                                          .addToFavourites,
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      if (tracks.isEmpty) return;
+                                      setState(() {
+                                        if (isAllFavorited) {
+                                          for (final t in tracks) {
+                                            _favoriteTrackIds.remove(t.id);
+                                          }
+                                        } else {
+                                          for (final t in tracks) {
+                                            _favoriteTrackIds.add(t.id);
+                                          }
+                                        }
+                                      });
+                                      SharedPreferences.getInstance().then((prefs) {
+                                        prefs.setStringList(
+                                          'favorite_track_ids',
+                                          _favoriteTrackIds.toList(),
+                                        );
+                                      });
+                                      showFleyToast(
+                                        isAllFavorited
+                                            ? AppLocalizations.of(context)
+                                                .removedFromFavourites
+                                            : AppLocalizations.of(context)
+                                                .addedToFavourites,
+                                      );
+                                    },
+                                    child: SizedBox(
+                                      width: 36,
+                                      height: 36,
+                                      child: Center(
+                                        child: isAllFavorited
+                                            ? Container(
+                                                width: 26,
+                                                height: 26,
+                                                decoration: BoxDecoration(
+                                                  color: _activeAccentColor,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Icon(
+                                                  Icons.check,
+                                                  size: 16,
+                                                  color: iconColor,
+                                                ),
+                                              )
+                                            : Icon(
+                                                Icons.add_circle_outline_rounded,
+                                                size: 26,
+                                                color: isLight
+                                                    ? Colors.black45
+                                                    : Colors.white60,
+                                              ),
                                       ),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 18),
-                          GestureDetector(
-                            onTap: () {
-                              if (tracks.isNotEmpty) {
-                                for (final track in tracks) {
-                                  _moveTrackInQueue(
-                                    track,
-                                    _playbackQueue.length,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 18),
+                          ],
+                          Tooltip(
+                            message: AppLocalizations.of(context).addToQueue,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                if (tracks.isNotEmpty) {
+                                  _addTracksToQueue(tracks);
+                                  showFleyToast(
+                                    AppLocalizations.of(context)
+                                        .addedSongsToQueue,
                                   );
                                 }
-                                showFleyToast(
-                                  "Added ${tracks.length} tracks to queue",
-                                );
-                              }
-                            },
-                            child: Icon(
-                              Icons.arrow_circle_down_outlined,
-                              size: 26,
-                              color: isLight
-                                  ? Colors.black45
-                                  : Colors.white60,
+                              },
+                              child: SizedBox(
+                                width: 36,
+                                height: 36,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.queue_music_rounded,
+                                    size: 26,
+                                    color: isLight
+                                        ? Colors.black45
+                                        : Colors.white60,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 18),
