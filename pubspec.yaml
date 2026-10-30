@@ -53,6 +53,10 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
+  window_manager: ^0.5.2
+  file_selector: ^1.1.0
+  just_audio_windows: ^0.2.3
+  id3: ^1.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -77,6 +81,7 @@ flutter:
 
   assets:
     - assets/hey.gif
+    - assets/app_logo.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
