@@ -26,6 +26,9 @@ import 'models/track.dart';
 import 'models/lyrics_line.dart';
 import 'widgets/custom_track_shape.dart';
 
+import 'package:window_manager/window_manager.dart';
+import 'services/desktop_audio_scanner.dart';
+import 'ui/desktop/desktop_layout_shell.dart';
 import 'screens/settings_screen.dart';
 import 'screens/profile_screen.dart';
 import 'ui/animated_splash_screen.dart';
@@ -63,30 +66,59 @@ part 'logic/audio_playback_logic.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+  if (isDesktop) {
+    try {
+      await windowManager.ensureInitialized();
+      const windowOptions = WindowOptions(
+        size: Size(1100, 720),
+        minimumSize: Size(850, 600),
+        center: true,
+        backgroundColor: Colors.transparent,
+        skipTaskbar: false,
+        titleBarStyle: TitleBarStyle.hidden,
+        title: 'Fley',
+      );
+      await windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.show();
+        await windowManager.focus();
+      });
+    } catch (e) {
+      debugPrint('WindowManager init error: $e');
+    }
+  } else {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
 
   final prefs = await SharedPreferences.getInstance();
   final playTogether = prefs.getBool('playTogether') ?? false;
   await configureAudioSession(playTogether);
 
-  try {
-    audioHandler = await AudioService.init(
-      builder: () => MyAudioHandler(),
-      config: AudioServiceConfig(
-        androidNotificationChannelId: 'com.fley.music.channel.audio.v1',
-        androidNotificationChannelName: 'Fley Audio Player',
-        androidNotificationOngoing: false,
-        androidStopForegroundOnPause: true,
-        androidShowNotificationBadge: true,
-        androidNotificationIcon: 'drawable/ic_notification',
-      ),
-    );
+  if (Platform.isAndroid || Platform.isIOS) {
+    try {
+      audioHandler = await AudioService.init(
+        builder: () => MyAudioHandler(),
+        config: const AudioServiceConfig(
+          androidNotificationChannelId: 'com.fley.music.channel.audio.v1',
+          androidNotificationChannelName: 'Fley Audio Player',
+          androidNotificationOngoing: false,
+          androidStopForegroundOnPause: true,
+          androidShowNotificationBadge: true,
+          androidNotificationIcon: 'drawable/ic_notification',
+        ),
+      );
+      isBackgroundInitialized = true;
+    } catch (e, stackTrace) {
+      debugPrint('AudioService init error: $e');
+      debugPrint('StackTrace: $stackTrace');
+      backgroundInitError = '$e\n$stackTrace';
+      audioHandler = MyAudioHandler();
+      isBackgroundInitialized = false;
+    }
+  } else {
+    audioHandler = MyAudioHandler();
     isBackgroundInitialized = true;
-  } catch (e, stackTrace) {
-    debugPrint('AudioService init error: $e');
-    debugPrint('StackTrace: $stackTrace');
-    backgroundInitError = '$e\n$stackTrace';
-    isBackgroundInitialized = false;
   }
 
   // Initialize ValueNotifiers directly from prefs BEFORE runApp so first frame renders with correct settings
@@ -255,6 +287,13 @@ class FleyApp extends StatelessWidget {
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(12),
                                           ),
+                                        ),
+                                        bottomSheetTheme: BottomSheetThemeData(
+                                          constraints: (Platform.isMacOS ||
+                                                  Platform.isWindows ||
+                                                  Platform.isLinux)
+                                              ? const BoxConstraints(maxWidth: 580)
+                                              : null,
                                         ),
                                       ),
                                       home: const MainScreen(),
@@ -641,12 +680,54 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final isDetailView =
-        _selectedPlaylistDetail != null ||
-        _selectedArtistDetail != null ||
-        _selectedAlbumDetail != null;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 768) {
+          final isLight = Theme.of(context).brightness == Brightness.light;
+          final appBgColor = Theme.of(context).scaffoldBackgroundColor;
+          final cardColor = Theme.of(context).colorScheme.surface;
+          final activeAccent = Theme.of(context).colorScheme.primary;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+          return DesktopLayoutShell(
+            allTracks: _allTracks,
+            playbackQueue: _playbackQueue,
+            playingTrack: _playingTrack,
+            player: player,
+            favoriteTrackIds: _favoriteTrackIds,
+            activeAccentColor: activeAccent,
+            backgroundColor: appBgColor,
+            cardColor: cardColor,
+            isLight: isLight,
+            onPlayTrack: (track, queue, index) {
+              _playTrack(index, sourceList: queue);
+            },
+            onTogglePlayPause: () {
+              if (player.playing) {
+                _pauseWithFade();
+              } else {
+                _playWithFade();
+              }
+            },
+            onPlayNext: _playNext,
+            onPlayPrevious: _playPrevious,
+            onToggleFavorite: _toggleFavorite,
+            onOpenSettings: _openSettings,
+            onRescan: () => _requestPermissionAndScan(showLoading: true),
+            userPlaylists: _userPlaylists,
+            playCounts: _playCounts,
+            allPlayedTrackIdsOrdered: _allPlayedTrackIdsOrdered,
+            playlistCovers: _playlistCovers,
+            lastPlaybackTrackId: _lastPlaybackTrackId,
+            lastPlaybackPositionMs: _lastPlaybackPositionMs,
+          );
+        }
+
+        final isDetailView =
+            _selectedPlaylistDetail != null ||
+            _selectedArtistDetail != null ||
+            _selectedAlbumDetail != null;
+
+        return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
@@ -905,6 +986,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           ),
         ),
       ),
+    );
+      },
     );
   }
 }

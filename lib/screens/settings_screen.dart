@@ -19,6 +19,7 @@ import '../utils/globals.dart';
 import '../utils/image_cropper_util.dart';
 
 import '../widgets/settings/settings_ui_components.dart';
+import '../widgets/desktop_title_bar.dart';
 import 'package:fley/l10n/app_localizations.dart';
 part 'settings_sleep_timer.dart';
 part 'settings_backup_restore.dart';
@@ -95,6 +96,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _lyricsAutoWave = true;
   String _appVersion = 'Loading...';
   Future<List<SongModel>>? _songsFuture;
+  String _desktopActiveCategory = 'all';
+
+  Widget _buildCategoryPill(String id, String label, bool isLight) {
+    final isSelected = _desktopActiveCategory == id;
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => setState(() => _desktopActiveCategory = id),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? _activeAccentColor.withValues(alpha: 0.18)
+              : (isLight
+                  ? Colors.black.withValues(alpha: 0.04)
+                  : Colors.white.withValues(alpha: 0.06)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? _activeAccentColor : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected
+                ? _activeAccentColor
+                : (isLight ? Colors.black87 : Colors.white70),
+          ),
+        ),
+      ),
+    );
+  }
 
   Color get _activeAccentColor {
     if (_selectedThemeAccent == 'dynamic') {
@@ -412,44 +447,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isLight = _selectedThemeMode == 'light';
-    return Scaffold(
-      backgroundColor: isLight
-          ? const Color(0xFFF6F8FA)
-          : const Color(0xFF0A0A0A),
-      appBar: AppBar(
-        backgroundColor: isLight
-            ? const Color(0xFFF6F8FA)
-            : const Color(0xFF0A0A0A),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
-          ),
-          onPressed: () => Navigator.pop(context),
+    final isDesktop =
+        Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+
+    final settingsContent = [
+      if (!isDesktop ||
+          _desktopActiveCategory == 'all' ||
+          _desktopActiveCategory == 'appearance') ...[
+        SettingsSectionHeader(
+          title: AppLocalizations.of(context).appearance,
+          activeAccentColor: _activeAccentColor,
         ),
-        title: Text(
-          AppLocalizations.of(context).settings,
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-            color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
-          ),
-        ),
-      ),
-      body: ListView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        children: [
-          SettingsSectionHeader(
-            title: AppLocalizations.of(context).appearance,
-            activeAccentColor: _activeAccentColor,
-          ),
-          SettingsPremiumCard(
+        SettingsPremiumCard(
             isLight: _selectedThemeMode == 'light',
             children: [
               SettingsPremiumListTile(
@@ -705,6 +714,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ],
           ),
+        ],
+        if (!isDesktop ||
+            _desktopActiveCategory == 'all' ||
+            _desktopActiveCategory == 'audio') ...[
           SettingsSectionHeader(
             title: AppLocalizations.of(context).audioPlayback,
             activeAccentColor: _activeAccentColor,
@@ -923,6 +936,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
+        ],
+        if (!isDesktop ||
+            _desktopActiveCategory == 'all' ||
+            _desktopActiveCategory == 'library') ...[
           SettingsSectionHeader(
             title: AppLocalizations.of(context).libraryStorage,
             activeAccentColor: _activeAccentColor,
@@ -978,12 +995,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: AppLocalizations.of(context).hiddenTracks,
                 subtitle: AppLocalizations.of(context).hiddenTracksSubtitle,
                 onTap: () async {
-                  _songsFuture = OnAudioQuery().querySongs(
-                    sortType: SongSortType.TITLE,
-                    orderType: OrderType.ASC_OR_SMALLER,
-                    uriType: UriType.EXTERNAL,
-                    ignoreCase: true,
-                  );
+                  if (Platform.isAndroid || Platform.isIOS) {
+                    _songsFuture = OnAudioQuery().querySongs(
+                      sortType: SongSortType.TITLE,
+                      orderType: OrderType.ASC_OR_SMALLER,
+                      uriType: UriType.EXTERNAL,
+                      ignoreCase: true,
+                    );
+                  } else {
+                    _songsFuture = Future.value(<SongModel>[]);
+                  }
                   await _showHiddenTracksSheet(context);
                   _songsFuture = null;
                 },
@@ -1039,6 +1060,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
+        ],
+        if (!isDesktop ||
+            _desktopActiveCategory == 'all' ||
+            _desktopActiveCategory == 'about') ...[
           SettingsSectionHeader(
             title: AppLocalizations.of(context).aboutFley,
             activeAccentColor: _activeAccentColor,
@@ -1138,10 +1163,180 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
         ],
-      ),
-    );
+        const SizedBox(height: 20),
+      ];
+
+      if (isDesktop) {
+        return Scaffold(
+          backgroundColor: isLight
+              ? const Color(0xFFF6F8FA)
+              : const Color(0xFF0A0A0A),
+          body: Column(
+            children: [
+              DesktopTitleBar(
+                backgroundColor: isLight
+                    ? const Color(0xFFF6F8FA)
+                    : const Color(0xFF0A0A0A),
+                isLight: isLight,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: isLight
+                          ? Colors.black.withValues(alpha: 0.06)
+                          : Colors.white.withValues(alpha: 0.06),
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isLight
+                              ? Colors.black.withValues(alpha: 0.05)
+                              : Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.arrow_back_rounded,
+                              size: 16,
+                              color: isLight ? Colors.black87 : Colors.white,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Back',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: isLight ? Colors.black87 : Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      AppLocalizations.of(context).settings,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 19,
+                        color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildCategoryPill('all', 'All', isLight),
+                          const SizedBox(width: 6),
+                          _buildCategoryPill(
+                            'appearance',
+                            AppLocalizations.of(context).appearance,
+                            isLight,
+                          ),
+                          const SizedBox(width: 6),
+                          _buildCategoryPill(
+                            'audio',
+                            AppLocalizations.of(context).audioPlayback,
+                            isLight,
+                          ),
+                          const SizedBox(width: 6),
+                          _buildCategoryPill(
+                            'library',
+                            AppLocalizations.of(context).libraryStorage,
+                            isLight,
+                          ),
+                          const SizedBox(width: 6),
+                          _buildCategoryPill(
+                            'about',
+                            AppLocalizations.of(context).aboutFley,
+                            isLight,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      tooltip: 'Close Settings',
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 820),
+                    child: ListView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      children: settingsContent,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return Scaffold(
+        backgroundColor: isLight
+            ? const Color(0xFFF6F8FA)
+            : const Color(0xFF0A0A0A),
+        appBar: AppBar(
+          backgroundColor: isLight
+              ? const Color(0xFFF6F8FA)
+              : const Color(0xFF0A0A0A),
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+          centerTitle: true,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Text(
+            AppLocalizations.of(context).settings,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+              color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
+            ),
+          ),
+        ),
+        body: ListView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          children: settingsContent,
+        ),
+      );
   }
 
   bool get _hasAnyCustomBackground {
