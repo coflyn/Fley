@@ -13,6 +13,11 @@ class ArtworkCacheManager {
     return _memoryCache[trackId];
   }
 
+  /// Sets artwork directly into memory cache (used by desktop scanner).
+  static void setCachedArtwork(String trackId, Uint8List? bytes) {
+    _memoryCache[trackId] = bytes;
+  }
+
   /// Checks if the native artwork is already cached or confirmed null.
   static bool isCached(String trackId) {
     return _memoryCache.containsKey(trackId);
@@ -24,6 +29,11 @@ class ArtworkCacheManager {
   static Future<Uint8List?> fetchAndCacheNativeArtwork(String trackId) async {
     if (_memoryCache.containsKey(trackId)) {
       return _memoryCache[trackId];
+    }
+
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      _memoryCache[trackId] = null;
+      return null;
     }
 
     if (_inFlight.containsKey(trackId)) {

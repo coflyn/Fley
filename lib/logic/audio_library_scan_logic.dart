@@ -67,53 +67,90 @@ extension _AudioLibraryScanLogic on _MainScreenState {
         } catch (_) {}
       }
 
-      bool permissionGranted = await _audioQuery.permissionsStatus();
-      if (!permissionGranted) {
-        permissionGranted = await _audioQuery.permissionsRequest();
-      }
+      final isDesktop =
+          Platform.isMacOS || Platform.isWindows || Platform.isLinux;
 
-      final notificationStatus = await Permission.notification.request();
-      if (!notificationStatus.isGranted) {
-        if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(Icons.warning, color: Colors.orange),
-                  SizedBox(width: 8),
-                  Text("Notification Required"),
+      if (isDesktop) {
+        final desktopTracks = await DesktopAudioScanner.scanAllTracks(
+          filterShortAudio: _filterShortAudio,
+        );
+        _allTracks = desktopTracks
+            .map((track) {
+              String title = track.title;
+              String artist = track.artist;
+              String album = track.album;
+              if (_metadataOverrides.containsKey(track.id)) {
+                final overrides = _metadataOverrides[track.id]!;
+                title = overrides['title'] ?? title;
+                artist = overrides['artist'] ?? artist;
+                album = overrides['album'] ?? album;
+              }
+              return Track(
+                id: track.id,
+                title: title,
+                artist: artist,
+                album: album,
+                url: track.url,
+                path: track.path,
+                lyrics: track.lyrics,
+                duration: track.duration,
+              );
+            })
+            .where((t) => !_hiddenTrackIds.contains(t.id))
+            .toList();
+
+        if (_allTracks.isNotEmpty) {
+          final serialized = _allTracks.map((t) => t.toMap()).toList();
+          prefs.setString('cached_tracks_list', jsonEncode(serialized));
+        }
+      } else {
+        bool permissionGranted = await _audioQuery.permissionsStatus();
+        if (!permissionGranted) {
+          permissionGranted = await _audioQuery.permissionsRequest();
+        }
+
+        final notificationStatus = await Permission.notification.request();
+        if (!notificationStatus.isGranted) {
+          if (mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Row(
+                  children: [
+                    Icon(Icons.warning, color: Colors.orange),
+                    SizedBox(width: 8),
+                    Text("Notification Required"),
+                  ],
+                ),
+                content: const Text(
+                  "Fley needs the Notification permission to show music playback controls on your lock screen and background.\n\nPlease enable Notifications for Fley in your phone's App Settings.",
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("CANCEL"),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await openAppSettings();
+                    },
+                    child: const Text("OPEN SETTINGS"),
+                  ),
                 ],
               ),
-              content: const Text(
-                "Fley needs the Notification permission to show music playback controls on your lock screen and background.\n\nPlease enable Notifications for Fley in your phone's App Settings.",
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("CANCEL"),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await openAppSettings();
-                  },
-                  child: const Text("OPEN SETTINGS"),
-                ),
-              ],
-            ),
-          );
+            );
+          }
         }
-      }
 
-      if (permissionGranted) {
-        final List<SongModel> songs = await _audioQuery.querySongs(
-          sortType: SongSortType.DATE_ADDED,
-          orderType: OrderType.DESC_OR_GREATER,
-          uriType: UriType.EXTERNAL,
-          ignoreCase: true,
-        );
+        if (permissionGranted) {
+          final List<SongModel> songs = await _audioQuery.querySongs(
+            sortType: SongSortType.DATE_ADDED,
+            orderType: OrderType.DESC_OR_GREATER,
+            uriType: UriType.EXTERNAL,
+            ignoreCase: true,
+          );
 
         if (songs.isNotEmpty) {
           var filteredSongs = songs;
@@ -227,6 +264,7 @@ extension _AudioLibraryScanLogic on _MainScreenState {
           }
         }
       }
+    }
 
       if (mounted) {
         setState(() {
