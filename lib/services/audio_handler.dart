@@ -158,6 +158,7 @@ class MyAudioHandler extends BaseAudioHandler {
 }
 
 Future<void> configureAudioSession(bool playTogether) async {
+  if (!Platform.isAndroid && !Platform.isIOS) return;
   final session = await AudioSession.instance;
   if (playTogether) {
     await session.configure(
