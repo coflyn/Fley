@@ -130,7 +130,20 @@ void main() async {
   fontScaleNotifier.value = prefs.getDouble('fontScale') ?? 1.0;
   userProfileNameNotifier.value =
       prefs.getString('userProfileName') ?? 'User';
-  userProfileImageNotifier.value = prefs.getString('userProfileImage');
+  final savedProfileImg = prefs.getString('userProfileImage');
+  if (savedProfileImg != null && savedProfileImg.isNotEmpty) {
+    try {
+      if (File(savedProfileImg).existsSync()) {
+        userProfileImageNotifier.value = savedProfileImg;
+      } else {
+        userProfileImageNotifier.value = null;
+      }
+    } catch (_) {
+      userProfileImageNotifier.value = null;
+    }
+  } else {
+    userProfileImageNotifier.value = null;
+  }
   userProfileBioNotifier.value =
       prefs.getString('userProfileBio') ?? 'Music enthusiast';
 
@@ -719,6 +732,40 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             playlistCovers: _playlistCovers,
             lastPlaybackTrackId: _lastPlaybackTrackId,
             lastPlaybackPositionMs: _lastPlaybackPositionMs,
+            currentLyricsPlain: _currentLyricsPlain,
+            currentLyricsSynced: _currentLyricsSynced,
+            isLyricsLoading: _isLyricsLoading,
+            isLyricsSynced: _isLyricsSynced,
+            onRefreshLyrics: _playingTrack != null
+                ? () => _loadLyricsForTrack(_playingTrack!)
+                : null,
+            onSaveManualLyrics: (track, text) => _saveManualLyrics(track, text),
+            onPlayNextInQueue: (track) =>
+                _moveTrackInQueue(track, _currentIndex + 1),
+            onAddToQueue: (track) => _addTracksToQueue([track]),
+            onCreatePlaylist: (name) {
+              setState(() {
+                _userPlaylists[name] = [];
+                _saveUserPlaylists();
+              });
+            },
+            onDeletePlaylist: (name) {
+              setState(() {
+                _userPlaylists.remove(name);
+                _saveUserPlaylists();
+              });
+            },
+            onAddToPlaylist: (name, track) {
+              setState(() {
+                final list = _userPlaylists.putIfAbsent(name, () => []);
+                if (!list.contains(track.id)) {
+                  list.add(track.id);
+                }
+                _saveUserPlaylists();
+              });
+            },
+            onOpenEqualizer: () => _showEqualizerSheet(context),
+            onOpenSleepTimer: () => _showFullSleepTimerDialog(context),
           );
         }
 
