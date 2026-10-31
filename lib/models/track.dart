@@ -44,4 +44,26 @@ class Track {
       duration: map['duration'] ?? 0,
     );
   }
+
+  Track copyWith({
+    String? id,
+    String? title,
+    String? artist,
+    String? album,
+    String? url,
+    String? path,
+    List<String>? lyrics,
+    int? duration,
+  }) {
+    return Track(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      url: url ?? this.url,
+      path: path ?? this.path,
+      lyrics: lyrics ?? this.lyrics,
+      duration: duration ?? this.duration,
+    );
+  }
 }

@@ -12,6 +12,35 @@ extension _AudioStreamsLogic on _MainScreenState {
       if (mounted) setState(() => _processingState = state);
     });
 
+    _audioPlayer.durationStream.listen((dur) {
+      if (dur != null && dur > Duration.zero && _playingTrack != null) {
+        final durMs = dur.inMilliseconds;
+        if (_playingTrack!.duration <= 0 ||
+            (_playingTrack!.duration - durMs).abs() > 1000) {
+          if (mounted) {
+            setState(() {
+              _playingTrack = _playingTrack!.copyWith(duration: durMs);
+              final qIdx =
+                  _playbackQueue.indexWhere((t) => t.id == _playingTrack!.id);
+              if (qIdx != -1) {
+                _playbackQueue[qIdx] =
+                    _playbackQueue[qIdx].copyWith(duration: durMs);
+              }
+              final aIdx =
+                  _allTracks.indexWhere((t) => t.id == _playingTrack!.id);
+              if (aIdx != -1) {
+                _allTracks[aIdx] =
+                    _allTracks[aIdx].copyWith(duration: durMs);
+              }
+            });
+          }
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.setInt('track_dur_${_playingTrack!.id}', durMs);
+          });
+        }
+      }
+    });
+
     _audioPlayer.currentIndexStream.listen((nativeIndex) {
       if (_isProgrammaticLoading) return;
       if (nativeIndex == null) return;

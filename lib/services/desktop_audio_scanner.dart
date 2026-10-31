@@ -6,6 +6,7 @@ import 'package:id3/id3.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/track.dart';
 import '../utils/artwork_cache.dart';
+import '../utils/audio_duration_parser.dart';
 
 class DesktopAudioScanner {
   static const String _prefsKeyCustomFolders = 'desktop_custom_music_folders';
@@ -108,6 +109,7 @@ class DesktopAudioScanner {
       }
     }
 
+    final prefs = await SharedPreferences.getInstance();
     final List<Track> tracks = [];
     final Set<String> seenPaths = {};
 
@@ -119,9 +121,10 @@ class DesktopAudioScanner {
       String title = '';
       String artist = 'Unknown Artist';
       String album = 'Unknown Album';
-      int duration = 0;
-
       final trackId = 'desktop_${path.hashCode.abs()}';
+
+      // 1. Check cached duration first
+      int duration = prefs.getInt('track_dur_$trackId') ?? 0;
 
       // Parse ID3 tags jika file MP3
       if (path.toLowerCase().endsWith('.mp3')) {
@@ -143,8 +146,11 @@ class DesktopAudioScanner {
                   tags['Album'].toString().trim().isNotEmpty) {
                 album = tags['Album'].toString().trim();
               }
-              if (tags['Length'] != null) {
+              if (duration <= 0 && tags['Length'] != null) {
                 duration = int.tryParse(tags['Length'].toString()) ?? 0;
+              }
+              if (duration <= 0 && tags['TLEN'] != null) {
+                duration = int.tryParse(tags['TLEN'].toString()) ?? 0;
               }
 
               // Extract embedded cover art
@@ -162,6 +168,15 @@ class DesktopAudioScanner {
           }
         } catch (e) {
           debugPrint('DesktopAudioScanner: ID3 parse error for $path: $e');
+        }
+      }
+
+      // 2. Fallback to native audio header parser jika durasi belum terdeteksi
+      if (duration <= 0) {
+        final parsedDur = AudioDurationParser.getDurationMs(file);
+        if (parsedDur != null && parsedDur > 0) {
+          duration = parsedDur;
+          prefs.setInt('track_dur_$trackId', duration);
         }
       }
 
