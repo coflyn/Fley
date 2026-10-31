@@ -443,18 +443,24 @@ extension _AudioLibraryScanLogic on _MainScreenState {
   Future<void> _updateDominantColor(Track track) async {
     try {
       final customPath = _metadataOverrides[track.id]?['coverPath'];
+      final cachedBytes = ArtworkCacheManager.getCachedArtwork(track.id);
       ImageProvider? imageProvider;
 
       if (customPath != null) {
         imageProvider = ResizeImage(FileImage(File(customPath)), width: 600);
+      } else if (cachedBytes != null && cachedBytes.isNotEmpty) {
+        imageProvider = MemoryImage(cachedBytes);
       } else {
-        final artwork = await _audioQuery.queryArtwork(
-          int.parse(track.id),
-          ArtworkType.AUDIO,
-          size: 200,
-        );
-        if (artwork != null) {
-          imageProvider = MemoryImage(artwork);
+        final idInt = int.tryParse(track.id);
+        if (idInt != null) {
+          final artwork = await _audioQuery.queryArtwork(
+            idInt,
+            ArtworkType.AUDIO,
+            size: 200,
+          );
+          if (artwork != null) {
+            imageProvider = MemoryImage(artwork);
+          }
         }
       }
 

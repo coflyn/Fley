@@ -953,14 +953,33 @@ extension _AudioPlaybackLogic on _MainScreenState {
       _isLyricsSynced = false;
     });
     final manualKey = 'lyrics_manual_${track.id}';
-
     if (prefs.containsKey(manualKey)) {
       final manualText = prefs.getString(manualKey) ?? '';
-      _parsePlainOrLrcLyrics(manualText);
-      setState(() {
-        _isLyricsLoading = false;
-      });
-      return;
+      if (manualText.trim().isNotEmpty) {
+        _parsePlainOrLrcLyrics(manualText);
+        setState(() {
+          _isLyricsLoading = false;
+        });
+        return;
+      }
+    }
+
+    // Check local .lrc file right next to audio file
+    if (track.path.isNotEmpty) {
+      final dotIdx = track.path.lastIndexOf('.');
+      if (dotIdx > 0) {
+        final localLrc = File('${track.path.substring(0, dotIdx)}.lrc');
+        if (localLrc.existsSync()) {
+          try {
+            final lrcContent = await localLrc.readAsString();
+            if (lrcContent.trim().isNotEmpty) {
+              _parsePlainOrLrcLyrics(lrcContent);
+              setState(() => _isLyricsLoading = false);
+              return;
+            }
+          } catch (_) {}
+        }
+      }
     }
 
     final cacheKey = 'lyrics_cache_${track.id}';
@@ -969,36 +988,114 @@ extension _AudioPlaybackLogic on _MainScreenState {
       try {
         final data = jsonDecode(cachedJson);
         _applyFetchedLyrics(data);
-        setState(() {
-          _isLyricsLoading = false;
-        });
-        return;
+        if (_isLyricsSynced ||
+            (_currentLyricsPlain != null &&
+                _currentLyricsPlain!.trim().isNotEmpty)) {
+          setState(() {
+            _isLyricsLoading = false;
+          });
+          return;
+        }
       } catch (_) {}
     }
 
     try {
-      final cleanTitle = track.title;
-      final cleanArtist =
-          (track.artist.trim().isEmpty || track.artist == '<unknown>')
-          ? lookupAppLocalizations(
-              Locale(FleyStrings.currentLang),
-            ).unknownArtist
-          : track.artist;
+      final cleanTitle = track.title
+          .replaceAll(
+            RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
+            '',
+          )
+          .replaceAll(
+            RegExp(
+              r'\s*[\(\[](?:official|lyrics?|video|audio|remastered|bonus|deluxe|version|explicit)[\)\]]',
+              caseSensitive: false,
+            ),
+            '',
+          )
+          .replaceAll(
+            RegExp(r'\s*[\(\[]\s*feat\.?.*[\)\]]', caseSensitive: false),
+            '',
+          )
+          .trim();
+      final cleanArtist = (track.artist.trim().isEmpty ||
+              track.artist == '<unknown>')
+          ? ''
+          : track.artist
+              .replaceAll(
+                RegExp(r'\s*[\(\[]\s*feat\.?.*[\)\]]', caseSensitive: false),
+                '',
+              )
+              .trim();
 
       final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 5);
-      final uri = Uri.parse('https://lrclib.net/api/get').replace(
-        queryParameters: {'artist_name': cleanArtist, 'track_name': cleanTitle},
+      client.connectionTimeout = const Duration(seconds: 4);
+
+      Future<dynamic> fetchJson(Uri uri) async {
+        try {
+          final request = await client.getUrl(uri);
+          request.headers.set(
+            'User-Agent',
+            'FleyMusicPlayer/1.0.0 (https://github.com/Horu/Fley)',
+          );
+          final response = await request.close();
+          if (response.statusCode == 200) {
+            final body = await response.transform(utf8.decoder).join();
+            return jsonDecode(body);
+          }
+        } catch (_) {}
+        return null;
+      }
+
+      // 1. Try LRCLIB exact get
+      final lrclibGetUri = Uri.parse('https://lrclib.net/api/get').replace(
+        queryParameters: {
+          if (cleanArtist.isNotEmpty) 'artist_name': cleanArtist,
+          'track_name': cleanTitle,
+          if (track.duration > 0)
+            'duration': '${(track.duration / 1000).round()}',
+        },
       );
+      var data = await fetchJson(lrclibGetUri);
 
-      final request = await client.getUrl(uri);
-      final response = await request.close();
+      // 2. Try LRCLIB search if get returned nothing or 503
+      if (data == null ||
+          (data['syncedLyrics'] == null && data['plainLyrics'] == null)) {
+        final queryStr =
+            cleanArtist.isNotEmpty ? '$cleanArtist $cleanTitle' : cleanTitle;
+        final lrclibSearchUri =
+            Uri.parse('https://lrclib.net/api/search').replace(
+          queryParameters: {'q': queryStr},
+        );
+        final searchResults = await fetchJson(lrclibSearchUri);
+        if (searchResults is List && searchResults.isNotEmpty) {
+          data = searchResults.firstWhere(
+            (item) =>
+                item['syncedLyrics'] != null || item['plainLyrics'] != null,
+            orElse: () => searchResults.first,
+          );
+        }
+      }
 
-      if (response.statusCode == 200) {
-        final body = await response.transform(utf8.decoder).join();
-        final data = jsonDecode(body);
+      // 3. Fallback: lyrics.ovh for plain lyrics if LRCLIB failed (e.g. 503 ServerOverloaded)
+      if (data == null ||
+          (data['syncedLyrics'] == null && data['plainLyrics'] == null)) {
+        if (cleanArtist.isNotEmpty && cleanTitle.isNotEmpty) {
+          final ovhUri = Uri.parse(
+            'https://api.lyrics.ovh/v1/${Uri.encodeComponent(cleanArtist)}/${Uri.encodeComponent(cleanTitle)}',
+          );
+          final ovhData = await fetchJson(ovhUri);
+          if (ovhData is Map && ovhData['lyrics'] != null) {
+            final l = ovhData['lyrics'] as String;
+            if (l.trim().isNotEmpty) {
+              data = {'plainLyrics': l};
+            }
+          }
+        }
+      }
 
-        await prefs.setString(cacheKey, body);
+      if (data != null &&
+          (data['syncedLyrics'] != null || data['plainLyrics'] != null)) {
+        await prefs.setString(cacheKey, jsonEncode(data));
         _applyFetchedLyrics(data);
       } else {
         _currentLyricsPlain = null;
@@ -1012,6 +1109,24 @@ extension _AudioPlaybackLogic on _MainScreenState {
     } finally {
       if (mounted) {
         setState(() {
+          _isLyricsLoading = false;
+        });
+      }
+    }
+  }
+
+  void _saveManualLyrics(Track track, String text) async {
+    final prefs = await SharedPreferences.getInstance();
+    final manualKey = 'lyrics_manual_${track.id}';
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      await prefs.remove(manualKey);
+      _loadLyricsForTrack(track);
+    } else {
+      await prefs.setString(manualKey, trimmed);
+      if (mounted) {
+        setState(() {
+          _parsePlainOrLrcLyrics(trimmed);
           _isLyricsLoading = false;
         });
       }
