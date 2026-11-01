@@ -42,8 +42,10 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                       children: [
                         InkWell(
                           borderRadius: BorderRadius.circular(8),
-                          onTap: () => setState(() =>
-                              _isFullscreenPlayerOpen = !_isFullscreenPlayerOpen),
+                          onTap: () => setState(() {
+                            _isFullscreenPlayerOpen = !_isFullscreenPlayerOpen;
+                            if (_isLyricsViewOpen) _isLyricsViewOpen = false;
+                          }),
                           child: _DesktopTrackArtwork(
                             track: track,
                             size: 52,
@@ -59,8 +61,10 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                             children: [
                               InkWell(
                                 borderRadius: BorderRadius.circular(4),
-                                onTap: () => setState(() =>
-                                    _isFullscreenPlayerOpen = !_isFullscreenPlayerOpen),
+                                onTap: () => setState(() {
+                                  _isFullscreenPlayerOpen = !_isFullscreenPlayerOpen;
+                                  if (_isLyricsViewOpen) _isLyricsViewOpen = false;
+                                }),
                                 child: Text(
                                   track.title,
                                   maxLines: 1,
@@ -309,17 +313,18 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                 // Quick Lyrics Button
                 IconButton(
                   icon: Icon(
-                    Icons.lyrics_outlined,
+                    _isLyricsViewOpen
+                        ? Icons.lyrics_rounded
+                        : Icons.lyrics_outlined,
                     size: 20,
-                    color: (_isFullscreenPlayerOpen && _showLyricsInFullscreen)
+                    color: _isLyricsViewOpen
                         ? widget.activeAccentColor
                         : secondaryTextColor,
                   ),
-                  tooltip: 'Lyrics',
+                  tooltip: _isLyricsViewOpen ? 'Hide Lyrics' : 'Lyrics',
                   onPressed: () {
                     setState(() {
-                      _showLyricsInFullscreen = true;
-                      _isFullscreenPlayerOpen = true;
+                      _isLyricsViewOpen = !_isLyricsViewOpen;
                     });
                   },
                 ),
@@ -373,16 +378,18 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                 // Sleep Timer
                 IconButton(
                   icon: Icon(
-                    _desktopSleepTimer != null
+                    _desktopSleepTimerMinutes != null
                         ? Icons.bedtime_rounded
                         : Icons.bedtime_outlined,
                     size: 19,
-                    color: _desktopSleepTimer != null
+                    color: _desktopSleepTimerMinutes != null
                         ? widget.activeAccentColor
                         : secondaryTextColor,
                   ),
                   tooltip: _desktopSleepTimerMinutes != null
-                      ? 'Sleep timer ($_desktopSleepTimerMinutes min)'
+                      ? (_desktopSleepTimerMinutes == -1
+                          ? 'Sleep timer (End of track)'
+                          : 'Sleep timer ($_desktopSleepTimerMinutes min)')
                       : 'Sleep timer',
                   onPressed: _showSleepTimerDialog,
                 ),
@@ -429,9 +436,10 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                   color: _isFullscreenPlayerOpen
                       ? widget.activeAccentColor
                       : secondaryTextColor,
-                  onPressed: () => setState(
-                    () => _isFullscreenPlayerOpen = !_isFullscreenPlayerOpen,
-                  ),
+                  onPressed: () => setState(() {
+                    _isFullscreenPlayerOpen = !_isFullscreenPlayerOpen;
+                    if (_isLyricsViewOpen) _isLyricsViewOpen = false;
+                  }),
                 ),
                 IconButton(
                   icon: Icon(

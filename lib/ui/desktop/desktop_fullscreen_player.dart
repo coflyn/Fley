@@ -101,18 +101,6 @@ extension _DesktopFullscreenPlayerUI on _DesktopLayoutShellState {
                   DesktopTitleBar(
                     backgroundColor: Colors.transparent,
                     isLight: false,
-                    leading: Text(
-                      track.album.isNotEmpty
-                          ? track.album
-                          : (track.artist.isNotEmpty
-                              ? track.artist
-                              : 'Now Playing'),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -235,6 +223,122 @@ extension _DesktopFullscreenPlayerUI on _DesktopLayoutShellState {
     );
   }
 
+  /// In-Shell Lyrics View:
+  /// Fullscreen ambient fluid aesthetics (blurred cover background, radial blooms, dark vignette)
+  /// displayed within the main content viewport so sidebar, header, and bottom player stay visible!
+  Widget _buildInShellLyricsView(
+    Color textColor,
+    Color secondaryTextColor,
+  ) {
+    final track = widget.playingTrack;
+    if (track == null) {
+      return Center(
+        child: Text(
+          'No track playing',
+          style: TextStyle(
+            fontSize: 14,
+            color: secondaryTextColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
+
+    return ValueListenableBuilder<Color?>(
+      valueListenable: dominantColorNotifier,
+      builder: (context, dominantColor, _) {
+        final themeColor = dominantColor ?? widget.activeAccentColor;
+
+        return ClipRect(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. APPLE MUSIC FLUID AMBIENT BACKGROUND: Heavy Blurred Artwork
+              Positioned.fill(
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(
+                    sigmaX: 75,
+                    sigmaY: 75,
+                    tileMode: TileMode.mirror,
+                  ),
+                  child: Transform.scale(
+                    scale: 1.55,
+                    child: _DesktopTrackArtwork(
+                      track: track,
+                      size: 900,
+                      radius: 0,
+                    ),
+                  ),
+                ),
+              ),
+
+              // 2. AMBIENT RADIAL COLOR BLOOMS (Depth & Saturation)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.55, -0.30),
+                      radius: 1.15,
+                      colors: [
+                        themeColor.withValues(alpha: 0.50),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0.65, 0.25),
+                      radius: 1.25,
+                      colors: [
+                        themeColor.withValues(alpha: 0.38),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // 3. DARK VIGNETTE & CONTRAST OVERLAY
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.30),
+                        Colors.black.withValues(alpha: 0.52),
+                        Colors.black.withValues(alpha: 0.80),
+                      ],
+                      stops: const [0.0, 0.55, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+
+              // 4. FOREGROUND CONTENT: Pure Lyrics (Cover and Title removed in-shell)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Container(
+                    margin: EdgeInsets.symmetric(
+                      horizontal: math.max(36.0, (constraints.maxWidth - 680.0) / 2),
+                      vertical: 16.0,
+                    ),
+                    child: _buildRightLyricsColumn(track, themeColor),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   /// Apple Music / Spotify Style Split Layout:
   /// Left: Artwork + Title + Artist (Vertically centered)
   /// Right: Transparent, Fluid, Auto-scrolling Lyrics
@@ -244,19 +348,20 @@ extension _DesktopFullscreenPlayerUI on _DesktopLayoutShellState {
     Color themeColor,
   ) {
     final isCompact = constraints.maxWidth < 900;
-    final leftWidth = math
-        .min(constraints.maxWidth * (isCompact ? 0.40 : 0.44), 520.0)
-        .clamp(280.0, 520.0);
-    final maxCoverSize =
-        math.min(leftWidth - 64, constraints.maxHeight - 180);
-    final coverSize = maxCoverSize.clamp(220.0, 420.0);
+    final leftWidth = (constraints.maxWidth * (isCompact ? 0.38 : 0.42))
+        .clamp(230.0, 480.0);
+    final maxCoverSize = math.min(
+      leftWidth - 48.0,
+      math.max(140.0, constraints.maxHeight - 160.0),
+    );
+    final coverSize = maxCoverSize.clamp(140.0, 380.0);
 
     return Row(
       children: [
         // LEFT COLUMN: Artwork + Title + Artist + Favorite Star
         Container(
           width: leftWidth,
-          padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Center(
             child: SizedBox(
               width: coverSize,
@@ -309,6 +414,7 @@ extension _DesktopFullscreenPlayerUI on _DesktopLayoutShellState {
                     onTap: () {
                       setState(() {
                         _isFullscreenPlayerOpen = false;
+                        _isLyricsViewOpen = false;
                         _selectedArtistName = track.artist;
                         _activeSection = DesktopNavSection.artists;
                       });
@@ -447,40 +553,71 @@ extension _DesktopFullscreenPlayerUI on _DesktopLayoutShellState {
                     ).createShader(bounds);
                   },
                   blendMode: BlendMode.dstIn,
-                  child: SingleChildScrollView(
-                    controller: _fullscreenLyricsController,
-                    physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.symmetric(
-                      vertical: verticalPadding,
-                      horizontal: 16,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: List.generate(count, (index) {
-                        final line = widget.currentLyricsSynced[index];
-                        final isActive = index == activeIndex;
-                        final isPast = index < activeIndex;
+                  child: ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context)
+                        .copyWith(scrollbars: false),
+                    child: SingleChildScrollView(
+                      controller: _fullscreenLyricsController,
+                      physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.symmetric(
+                        vertical: verticalPadding,
+                        horizontal: 16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: List.generate(count, (index) {
+                          final line = widget.currentLyricsSynced[index];
+                          final isActive = index == activeIndex;
+                          final isPast = index < activeIndex;
+                          final effectiveActive =
+                              activeIndex >= 0 ? activeIndex : 0;
+                          final diff = index - effectiveActive;
+                          final absDiff = diff.abs();
 
-                        return _AppleMusicLyricItem(
-                          key: _lyricKeys[index],
-                          line: line,
-                          isActive: isActive,
-                          isPast: isPast,
-                          onTap: () {
-                            widget.player.seek(line.time);
-                            final keyContext =
-                                _lyricKeys[index].currentContext;
-                            if (keyContext != null && keyContext.mounted) {
-                              Scrollable.ensureVisible(
-                                keyContext,
-                                alignment: 0.5,
-                                duration: const Duration(milliseconds: 380),
-                                curve: Curves.easeOutCubic,
-                              );
-                            }
-                          },
-                        );
-                      }),
+                          // 5 lines total (2 past, 1 active, 2 upcoming) unless user scrolls manually
+                          final isVisibleInFive = activeIndex >= 0
+                              ? (diff >= -2 && diff <= 2)
+                              : (index <= 2);
+                          final isVisible =
+                              _userScrollingLyrics || isVisibleInFive;
+
+                          return AnimatedOpacity(
+                            key: _lyricKeys[index],
+                            duration: const Duration(milliseconds: 320),
+                            curve: Curves.easeOutCubic,
+                            opacity: isVisible ? 1.0 : 0.0,
+                            child: IgnorePointer(
+                              ignoring: !isVisible,
+                              child: _AppleMusicLyricItem(
+                                line: line,
+                                isActive: isActive,
+                                isPast: isPast,
+                                distance: absDiff,
+                                onTap: () {
+                                  widget.player.seek(line.time);
+                                  _lyricsUserScrollTimer?.cancel();
+                                  if (_userScrollingLyrics) {
+                                    setState(
+                                        () => _userScrollingLyrics = false);
+                                  }
+                                  final keyContext =
+                                      _lyricKeys[index].currentContext;
+                                  if (keyContext != null &&
+                                      keyContext.mounted) {
+                                    Scrollable.ensureVisible(
+                                      keyContext,
+                                      alignment: 0.5,
+                                      duration:
+                                          const Duration(milliseconds: 380),
+                                      curve: Curves.easeOutCubic,
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
                     ),
                   ),
                 );
@@ -508,16 +645,19 @@ extension _DesktopFullscreenPlayerUI on _DesktopLayoutShellState {
           ).createShader(bounds);
         },
         blendMode: BlendMode.dstIn,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-          child: SelectableText(
-            widget.currentLyricsPlain!,
-            style: const TextStyle(
-              fontSize: 26,
-              height: 1.8,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              letterSpacing: -0.2,
+        child: ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+            child: SelectableText(
+              widget.currentLyricsPlain!,
+              style: const TextStyle(
+                fontSize: 26,
+                height: 1.8,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: -0.2,
+              ),
             ),
           ),
         ),
@@ -653,13 +793,14 @@ class _AppleMusicLyricItem extends StatefulWidget {
   final LyricsLine line;
   final bool isActive;
   final bool isPast;
+  final int distance;
   final VoidCallback onTap;
 
   const _AppleMusicLyricItem({
-    super.key,
     required this.line,
     required this.isActive,
     required this.isPast,
+    required this.distance,
     required this.onTap,
   });
 
@@ -677,15 +818,29 @@ class _AppleMusicLyricItemState extends State<_AppleMusicLyricItem> {
         text == '♪' ||
         text.toLowerCase().contains('instrumental');
 
+    final double baseOpacity;
+    final double baseBlur;
+    if (widget.isActive) {
+      baseOpacity = 1.0;
+      baseBlur = 0.0;
+    } else if (widget.distance == 1) {
+      baseOpacity = widget.isPast ? 0.38 : 0.48;
+      baseBlur = 1.0;
+    } else if (widget.distance == 2) {
+      baseOpacity = widget.isPast ? 0.20 : 0.26;
+      baseBlur = 2.2;
+    } else {
+      baseOpacity = widget.isPast ? 0.16 : 0.22;
+      baseBlur = 2.6;
+    }
+
     final targetBlur = widget.isActive
         ? 0.0
-        : (_isHovered ? 0.8 : 2.4);
+        : (_isHovered ? 0.5 : baseBlur);
 
     final targetOpacity = widget.isActive
         ? 1.0
-        : (_isHovered
-            ? 0.75
-            : (widget.isPast ? 0.25 : 0.32));
+        : (_isHovered ? 0.85 : baseOpacity);
 
     final targetFontSize = widget.isActive ? 36.0 : 26.0;
 

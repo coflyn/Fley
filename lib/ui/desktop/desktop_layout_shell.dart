@@ -81,7 +81,11 @@ class DesktopLayoutShell extends StatefulWidget {
   final void Function(Track track)? onAddToQueue;
   final void Function(String name)? onCreatePlaylist;
   final void Function(String name)? onDeletePlaylist;
+  final void Function(String oldName, String newName)? onRenamePlaylist;
+  final void Function(String name, String? coverPath)? onChangePlaylistCover;
   final void Function(String name, String trackId)? onRemoveFromPlaylist;
+  final void Function(Track track)? onHideTrack;
+  final VoidCallback? onLibraryUpdated;
   final VoidCallback? onOpenSleepTimer;
   final VoidCallback? onOpenEqualizer;
   final void Function(Track track, String text)? onSaveManualLyrics;
@@ -120,7 +124,11 @@ class DesktopLayoutShell extends StatefulWidget {
     this.onAddToQueue,
     this.onCreatePlaylist,
     this.onDeletePlaylist,
+    this.onRenamePlaylist,
+    this.onChangePlaylistCover,
     this.onRemoveFromPlaylist,
+    this.onHideTrack,
+    this.onLibraryUpdated,
     this.onOpenSleepTimer,
     this.onOpenEqualizer,
     this.onSaveManualLyrics,
@@ -141,6 +149,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
   String? _selectedArtistName;
   String? _selectedPlaylistName;
   bool _isFullscreenPlayerOpen = false;
+  bool _isLyricsViewOpen = false;
   double _volume = 1.0;
   bool _isMuted = false;
   double _lastUnmutedVolume = 1.0;
@@ -158,14 +167,36 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
 
   // Desktop Sleep Timer
   Timer? _desktopSleepTimer;
+  StreamSubscription? _sleepTimerSubscription;
   int? _desktopSleepTimerMinutes;
 
   @override
   void initState() {
     super.initState();
     _loadCustomFolders();
+    _loadCustomArtworks();
     _loadSavedActiveSection();
     _volume = widget.player.volume;
+  }
+
+  Future<void> _loadCustomArtworks() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('metadata_overrides');
+      if (raw != null) {
+        final Map<String, dynamic> overrides = jsonDecode(raw);
+        for (final entry in overrides.entries) {
+          final coverPath = entry.value['coverPath'] as String?;
+          if (coverPath != null && coverPath.isNotEmpty) {
+            final f = File(coverPath);
+            if (f.existsSync()) {
+              final bytes = f.readAsBytesSync();
+              ArtworkCacheManager.setCachedArtwork(entry.key, bytes);
+            }
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadSavedActiveSection() async {
@@ -183,7 +214,10 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
   }
 
   void _setActiveSection(DesktopNavSection section) {
-    setState(() => _activeSection = section);
+    setState(() {
+      _activeSection = section;
+      _isLyricsViewOpen = false;
+    });
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString('desktop_active_section', section.name);
     });
@@ -203,6 +237,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
   void dispose() {
     _lyricsUserScrollTimer?.cancel();
     _desktopSleepTimer?.cancel();
+    _sleepTimerSubscription?.cancel();
     _fullscreenLyricsController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -678,10 +713,30 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                timerTile('End of Current Track', -1),
                 timerTile('15 minutes', 15),
                 timerTile('30 minutes', 30),
                 timerTile('45 minutes', 45),
                 timerTile('60 minutes (1 hour)', 60),
+                ListTile(
+                  leading: Icon(
+                    Icons.tune_rounded,
+                    color: Colors.white60,
+                    size: 20,
+                  ),
+                  title: Text(
+                    'Custom...',
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showCustomSleepTimerPrompt();
+                  },
+                ),
                 if (_desktopSleepTimerMinutes != null) ...[
                   const Divider(),
                   ListTile(
@@ -844,12 +899,66 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
     );
   }
 
+  void _showCustomSleepTimerPrompt() {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.isLight
+            ? const Color(0xFFFAFAFD)
+            : const Color(0xFF1E1E24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Custom Sleep Timer'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Duration (minutes)',
+            hintText: 'e.g. 20',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final val = int.tryParse(ctrl.text.trim());
+              if (val != null && val > 0) {
+                _setDesktopSleepTimer(val);
+              }
+              Navigator.pop(context);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: widget.activeAccentColor,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Set Timer'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _setDesktopSleepTimer(int minutes) {
     _desktopSleepTimer?.cancel();
+    _sleepTimerSubscription?.cancel();
     setState(() {
-      _desktopSleepTimerMinutes = minutes > 0 ? minutes : null;
+      _desktopSleepTimerMinutes = minutes != 0 ? minutes : null;
     });
-    if (minutes > 0) {
+
+    if (minutes == -1) {
+      final startingTrackId = widget.playingTrack?.id;
+      _sleepTimerSubscription = widget.player.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed ||
+            (startingTrackId != null && widget.playingTrack?.id != startingTrackId)) {
+          widget.player.pause();
+          _setDesktopSleepTimer(0);
+        }
+      });
+    } else if (minutes > 0) {
       _desktopSleepTimer = Timer(Duration(minutes: minutes), () {
         widget.player.pause();
         if (mounted) {
@@ -860,6 +969,279 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
       });
     }
   }
+
+  void _setVolume(double newVol) {
+    setState(() {
+      _volume = newVol;
+      _isMuted = newVol == 0.0;
+      widget.player.setVolume(newVol);
+    });
+  }
+
+  void _toggleMute() {
+    setState(() {
+      if (_isMuted) {
+        _isMuted = false;
+        _volume = _lastUnmutedVolume > 0 ? _lastUnmutedVolume : 1.0;
+        widget.player.setVolume(_volume);
+      } else {
+        _lastUnmutedVolume = _volume > 0 ? _volume : 1.0;
+        _isMuted = true;
+        _volume = 0.0;
+        widget.player.setVolume(0.0);
+      }
+    });
+  }
+
+  KeyEventResult _handleGlobalKeyEvent(FocusNode node, KeyEvent event) {
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    if (primaryFocus?.context?.widget is EditableText) {
+      return KeyEventResult.ignored;
+    }
+
+    if (event is KeyDownEvent) {
+      final key = event.logicalKey;
+      final isMetaOrCtrl = HardwareKeyboard.instance.isMetaPressed ||
+          HardwareKeyboard.instance.isControlPressed;
+
+      if (key == LogicalKeyboardKey.space) {
+        widget.onTogglePlayPause();
+        return KeyEventResult.handled;
+      } else if (key == LogicalKeyboardKey.arrowLeft) {
+        if (isMetaOrCtrl) {
+          widget.onPlayPrevious();
+        } else {
+          final cur = widget.player.position;
+          final target = cur - const Duration(seconds: 5);
+          widget.player.seek(target < Duration.zero ? Duration.zero : target);
+        }
+        return KeyEventResult.handled;
+      } else if (key == LogicalKeyboardKey.arrowRight) {
+        if (isMetaOrCtrl) {
+          widget.onPlayNext();
+        } else {
+          final cur = widget.player.position;
+          final total = widget.player.duration ?? Duration.zero;
+          final target = cur + const Duration(seconds: 5);
+          widget.player.seek(target > total ? total : target);
+        }
+        return KeyEventResult.handled;
+      } else if (key == LogicalKeyboardKey.arrowUp) {
+        final newVol = (_volume + 0.05).clamp(0.0, 1.0);
+        _setVolume(newVol);
+        return KeyEventResult.handled;
+      } else if (key == LogicalKeyboardKey.arrowDown) {
+        final newVol = (_volume - 0.05).clamp(0.0, 1.0);
+        _setVolume(newVol);
+        return KeyEventResult.handled;
+      } else if (key == LogicalKeyboardKey.keyM) {
+        _toggleMute();
+        return KeyEventResult.handled;
+      } else if (key == LogicalKeyboardKey.keyF) {
+        if (widget.playingTrack != null) {
+          setState(() {
+            _isFullscreenPlayerOpen = !_isFullscreenPlayerOpen;
+            if (_isLyricsViewOpen) _isLyricsViewOpen = false;
+          });
+        }
+        return KeyEventResult.handled;
+      } else if (key == LogicalKeyboardKey.keyL) {
+        if (_isFullscreenPlayerOpen) {
+          setState(() {
+            _showLyricsInFullscreen = !_showLyricsInFullscreen;
+          });
+          return KeyEventResult.handled;
+        } else if (widget.playingTrack != null) {
+          setState(() {
+            _isLyricsViewOpen = !_isLyricsViewOpen;
+          });
+          return KeyEventResult.handled;
+        }
+      } else if (key == LogicalKeyboardKey.escape) {
+        if (_isFullscreenPlayerOpen) {
+          setState(() => _isFullscreenPlayerOpen = false);
+          return KeyEventResult.handled;
+        } else if (_isLyricsViewOpen) {
+          setState(() => _isLyricsViewOpen = false);
+          return KeyEventResult.handled;
+        } else if (_isQueueOpen) {
+          setState(() => _isQueueOpen = false);
+          return KeyEventResult.handled;
+        }
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  Future<void> _changeTrackArtwork(Track track) async {
+    const typeGroup = XTypeGroup(
+      label: 'Images',
+      extensions: ['jpg', 'jpeg', 'png', 'webp'],
+    );
+    final file = await openFile(acceptedTypeGroups: [typeGroup]);
+    if (file == null) return;
+
+    try {
+      final bytes = await file.readAsBytes();
+      final appSupportDir = await getApplicationSupportDirectory();
+      final artworkDir = Directory('${appSupportDir.path}/custom_artworks');
+      if (!artworkDir.existsSync()) {
+        artworkDir.createSync(recursive: true);
+      }
+      final ext = file.name.split('.').last;
+      final targetFile = File('${artworkDir.path}/track_${track.id}.$ext');
+      await targetFile.writeAsBytes(bytes);
+
+      ArtworkCacheManager.setCachedArtwork(track.id, bytes);
+
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('metadata_overrides');
+      final Map<String, dynamic> overrides = raw != null ? jsonDecode(raw) : {};
+      final existing = overrides[track.id] as Map<String, dynamic>? ?? {};
+      existing['coverPath'] = targetFile.path;
+      overrides[track.id] = existing;
+      await prefs.setString('metadata_overrides', jsonEncode(overrides));
+
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cover art updated successfully'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update artwork: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  void _hideTrack(Track track) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.isLight
+            ? const Color(0xFFFAFAFD)
+            : const Color(0xFF1E1E24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hide from Library'),
+        content: Text(
+          'Are you sure you want to hide "${track.title}" from your library?\nYou can unhide it anytime from Profile > Hidden Tracks.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onHideTrack?.call(track);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+            ),
+            child: const Text('Hide'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _renamePlaylistDialog(String oldName) {
+    final ctrl = TextEditingController(text: oldName);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.isLight
+            ? const Color(0xFFFAFAFD)
+            : const Color(0xFF1E1E24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Rename Playlist'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Playlist Name',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final newName = ctrl.text.trim();
+              if (newName.isNotEmpty && newName != oldName) {
+                widget.onRenamePlaylist?.call(oldName, newName);
+                if (_selectedPlaylistName == oldName) {
+                  setState(() => _selectedPlaylistName = newName);
+                }
+              }
+              Navigator.pop(context);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: widget.activeAccentColor,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _changePlaylistCoverDialog(String playlistName) async {
+    const typeGroup = XTypeGroup(
+      label: 'Images',
+      extensions: ['jpg', 'jpeg', 'png', 'webp'],
+    );
+    final file = await openFile(acceptedTypeGroups: [typeGroup]);
+    if (file == null) return;
+
+    try {
+      final bytes = await file.readAsBytes();
+      final appSupportDir = await getApplicationSupportDirectory();
+      final playlistDir = Directory('${appSupportDir.path}/playlists');
+      if (!playlistDir.existsSync()) {
+        playlistDir.createSync(recursive: true);
+      }
+      final safeName = playlistName.replaceAll(RegExp(r'[^\w\s]+'), '_');
+      final ext = file.name.split('.').last;
+      final targetFile = File('${playlistDir.path}/playlist_${safeName}_cover.$ext');
+      await targetFile.writeAsBytes(bytes);
+
+      widget.onChangePlaylistCover?.call(playlistName, targetFile.path);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Playlist cover updated successfully'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update playlist cover: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -876,112 +1258,116 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
     final isNowPlayingOpen =
         _isFullscreenPlayerOpen && widget.playingTrack != null;
 
-    return Scaffold(
-      backgroundColor: widget.backgroundColor,
-      body: Column(
-        children: [
-          // Main desktop body OR Fullscreen Now Playing View
-          Expanded(
-            child: isNowPlayingOpen
-                ? _buildFullscreenNowPlayingView(
-                    textColor,
-                    secondaryTextColor,
-                  )
-                : Column(
-                    children: [
-                      // Custom borderless title bar (window controls + drag)
-                      DesktopTitleBar(
-                        backgroundColor: widget.backgroundColor,
-                        isLight: widget.isLight,
-                      ),
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _handleGlobalKeyEvent,
+      child: Scaffold(
+        backgroundColor: widget.backgroundColor,
+        body: Column(
+          children: [
+            // Main desktop body OR Fullscreen Now Playing View
+            Expanded(
+              child: isNowPlayingOpen
+                  ? _buildFullscreenNowPlayingView(
+                      textColor,
+                      secondaryTextColor,
+                    )
+                  : Column(
+                      children: [
+                        // Custom borderless title bar (window controls + drag)
+                        DesktopTitleBar(
+                          backgroundColor: widget.backgroundColor,
+                          isLight: widget.isLight,
+                        ),
 
-                      // Main desktop body (Sidebar + Content Viewport + Optional Right Queue)
-                      Expanded(
-                        child: Row(
-                          children: [
-                            // Left Navigation Sidebar
-                            _buildSidebar(
-                              textColor,
-                              secondaryTextColor,
-                              borderColor,
-                            ),
+                        // Main desktop body (Sidebar + Content Viewport + Optional Right Queue)
+                        Expanded(
+                          child: Row(
+                            children: [
+                              // Left Navigation Sidebar
+                              _buildSidebar(
+                                textColor,
+                                secondaryTextColor,
+                                borderColor,
+                              ),
 
-                            // Center Content Area (with floating Queue Overlay)
-                            Expanded(
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    color: widget.backgroundColor,
-                                    child: Column(
-                                      children: [
-                                        // Header Search & Actions
-                                        _buildTopHeader(
-                                          textColor,
-                                          secondaryTextColor,
-                                          borderColor,
-                                        ),
-                                        Divider(
-                                          color: borderColor,
-                                          height: 1,
-                                          thickness: 1,
-                                        ),
-                                        // Main Viewport
-                                        Expanded(
-                                          child: _buildMainContent(
+                              // Center Content Area (with floating Queue Overlay)
+                              Expanded(
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      color: widget.backgroundColor,
+                                      child: Column(
+                                        children: [
+                                          // Header Search & Actions
+                                          _buildTopHeader(
                                             textColor,
                                             secondaryTextColor,
+                                            borderColor,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Click-outside backdrop to dismiss queue cleanly
-                                  if (_isQueueOpen)
-                                    Positioned.fill(
-                                      child: GestureDetector(
-                                        behavior: HitTestBehavior.translucent,
-                                        onTap: () => setState(() => _isQueueOpen = false),
-                                        child: Container(
-                                          color: Colors.black.withValues(
-                                            alpha: widget.isLight ? 0.08 : 0.25,
+                                          Divider(
+                                            color: borderColor,
+                                            height: 1,
+                                            thickness: 1,
                                           ),
-                                        ),
+                                          // Main Viewport
+                                          Expanded(
+                                            child: _buildMainContent(
+                                              textColor,
+                                              secondaryTextColor,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
 
-                                  // Floating Playback Queue Overlay (slides smoothly from right)
-                                  AnimatedPositioned(
-                                    duration: const Duration(milliseconds: 260),
-                                    curve: Curves.easeOutCubic,
-                                    top: 0,
-                                    right: _isQueueOpen ? 0 : -360,
-                                    bottom: 0,
-                                    width: 340,
-                                    child: _buildQueueSidePanel(
-                                      textColor,
-                                      secondaryTextColor,
-                                      borderColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
+                                    // Click-outside backdrop to dismiss queue cleanly
+                                    if (_isQueueOpen)
+                                      Positioned.fill(
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.translucent,
+                                          onTap: () => setState(() => _isQueueOpen = false),
+                                          child: Container(
+                                            color: Colors.black.withValues(
+                                              alpha: widget.isLight ? 0.08 : 0.25,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
 
-          // Bottom Audio Player Bar (only visible when a track is active)
-          if (widget.playingTrack != null)
-            _buildPersistentBottomPlayer(
-              textColor,
-              secondaryTextColor,
-              borderColor,
+                                    // Floating Playback Queue Overlay (slides smoothly from right)
+                                    AnimatedPositioned(
+                                      duration: const Duration(milliseconds: 260),
+                                      curve: Curves.easeOutCubic,
+                                      top: 0,
+                                      right: _isQueueOpen ? 0 : -360,
+                                      bottom: 0,
+                                      width: 340,
+                                      child: _buildQueueSidePanel(
+                                        textColor,
+                                        secondaryTextColor,
+                                        borderColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
             ),
-        ],
+
+            // Bottom Audio Player Bar (only visible when a track is active)
+            if (widget.playingTrack != null)
+              _buildPersistentBottomPlayer(
+                textColor,
+                secondaryTextColor,
+                borderColor,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1003,12 +1389,16 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
             child: TextField(
               controller: _searchController,
               onTap: () {
+                if (_isLyricsViewOpen) {
+                  setState(() => _isLyricsViewOpen = false);
+                }
                 if (_activeSection != DesktopNavSection.songs) {
                   setState(() => _activeSection = DesktopNavSection.songs);
                 }
               },
               onChanged: (val) {
                 setState(() {
+                  _isLyricsViewOpen = false;
                   _searchQuery = val;
                   if (_activeSection != DesktopNavSection.songs) {
                     _activeSection = DesktopNavSection.songs;
@@ -1060,6 +1450,9 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
   }
 
   Widget _buildMainContent(Color textColor, Color secondaryTextColor) {
+    if (_isLyricsViewOpen && widget.playingTrack != null) {
+      return _buildInShellLyricsView(textColor, secondaryTextColor);
+    }
     switch (_activeSection) {
       case DesktopNavSection.home:
         return _buildDesktopHomeScreen(textColor, secondaryTextColor);
