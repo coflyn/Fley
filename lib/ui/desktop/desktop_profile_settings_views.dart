@@ -15,6 +15,12 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
         children: [
           Row(
             children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                tooltip: 'Back to Profile & Settings',
+                onPressed: () => _setActiveSection(DesktopNavSection.profile),
+              ),
+              const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -625,89 +631,6 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
                     textColor: textColor,
                     secondaryTextColor: secondaryTextColor,
                     borderColor: borderColor,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              // Quick Actions
-              Text(
-                'Actions & Preferences',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: textColor,
-                      side: BorderSide(color: borderColor),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    icon: const Icon(Icons.edit_rounded, size: 17),
-                    label: const Text('Edit Profile Details'),
-                    onPressed: _showDesktopEditProfileDialog,
-                  ),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: textColor,
-                      side: BorderSide(color: borderColor),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    icon: const Icon(Icons.photo_library_outlined, size: 17),
-                    label: const Text('Change Avatar'),
-                    onPressed: _pickDesktopProfilePhoto,
-                  ),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: textColor,
-                      side: BorderSide(color: borderColor),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    icon: const Icon(Icons.settings_outlined, size: 17),
-                    label: const Text('Audio & App Settings'),
-                    onPressed: widget.onOpenSettings,
-                  ),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: textColor,
-                      side: BorderSide(color: borderColor),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    icon: const Icon(Icons.refresh_rounded, size: 17),
-                    label: const Text('Rescan Library'),
-                    onPressed: widget.onRescan,
                   ),
                 ],
               ),

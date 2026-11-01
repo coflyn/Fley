@@ -198,12 +198,6 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                     section: DesktopNavSection.artists,
                     textColor: textColor,
                   ),
-                  _buildNavItem(
-                    icon: Icons.folder_open_rounded,
-                    label: 'Music Folders',
-                    section: DesktopNavSection.folders,
-                    textColor: textColor,
-                  ),
 
                   const SizedBox(height: 12),
                   Padding(
@@ -367,12 +361,76 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                         isSelectedOverride: _selectedPlaylistName == name &&
                             _activeSection == DesktopNavSection.songs,
                         textColor: textColor,
+                        onSecondaryTapDown: (details) =>
+                            _showPlaylistSidebarContextMenu(
+                          context,
+                          name,
+                          details.globalPosition,
+                        ),
+                        trailing: PopupMenuButton<String>(
+                          padding: EdgeInsets.zero,
+                          iconSize: 16,
+                          tooltip: 'Playlist options',
+                          icon: Icon(
+                            Icons.more_vert_rounded,
+                            size: 16,
+                            color: secondaryTextColor,
+                          ),
+                          onSelected: (val) {
+                            if (val == 'rename') {
+                              _renamePlaylistDialog(name);
+                            } else if (val == 'cover') {
+                              _changePlaylistCoverDialog(name);
+                            } else if (val == 'delete') {
+                              _confirmDeletePlaylist(name);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'rename',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit_outlined, size: 18),
+                                  SizedBox(width: 10),
+                                  Text('Rename',
+                                      style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'cover',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.image_outlined, size: 18),
+                                  SizedBox(width: 10),
+                                  Text('Change Cover',
+                                      style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete_outline_rounded,
+                                      size: 18, color: Colors.redAccent),
+                                  SizedBox(width: 10),
+                                  Text('Delete',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.redAccent)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                         onCustomTap: () {
                           setState(() {
                             _selectedPlaylistName = name;
                             _searchQuery = '';
                             _searchController.clear();
                             _activeSection = DesktopNavSection.songs;
+                            _isLyricsViewOpen = false;
                           });
                         },
                       ),
@@ -400,7 +458,9 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                 _buildSidebarActionBtn(
                   icon: Icons.bedtime_outlined,
                   label: _desktopSleepTimerMinutes != null
-                      ? 'Sleep Timer (${_desktopSleepTimerMinutes}m)'
+                      ? (_desktopSleepTimerMinutes == -1
+                          ? 'Sleep Timer (End of track)'
+                          : 'Sleep Timer (${_desktopSleepTimerMinutes}m)')
                       : 'Sleep Timer',
                   onTap: _showSleepTimerDialog,
                   textColor: _desktopSleepTimerMinutes != null
@@ -429,6 +489,94 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
     );
   }
 
+  void _showPlaylistSidebarContextMenu(
+    BuildContext context,
+    String name,
+    Offset position,
+  ) async {
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & const Size(40, 40),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'rename',
+          child: Row(
+            children: [
+              const Icon(Icons.edit_outlined, size: 18),
+              const SizedBox(width: 10),
+              const Text('Rename Playlist', style: TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'cover',
+          child: Row(
+            children: [
+              const Icon(Icons.image_outlined, size: 18),
+              const SizedBox(width: 10),
+              const Text('Change Cover Art', style: TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              const Icon(Icons.delete_outline_rounded,
+                  size: 18, color: Colors.redAccent),
+              const SizedBox(width: 10),
+              const Text('Delete Playlist',
+                  style: TextStyle(fontSize: 13, color: Colors.redAccent)),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (value == 'rename') {
+      _renamePlaylistDialog(name);
+    } else if (value == 'cover') {
+      _changePlaylistCoverDialog(name);
+    } else if (value == 'delete') {
+      _confirmDeletePlaylist(name);
+    }
+  }
+
+  void _confirmDeletePlaylist(String name) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.isLight
+            ? const Color(0xFFFAFAFD)
+            : const Color(0xFF1E1E24),
+        title: const Text('Delete Playlist'),
+        content: Text('Are you sure you want to delete "$name"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onDeletePlaylist?.call(name);
+              if (_selectedPlaylistName == name) {
+                setState(() => _selectedPlaylistName = null);
+              }
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNavItem({
     required IconData icon,
     required String label,
@@ -437,81 +585,88 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
     required Color textColor,
     bool? isSelectedOverride,
     VoidCallback? onCustomTap,
+    Widget? trailing,
+    void Function(TapDownDetails)? onSecondaryTapDown,
   }) {
     final isSelected = isSelectedOverride ?? (_activeSection == section);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () {
-          if (onCustomTap != null) {
-            setState(() => _isFullscreenPlayerOpen = false);
-            onCustomTap();
-          } else {
-            setState(() {
-              _isFullscreenPlayerOpen = false;
-              if (section == DesktopNavSection.albums) {
-                _selectedAlbumName = null;
-              }
-              if (section == DesktopNavSection.artists) {
-                _selectedArtistName = null;
-              }
-              _setActiveSection(section);
-            });
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? widget.activeAccentColor.withValues(alpha: 0.15)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isSelected ? widget.activeAccentColor : textColor,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected ? widget.activeAccentColor : textColor,
-                  ),
+      child: GestureDetector(
+        onSecondaryTapDown: onSecondaryTapDown,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            if (onCustomTap != null) {
+              setState(() => _isFullscreenPlayerOpen = false);
+              onCustomTap();
+            } else {
+              setState(() {
+                _isFullscreenPlayerOpen = false;
+                if (section == DesktopNavSection.albums) {
+                  _selectedAlbumName = null;
+                }
+                if (section == DesktopNavSection.artists) {
+                  _selectedArtistName = null;
+                }
+                _setActiveSection(section);
+              });
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? widget.activeAccentColor.withValues(alpha: 0.15)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected ? widget.activeAccentColor : textColor,
                 ),
-              ),
-              if (count != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? widget.activeAccentColor.withValues(alpha: 0.25)
-                        : (widget.isLight
-                            ? Colors.black.withValues(alpha: 0.05)
-                            : Colors.white.withValues(alpha: 0.07)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                const SizedBox(width: 12),
+                Expanded(
                   child: Text(
-                    '$count',
+                    label,
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? widget.activeAccentColor
-                          : textColor.withValues(alpha: 0.7),
+                      fontSize: 13.5,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected ? widget.activeAccentColor : textColor,
                     ),
                   ),
                 ),
-            ],
+                if (trailing != null)
+                  trailing
+                else if (count != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? widget.activeAccentColor.withValues(alpha: 0.25)
+                          : (widget.isLight
+                              ? Colors.black.withValues(alpha: 0.05)
+                              : Colors.white.withValues(alpha: 0.07)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? widget.activeAccentColor
+                            : textColor.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
