@@ -764,6 +764,46 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 _saveUserPlaylists();
               });
             },
+            onRenamePlaylist: (oldName, newName) {
+              setState(() {
+                if (_userPlaylists.containsKey(oldName)) {
+                  final tracks = _userPlaylists.remove(oldName)!;
+                  _userPlaylists[newName] = tracks;
+                  _saveUserPlaylists();
+                }
+                if (_playlistCovers.containsKey(oldName)) {
+                  final cover = _playlistCovers.remove(oldName)!;
+                  _playlistCovers[newName] = cover;
+                  _savePlaylistCovers();
+                }
+              });
+            },
+            onChangePlaylistCover: (name, coverPath) {
+              setState(() {
+                if (coverPath == null) {
+                  _playlistCovers.remove(name);
+                } else {
+                  _playlistCovers[name] = coverPath;
+                }
+                _savePlaylistCovers();
+              });
+            },
+            onRemoveFromPlaylist: (name, trackId) {
+              setState(() {
+                _userPlaylists[name]?.remove(trackId);
+                _saveUserPlaylists();
+              });
+            },
+            onHideTrack: (track) {
+              setState(() {
+                _hiddenTrackIds.add(track.id);
+                _allTracks.removeWhere((t) => t.id == track.id);
+              });
+              SharedPreferences.getInstance().then((prefs) {
+                prefs.setStringList('hidden_track_ids', _hiddenTrackIds.toList());
+              });
+            },
+            onLibraryUpdated: () => _requestPermissionAndScan(showLoading: false),
             onOpenEqualizer: () => _showEqualizerSheet(context),
             onOpenSleepTimer: () => _showFullSleepTimerDialog(context),
           );

@@ -54,13 +54,35 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
     if (_selectedPlaylistName != null) {
       categoryName = 'PLAYLIST';
       title = _selectedPlaylistName!;
-      coverWidget = buildCollectionCover(
-        Icons.queue_music_rounded,
-        [
-          widget.activeAccentColor.withValues(alpha: 0.5),
-          widget.activeAccentColor,
-        ],
-      );
+      final customCoverPath = widget.playlistCovers[_selectedPlaylistName!];
+      if (_isSafeImage(customCoverPath)) {
+        coverWidget = Container(
+          width: 170,
+          height: 170,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            image: DecorationImage(
+              image: FileImage(File(customCoverPath!)),
+              fit: BoxFit.cover,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+        );
+      } else {
+        coverWidget = buildCollectionCover(
+          Icons.queue_music_rounded,
+          [
+            widget.activeAccentColor.withValues(alpha: 0.5),
+            widget.activeAccentColor,
+          ],
+        );
+      }
     } else if (_searchQuery.isNotEmpty) {
       categoryName = 'SEARCH RESULTS';
       title = '"$_searchQuery"';
@@ -281,6 +303,26 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                           const SizedBox(width: 8),
                           IconButton(
                             icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 19,
+                            ),
+                            color: textColor,
+                            tooltip: 'Rename Playlist',
+                            onPressed: () => _renamePlaylistDialog(_selectedPlaylistName!),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.image_outlined,
+                              size: 19,
+                            ),
+                            color: textColor,
+                            tooltip: 'Change Playlist Cover',
+                            onPressed: () => _changePlaylistCoverDialog(_selectedPlaylistName!),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(
                               Icons.delete_outline_rounded,
                               size: 20,
                             ),
@@ -396,8 +438,25 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                       onPlayNext: () => widget.onPlayNextInQueue?.call(track),
                       onAddToQueue: () => widget.onAddToQueue?.call(track),
                       onAddToPlaylist: (t) => _showAddToPlaylistDialog(t),
+                      onRemoveFromPlaylist: _selectedPlaylistName != null
+                          ? (t) => widget.onRemoveFromPlaylist?.call(_selectedPlaylistName!, t.id)
+                          : null,
                       onShowDetails: (t) => _showSongDetailsDialog(t),
                       onEditTags: (t) => _showEditSongTagsDialog(t),
+                      onChangeArtwork: (t) => _changeTrackArtwork(t),
+                      onHideTrack: (t) => _hideTrack(t),
+                      onGoToArtist: (artist) {
+                        setState(() {
+                          _selectedArtistName = artist;
+                          _activeSection = DesktopNavSection.artists;
+                        });
+                      },
+                      onGoToAlbum: (album) {
+                        setState(() {
+                          _selectedAlbumName = album;
+                          _activeSection = DesktopNavSection.albums;
+                        });
+                      },
                       onArtistTap: (artist) {
                         setState(() {
                           _selectedArtistName = artist;

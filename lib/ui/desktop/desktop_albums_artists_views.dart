@@ -396,6 +396,25 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
                       index,
                     ),
                     onToggleFavorite: () => widget.onToggleFavorite(track.id),
+                    onPlayNext: () => widget.onPlayNextInQueue?.call(track),
+                    onAddToQueue: () => widget.onAddToQueue?.call(track),
+                    onAddToPlaylist: (t) => _showAddToPlaylistDialog(t),
+                    onShowDetails: (t) => _showSongDetailsDialog(t),
+                    onEditTags: (t) => _showEditSongTagsDialog(t),
+                    onChangeArtwork: (t) => _changeTrackArtwork(t),
+                    onHideTrack: (t) => _hideTrack(t),
+                    onGoToArtist: (artist) {
+                      setState(() {
+                        _selectedArtistName = artist;
+                        _activeSection = DesktopNavSection.artists;
+                      });
+                    },
+                    onGoToAlbum: (album) {
+                      setState(() {
+                        _selectedAlbumName = album;
+                        _activeSection = DesktopNavSection.albums;
+                      });
+                    },
                     onArtistTap: (artist) {
                       setState(() {
                         _selectedArtistName = artist;
@@ -638,6 +657,25 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
                       index,
                     ),
                     onToggleFavorite: () => widget.onToggleFavorite(track.id),
+                    onPlayNext: () => widget.onPlayNextInQueue?.call(track),
+                    onAddToQueue: () => widget.onAddToQueue?.call(track),
+                    onAddToPlaylist: (t) => _showAddToPlaylistDialog(t),
+                    onShowDetails: (t) => _showSongDetailsDialog(t),
+                    onEditTags: (t) => _showEditSongTagsDialog(t),
+                    onChangeArtwork: (t) => _changeTrackArtwork(t),
+                    onHideTrack: (t) => _hideTrack(t),
+                    onGoToArtist: (artist) {
+                      setState(() {
+                        _selectedArtistName = artist;
+                        _activeSection = DesktopNavSection.artists;
+                      });
+                    },
+                    onGoToAlbum: (album) {
+                      setState(() {
+                        _selectedAlbumName = album;
+                        _activeSection = DesktopNavSection.albums;
+                      });
+                    },
                     onAlbumTap: (album) {
                       setState(() {
                         _selectedAlbumName = album;

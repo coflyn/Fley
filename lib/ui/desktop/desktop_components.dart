@@ -17,8 +17,13 @@ class _DesktopSongRow extends StatefulWidget {
   final VoidCallback? onPlayNext;
   final VoidCallback? onAddToQueue;
   final void Function(Track)? onAddToPlaylist;
+  final void Function(Track)? onRemoveFromPlaylist;
   final void Function(Track)? onShowDetails;
   final void Function(Track)? onEditTags;
+  final void Function(Track)? onChangeArtwork;
+  final void Function(String)? onGoToAlbum;
+  final void Function(String)? onGoToArtist;
+  final void Function(Track)? onHideTrack;
 
   const _DesktopSongRow({
     required this.index,
@@ -37,8 +42,13 @@ class _DesktopSongRow extends StatefulWidget {
     this.onPlayNext,
     this.onAddToQueue,
     this.onAddToPlaylist,
+    this.onRemoveFromPlaylist,
     this.onShowDetails,
     this.onEditTags,
+    this.onChangeArtwork,
+    this.onGoToAlbum,
+    this.onGoToArtist,
+    this.onHideTrack,
   });
 
   @override
@@ -47,6 +57,19 @@ class _DesktopSongRow extends StatefulWidget {
 
 class _DesktopSongRowState extends State<_DesktopSongRow> {
   bool _isHovered = false;
+
+  Future<void> _revealFileInOS(String filePath) async {
+    if (filePath.isEmpty) return;
+    try {
+      if (Platform.isMacOS) {
+        await Process.run('open', ['-R', filePath]);
+      } else if (Platform.isWindows) {
+        await Process.run('explorer.exe', ['/select,', filePath]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [File(filePath).parent.path]);
+      }
+    } catch (_) {}
+  }
 
   void _showContextMenu(BuildContext context, Offset position) async {
     final RenderBox overlay =
@@ -93,7 +116,55 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
             ],
           ),
         ),
-        const PopupMenuDivider(),
+        if (widget.onRemoveFromPlaylist != null)
+          PopupMenuItem(
+            value: 'remove_playlist',
+            child: Row(
+              children: [
+                const Icon(Icons.playlist_remove_rounded, size: 20, color: Colors.redAccent),
+                const SizedBox(width: 12),
+                const Text('Remove from Playlist', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+              ],
+            ),
+          ),
+        if (widget.onGoToArtist != null && widget.track.artist.isNotEmpty && widget.track.artist != 'Unknown Artist')
+          PopupMenuItem(
+            value: 'go_artist',
+            child: Row(
+              children: [
+                const Icon(Icons.person_outline_rounded, size: 20),
+                const SizedBox(width: 12),
+                Text('Go to Artist', style: TextStyle(color: widget.textColor, fontSize: 13)),
+              ],
+            ),
+          ),
+        if (widget.onGoToAlbum != null && widget.track.album.isNotEmpty && widget.track.album != 'Unknown Album')
+          PopupMenuItem(
+            value: 'go_album',
+            child: Row(
+              children: [
+                const Icon(Icons.album_outlined, size: 20),
+                const SizedBox(width: 12),
+                Text('Go to Album', style: TextStyle(color: widget.textColor, fontSize: 13)),
+              ],
+            ),
+          ),
+        if (widget.track.path.isNotEmpty)
+          PopupMenuItem(
+            value: 'reveal_file',
+            child: Row(
+              children: [
+                const Icon(Icons.folder_open_rounded, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  Platform.isMacOS
+                      ? 'Show in Finder'
+                      : (Platform.isWindows ? 'Show in File Explorer' : 'Show in Folder'),
+                  style: TextStyle(color: widget.textColor, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
         PopupMenuItem(
           value: 'details',
           child: Row(
@@ -114,6 +185,28 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
             ],
           ),
         ),
+        if (widget.onChangeArtwork != null)
+          PopupMenuItem(
+            value: 'change_artwork',
+            child: Row(
+              children: [
+                const Icon(Icons.image_outlined, size: 20),
+                const SizedBox(width: 12),
+                Text('Change Cover Art', style: TextStyle(color: widget.textColor, fontSize: 13)),
+              ],
+            ),
+          ),
+        if (widget.onHideTrack != null)
+          PopupMenuItem(
+            value: 'hide_track',
+            child: Row(
+              children: [
+                const Icon(Icons.visibility_off_outlined, size: 20, color: Colors.redAccent),
+                const SizedBox(width: 12),
+                const Text('Hide from Library', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+              ],
+            ),
+          ),
       ],
     );
 
@@ -123,10 +216,22 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
       widget.onAddToQueue!();
     } else if (value == 'add_playlist' && widget.onAddToPlaylist != null) {
       widget.onAddToPlaylist!(widget.track);
+    } else if (value == 'remove_playlist' && widget.onRemoveFromPlaylist != null) {
+      widget.onRemoveFromPlaylist!(widget.track);
+    } else if (value == 'go_artist' && widget.onGoToArtist != null) {
+      widget.onGoToArtist!(widget.track.artist);
+    } else if (value == 'go_album' && widget.onGoToAlbum != null) {
+      widget.onGoToAlbum!(widget.track.album);
+    } else if (value == 'reveal_file') {
+      _revealFileInOS(widget.track.path);
     } else if (value == 'details' && widget.onShowDetails != null) {
       widget.onShowDetails!(widget.track);
     } else if (value == 'edit_tags' && widget.onEditTags != null) {
       widget.onEditTags!(widget.track);
+    } else if (value == 'change_artwork' && widget.onChangeArtwork != null) {
+      widget.onChangeArtwork!(widget.track);
+    } else if (value == 'hide_track' && widget.onHideTrack != null) {
+      widget.onHideTrack!(widget.track);
     }
   }
 
