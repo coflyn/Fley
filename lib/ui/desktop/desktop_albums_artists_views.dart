@@ -13,13 +13,43 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
     }
     return '$minutes min $seconds sec';
   }
-
   Widget _buildAlbumsGridView(Color textColor, Color secondaryTextColor) {
+    final loc = AppLocalizations.of(context);
+    final query = _searchQuery.trim().toLowerCase();
     final Map<String, List<Track>> albumGroups = {};
     for (final track in widget.allTracks) {
       albumGroups.putIfAbsent(track.album, () => []).add(track);
     }
-    final albums = albumGroups.keys.toList()..sort();
+    final albums = albumGroups.keys.where((a) {
+      if (query.isEmpty) return true;
+      if (a.toLowerCase().contains(query)) return true;
+      final tracks = albumGroups[a] ?? [];
+      return tracks.any((t) => t.artist.toLowerCase().contains(query));
+    }).toList()..sort();
+
+    if (albums.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.album_outlined,
+              size: 48,
+              color: secondaryTextColor,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              loc.noMatchingSongs,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return GridView.builder(
       padding: const EdgeInsets.all(24),
@@ -40,6 +70,8 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
           onTap: () {
             setState(() {
               _selectedAlbumName = albumName;
+              _searchQuery = '';
+              _searchController.clear();
             });
           },
           child: Column(
@@ -77,7 +109,7 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
               ),
               const SizedBox(height: 2),
               Text(
-                '${tracks.length} songs',
+                '${tracks.length} ${loc.songsCount}',
                 style: TextStyle(
                   fontSize: 12,
                   color: secondaryTextColor,
@@ -91,11 +123,40 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
   }
 
   Widget _buildArtistsGridView(Color textColor, Color secondaryTextColor) {
+    final loc = AppLocalizations.of(context);
+    final query = _searchQuery.trim().toLowerCase();
     final Map<String, List<Track>> artistGroups = {};
     for (final track in widget.allTracks) {
       artistGroups.putIfAbsent(track.artist, () => []).add(track);
     }
-    final artists = artistGroups.keys.toList()..sort();
+    final artists = artistGroups.keys.where((a) {
+      if (query.isEmpty) return true;
+      return a.toLowerCase().contains(query);
+    }).toList()..sort();
+
+    if (artists.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.person_outline_rounded,
+              size: 48,
+              color: secondaryTextColor,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              loc.noMatchingSongs,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return GridView.builder(
       padding: const EdgeInsets.all(24),
@@ -116,35 +177,36 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
           onTap: () {
             setState(() {
               _selectedArtistName = artistName;
+              _searchQuery = '';
+              _searchController.clear();
             });
           },
           child: Column(
             children: [
               Expanded(
-                child: firstTrack != null
-                    ? Center(
-                        child: AspectRatio(
-                          aspectRatio: 1,
-                          child: ClipOval(
-                            child: _DesktopTrackArtwork(
-                              track: firstTrack,
-                              size: 160,
-                              radius: 80,
+                child: ClipOval(
+                  child: firstTrack != null
+                      ? _DesktopTrackArtwork(
+                          track: firstTrack,
+                          size: 180,
+                          radius: 90,
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: widget.isLight
+                                ? Colors.black.withValues(alpha: 0.05)
+                                : Colors.white.withValues(alpha: 0.05),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Icon(
+                              Icons.person_rounded,
+                              size: 48,
+                              color: widget.activeAccentColor,
                             ),
                           ),
                         ),
-                      )
-                    : CircleAvatar(
-                        radius: 70,
-                        backgroundColor: widget.isLight
-                            ? Colors.black.withValues(alpha: 0.05)
-                            : Colors.white.withValues(alpha: 0.05),
-                        child: Icon(
-                          Icons.person_rounded,
-                          size: 48,
-                          color: widget.activeAccentColor,
-                        ),
-                      ),
+                ),
               ),
               const SizedBox(height: 10),
               Text(
@@ -160,8 +222,11 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
               ),
               const SizedBox(height: 2),
               Text(
-                '${tracks.length} songs',
-                style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                '${tracks.length} ${loc.songsCount}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: secondaryTextColor,
+                ),
               ),
             ],
           ),
@@ -175,12 +240,21 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
     Color textColor,
     Color secondaryTextColor,
   ) {
-    final albumTracks = widget.allTracks
+    final loc = AppLocalizations.of(context);
+    final query = _searchQuery.trim().toLowerCase();
+    final allAlbumTracks = widget.allTracks
         .where((t) => t.album.toLowerCase() == albumName.toLowerCase())
         .toList();
-    final firstTrack = albumTracks.isNotEmpty ? albumTracks.first : null;
+    final albumTracks = query.isEmpty
+        ? allAlbumTracks
+        : allAlbumTracks
+            .where((t) =>
+                t.title.toLowerCase().contains(query) ||
+                t.artist.toLowerCase().contains(query))
+            .toList();
+    final firstTrack = allAlbumTracks.isNotEmpty ? allAlbumTracks.first : null;
     final totalDurationMs =
-        albumTracks.fold<int>(0, (sum, t) => sum + t.duration);
+        allAlbumTracks.fold<int>(0, (sum, t) => sum + t.duration);
     final artistName = firstTrack?.artist ?? 'Various Artists';
 
     return Column(
@@ -281,7 +355,7 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '${albumTracks.length} songs • ${_formatTotalAlbumDuration(totalDurationMs)}',
+                      '${albumTracks.length} ${loc.songsCount} • ${_formatTotalAlbumDuration(totalDurationMs)}',
                       style: TextStyle(
                         fontSize: 12.5,
                         color: secondaryTextColor,
@@ -366,13 +440,35 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
 
         // Song Rows
         Expanded(
-          child: StreamBuilder<PlayerState>(
-            stream: widget.player.playerStateStream,
-            builder: (context, snapshot) {
-              final isAudioPlaying =
-                  snapshot.data?.playing ?? widget.player.playing;
+          child: albumTracks.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.music_off_outlined,
+                        size: 40,
+                        color: secondaryTextColor,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        loc.noMatchingSongs,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : StreamBuilder<PlayerState>(
+                  stream: widget.player.playerStateStream,
+                  builder: (context, snapshot) {
+                    final isAudioPlaying =
+                        snapshot.data?.playing ?? widget.player.playing;
 
-              return ListView.builder(
+                    return ListView.builder(
                 itemCount: albumTracks.length,
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 itemBuilder: (context, index) {
@@ -403,6 +499,9 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
                     onEditTags: (t) => _showEditSongTagsDialog(t),
                     onChangeArtwork: (t) => _changeTrackArtwork(t),
                     onHideTrack: (t) => _hideTrack(t),
+                    onDeletePermanently: widget.onDeletePermanently != null
+                        ? (t) => _showDeletePermanentlyDialog(t)
+                        : null,
                     onGoToArtist: (artist) {
                       setState(() {
                         _selectedArtistName = artist;
@@ -436,13 +535,22 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
     Color textColor,
     Color secondaryTextColor,
   ) {
-    final artistTracks = widget.allTracks
+    final loc = AppLocalizations.of(context);
+    final query = _searchQuery.trim().toLowerCase();
+    final allArtistTracks = widget.allTracks
         .where((t) => t.artist.toLowerCase() == artistName.toLowerCase())
         .toList();
-    final firstTrack = artistTracks.isNotEmpty ? artistTracks.first : null;
+    final artistTracks = query.isEmpty
+        ? allArtistTracks
+        : allArtistTracks
+            .where((t) =>
+                t.title.toLowerCase().contains(query) ||
+                t.album.toLowerCase().contains(query))
+            .toList();
+    final firstTrack = allArtistTracks.isNotEmpty ? allArtistTracks.first : null;
     final totalDurationMs =
-        artistTracks.fold<int>(0, (sum, t) => sum + t.duration);
-    final distinctAlbums = artistTracks
+        allArtistTracks.fold<int>(0, (sum, t) => sum + t.duration);
+    final distinctAlbums = allArtistTracks
         .map((t) => t.album)
         .where((a) => a.isNotEmpty)
         .toSet()
@@ -469,7 +577,7 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Artists',
+                    loc.artists,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -542,7 +650,7 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${artistTracks.length} songs • ${distinctAlbums.length} albums • ${_formatTotalAlbumDuration(totalDurationMs)}',
+                      '${artistTracks.length} ${loc.songsCount} • ${distinctAlbums.length} ${loc.albumsCount} • ${_formatTotalAlbumDuration(totalDurationMs)}',
                       style: TextStyle(
                         fontSize: 12.5,
                         color: secondaryTextColor,
@@ -623,17 +731,109 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
           height: 1,
         ),
 
+        if (distinctAlbums.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Text(
+              loc.albums,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 140,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              itemCount: distinctAlbums.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 14),
+              itemBuilder: (context, idx) {
+                final album = distinctAlbums[idx];
+                final albumSample = artistTracks.firstWhere(
+                  (t) => t.album == album,
+                  orElse: () => artistTracks.first,
+                );
+                return InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () {
+                    setState(() {
+                      _selectedAlbumName = album;
+                      _activeSection = DesktopNavSection.albums;
+                    });
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _DesktopTrackArtwork(
+                        track: albumSample,
+                        size: 96,
+                        radius: 8,
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: 96,
+                        child: Text(
+                          album,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Divider(
+            color: widget.isLight
+                ? Colors.black.withValues(alpha: 0.06)
+                : Colors.white.withValues(alpha: 0.06),
+            height: 1,
+          ),
+        ],
+
         const SizedBox(height: 6),
 
         // Song Rows
         Expanded(
-          child: StreamBuilder<PlayerState>(
-            stream: widget.player.playerStateStream,
-            builder: (context, snapshot) {
-              final isAudioPlaying =
-                  snapshot.data?.playing ?? widget.player.playing;
+          child: artistTracks.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.music_off_outlined,
+                        size: 40,
+                        color: secondaryTextColor,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        loc.noMatchingSongs,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : StreamBuilder<PlayerState>(
+                  stream: widget.player.playerStateStream,
+                  builder: (context, snapshot) {
+                    final isAudioPlaying =
+                        snapshot.data?.playing ?? widget.player.playing;
 
-              return ListView.builder(
+                    return ListView.builder(
                 itemCount: artistTracks.length,
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 itemBuilder: (context, index) {
@@ -664,6 +864,9 @@ extension _DesktopAlbumsArtistsViewsUI on _DesktopLayoutShellState {
                     onEditTags: (t) => _showEditSongTagsDialog(t),
                     onChangeArtwork: (t) => _changeTrackArtwork(t),
                     onHideTrack: (t) => _hideTrack(t),
+                    onDeletePermanently: widget.onDeletePermanently != null
+                        ? (t) => _showDeletePermanentlyDialog(t)
+                        : null,
                     onGoToArtist: (artist) {
                       setState(() {
                         _selectedArtistName = artist;

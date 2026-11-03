@@ -7,6 +7,7 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
     Color secondaryTextColor,
     Color borderColor,
   ) {
+    final loc = AppLocalizations.of(context);
     final track = widget.playingTrack;
 
     final isFullscreen = _isFullscreenPlayerOpen;
@@ -101,6 +102,9 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                         ),
                         const SizedBox(width: 6),
                         IconButton(
+                          tooltip: widget.favoriteTrackIds.contains(track.id)
+                              ? loc.removeFromFavourites
+                              : loc.addToFavourites,
                           icon: Icon(
                             widget.favoriteTrackIds.contains(track.id)
                                 ? Icons.favorite_rounded
@@ -321,7 +325,7 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                         ? widget.activeAccentColor
                         : secondaryTextColor,
                   ),
-                  tooltip: _isLyricsViewOpen ? 'Hide Lyrics' : 'Lyrics',
+                  tooltip: _isLyricsViewOpen ? 'Hide Lyrics' : loc.lyrics,
                   onPressed: () {
                     setState(() {
                       _isLyricsViewOpen = !_isLyricsViewOpen;
@@ -338,7 +342,7 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                         ? '${speed.toInt()}x'
                         : '${speed.toStringAsFixed(2)}x';
                     return PopupMenuButton<double>(
-                      tooltip: 'Playback speed',
+                      tooltip: loc.playbackSpeed,
                       initialValue: speed,
                       onSelected: (newSpeed) =>
                           widget.player.setSpeed(newSpeed),
@@ -388,9 +392,9 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                   ),
                   tooltip: _desktopSleepTimerMinutes != null
                       ? (_desktopSleepTimerMinutes == -1
-                          ? 'Sleep timer (End of track)'
-                          : 'Sleep timer ($_desktopSleepTimerMinutes min)')
-                      : 'Sleep timer',
+                          ? '${loc.sleepTimer} (${loc.endOfTrackShort})'
+                          : '${loc.sleepTimer} ($_desktopSleepTimerMinutes ${loc.minutesFormat})')
+                      : loc.sleepTimer,
                   onPressed: _showSleepTimerDialog,
                 ),
 
@@ -402,7 +406,7 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                       size: 20,
                       color: secondaryTextColor,
                     ),
-                    tooltip: 'Equalizer',
+                    tooltip: loc.equalizer,
                     onPressed: widget.onOpenEqualizer,
                   ),
 
@@ -417,7 +421,7 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                         ? widget.activeAccentColor
                         : secondaryTextColor,
                   ),
-                  tooltip: 'Queue',
+                  tooltip: loc.upNext,
                   onPressed: () =>
                       setState(() => _isQueueOpen = !_isQueueOpen),
                 ),
@@ -434,8 +438,8 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                       ? 'Exit Full Screen'
                       : 'Full Screen',
                   color: _isFullscreenPlayerOpen
-                      ? widget.activeAccentColor
-                      : secondaryTextColor,
+                        ? widget.activeAccentColor
+                        : secondaryTextColor,
                   onPressed: () => setState(() {
                     _isFullscreenPlayerOpen = !_isFullscreenPlayerOpen;
                     if (_isLyricsViewOpen) _isLyricsViewOpen = false;
@@ -469,7 +473,7 @@ extension _DesktopBottomPlayerUI on _DesktopLayoutShellState {
                   },
                 ),
                 SizedBox(
-                  width: 90,
+                  width: 110,
                   child: SliderTheme(
                     data: SliderThemeData(
                       trackHeight: 3.5,

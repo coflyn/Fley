@@ -16,6 +16,7 @@ import '../../services/desktop_audio_scanner.dart';
 import '../../utils/artwork_cache.dart';
 import '../../utils/globals.dart';
 import '../../widgets/desktop_title_bar.dart';
+import '../../l10n/app_localizations.dart';
 
 part 'desktop_components.dart';
 part 'desktop_sidebar.dart';
@@ -35,6 +36,7 @@ enum DesktopNavSection {
   playlists,
   folders,
   profile,
+  hiddenTracks,
 }
 
 enum SongFilter {
@@ -89,6 +91,11 @@ class DesktopLayoutShell extends StatefulWidget {
   final VoidCallback? onOpenSleepTimer;
   final VoidCallback? onOpenEqualizer;
   final void Function(Track track, String text)? onSaveManualLyrics;
+  final Set<String> hiddenTrackIds;
+  final void Function(String trackId)? onUnhideTrack;
+  final void Function(String trackId)? onRemoveFromQueue;
+  final void Function(Track track, int targetIndex)? onReorderQueue;
+  final void Function(Track track)? onDeletePermanently;
 
   const DesktopLayoutShell({
     super.key,
@@ -132,6 +139,11 @@ class DesktopLayoutShell extends StatefulWidget {
     this.onOpenSleepTimer,
     this.onOpenEqualizer,
     this.onSaveManualLyrics,
+    this.hiddenTrackIds = const {},
+    this.onUnhideTrack,
+    this.onRemoveFromQueue,
+    this.onReorderQueue,
+    this.onDeletePermanently,
   });
 
   @override
@@ -368,12 +380,70 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
     return filtered;
   }
 
+  int get _filteredAlbumsCount {
+    final query = _searchQuery.trim().toLowerCase();
+    final Map<String, List<Track>> albumGroups = {};
+    for (final track in widget.allTracks) {
+      albumGroups.putIfAbsent(track.album, () => []).add(track);
+    }
+    if (query.isEmpty) return albumGroups.length;
+    return albumGroups.keys.where((a) {
+      if (a.toLowerCase().contains(query)) return true;
+      final tracks = albumGroups[a] ?? [];
+      return tracks.any((t) => t.artist.toLowerCase().contains(query));
+    }).length;
+  }
+
+  int get _filteredArtistsCount {
+    final query = _searchQuery.trim().toLowerCase();
+    final artists = <String>{};
+    for (final track in widget.allTracks) {
+      artists.add(track.artist);
+    }
+    if (query.isEmpty) return artists.length;
+    return artists.where((a) => a.toLowerCase().contains(query)).length;
+  }
+
   // --- Modal Helpers for Ported Features ---
+
+  void _showDeletePermanentlyDialog(Track track) {
+    final loc = AppLocalizations.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.isLight
+            ? const Color(0xFFFAFAFD)
+            : const Color(0xFF1E1E24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(loc.confirmDelete),
+        content: Text(
+          '${loc.confirmDeleteBody}\n\n"${track.title}" - ${track.artist}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(loc.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onDeletePermanently?.call(track);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+            ),
+            child: Text(loc.delete),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showSongDetailsDialog(Track track) {
     showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context);
         final isLight = widget.isLight;
         final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
         final secondaryTextColor = isLight ? const Color(0xFF6E6E73) : Colors.white60;
@@ -425,7 +495,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
             children: [
               Icon(Icons.info_outline_rounded, color: widget.activeAccentColor),
               const SizedBox(width: 10),
-              const Text('Song Details', style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(loc.songInfo, style: const TextStyle(fontWeight: FontWeight.w700)),
             ],
           ),
           content: SizedBox(
@@ -434,9 +504,9 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                infoRow('Title', track.title),
-                infoRow('Artist', track.artist),
-                infoRow('Album', track.album.isNotEmpty ? track.album : 'Unknown'),
+                infoRow(loc.title, track.title),
+                infoRow(loc.artist, track.artist),
+                infoRow(loc.album, track.album.isNotEmpty ? track.album : 'Unknown'),
                 infoRow('Duration', _formatDuration(track.duration)),
                 infoRow('File Size', sizeStr),
                 infoRow('File Path', track.path),
@@ -450,7 +520,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
                 backgroundColor: widget.activeAccentColor,
                 foregroundColor: Colors.black,
               ),
-              child: const Text('Close'),
+              child: Text(loc.close),
             ),
           ],
         );
@@ -466,6 +536,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
     showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context);
         final isLight = widget.isLight;
         return AlertDialog(
           backgroundColor: isLight ? const Color(0xFFFAFAFD) : const Color(0xFF1E1E24),
@@ -474,7 +545,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
             children: [
               Icon(Icons.edit_note_rounded, color: widget.activeAccentColor),
               const SizedBox(width: 10),
-              const Text('Edit Metadata', style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(loc.editMetadata, style: const TextStyle(fontWeight: FontWeight.w700)),
             ],
           ),
           content: SizedBox(
@@ -484,17 +555,17 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
               children: [
                 TextField(
                   controller: titleCtrl,
-                  decoration: const InputDecoration(labelText: 'Title'),
+                  decoration: InputDecoration(labelText: loc.title),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: artistCtrl,
-                  decoration: const InputDecoration(labelText: 'Artist'),
+                  decoration: InputDecoration(labelText: loc.artist),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: albumCtrl,
-                  decoration: const InputDecoration(labelText: 'Album'),
+                  decoration: InputDecoration(labelText: loc.album),
                 ),
               ],
             ),
@@ -502,7 +573,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(loc.cancel),
             ),
             FilledButton(
               onPressed: () async {
@@ -536,7 +607,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
                 backgroundColor: widget.activeAccentColor,
                 foregroundColor: Colors.black,
               ),
-              child: const Text('Save'),
+              child: Text(loc.save),
             ),
           ],
         );
@@ -548,13 +619,14 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
     showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context);
         final isLight = widget.isLight;
         final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
 
         return AlertDialog(
           backgroundColor: isLight ? const Color(0xFFFAFAFD) : const Color(0xFF1E1E24),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Add to Playlist', style: TextStyle(fontWeight: FontWeight.w700)),
+          title: Text(loc.addToPlaylist, style: const TextStyle(fontWeight: FontWeight.w700)),
           content: SizedBox(
             width: 360,
             child: Column(
@@ -563,7 +635,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
                 ListTile(
                   leading: Icon(Icons.add_circle_outline_rounded, color: widget.activeAccentColor),
                   title: Text(
-                    'New Playlist',
+                    loc.newPlaylist,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: widget.activeAccentColor,
@@ -576,9 +648,9 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
                 ),
                 const Divider(),
                 if (widget.userPlaylists.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text('No custom playlists yet', style: TextStyle(color: Colors.white54)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(loc.noResults, style: const TextStyle(color: Colors.white54)),
                   )
                 else
                   ConstrainedBox(
@@ -609,7 +681,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              child: Text(loc.close),
             ),
           ],
         );
@@ -622,23 +694,24 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
     showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context);
         final isLight = widget.isLight;
         return AlertDialog(
           backgroundColor: isLight ? const Color(0xFFFAFAFD) : const Color(0xFF1E1E24),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Create New Playlist', style: TextStyle(fontWeight: FontWeight.w700)),
+          title: Text(loc.createPlaylist, style: const TextStyle(fontWeight: FontWeight.w700)),
           content: TextField(
             controller: ctrl,
             autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Playlist Name',
+            decoration: InputDecoration(
+              labelText: loc.playlistName,
               hintText: 'e.g. Chill Vibes',
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(loc.cancel),
             ),
             FilledButton(
               onPressed: () {
@@ -657,7 +730,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
                 backgroundColor: widget.activeAccentColor,
                 foregroundColor: Colors.black,
               ),
-              child: const Text('Create'),
+              child: Text(loc.save),
             ),
           ],
         );
@@ -669,6 +742,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
     showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context);
         final isLight = widget.isLight;
         final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
 
@@ -705,7 +779,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
             children: [
               Icon(Icons.bedtime_rounded, color: widget.activeAccentColor),
               const SizedBox(width: 10),
-              const Text('Sleep Timer', style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(loc.sleepTimer, style: const TextStyle(fontWeight: FontWeight.w700)),
             ],
           ),
           content: SizedBox(
@@ -1124,6 +1198,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
   }
 
   void _hideTrack(Track track) {
+    final loc = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1131,14 +1206,14 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
             ? const Color(0xFFFAFAFD)
             : const Color(0xFF1E1E24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hide from Library'),
+        title: Text(loc.hideTrack),
         content: Text(
-          'Are you sure you want to hide "${track.title}" from your library?\nYou can unhide it anytime from Profile > Hidden Tracks.',
+          '${track.title}\n\n${loc.hiddenTracksDesc}',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(loc.cancel),
           ),
           FilledButton(
             onPressed: () {
@@ -1148,7 +1223,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
             style: FilledButton.styleFrom(
               backgroundColor: Colors.redAccent,
             ),
-            child: const Text('Hide'),
+            child: Text(loc.hideTrack),
           ),
         ],
       ),
@@ -1156,6 +1231,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
   }
 
   void _renamePlaylistDialog(String oldName) {
+    final loc = AppLocalizations.of(context);
     final ctrl = TextEditingController(text: oldName);
     showDialog(
       context: context,
@@ -1164,18 +1240,18 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
             ? const Color(0xFFFAFAFD)
             : const Color(0xFF1E1E24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Rename Playlist'),
+        title: Text(loc.renamePlaylist),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Playlist Name',
+          decoration: InputDecoration(
+            labelText: loc.playlistName,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(loc.cancel),
           ),
           FilledButton(
             onPressed: () {
@@ -1192,7 +1268,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
               backgroundColor: widget.activeAccentColor,
               foregroundColor: Colors.black,
             ),
-            child: const Text('Rename'),
+            child: Text(loc.save),
           ),
         ],
       ),
@@ -1245,6 +1321,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final textColor = widget.isLight
         ? const Color(0xFF1A1A1A)
         : Colors.white.withValues(alpha: 0.95);
@@ -1258,95 +1335,107 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
     final isNowPlayingOpen =
         _isFullscreenPlayerOpen && widget.playingTrack != null;
 
-    return Focus(
-      autofocus: true,
-      onKeyEvent: _handleGlobalKeyEvent,
-      child: Scaffold(
-        backgroundColor: widget.backgroundColor,
-        body: Column(
-          children: [
-            // Main desktop body OR Fullscreen Now Playing View
-            Expanded(
-              child: isNowPlayingOpen
-                  ? _buildFullscreenNowPlayingView(
-                      textColor,
-                      secondaryTextColor,
-                    )
-                  : Column(
-                      children: [
-                        // Custom borderless title bar (window controls + drag)
-                        DesktopTitleBar(
-                          backgroundColor: widget.backgroundColor,
-                          isLight: widget.isLight,
-                        ),
-
-                        // Main desktop body (Sidebar + Content Viewport + Optional Right Queue)
-                        Expanded(
-                          child: Row(
+    return ValueListenableBuilder<String>(
+      valueListenable: activeFontNotifier,
+      builder: (context, activeFont, _) {
+        final font = getFontFamily(activeFont);
+        return Theme(
+          data: Theme.of(context).copyWith(
+            textTheme: Theme.of(context).textTheme.apply(fontFamily: font),
+          ),
+          child: Focus(
+            autofocus: true,
+            onKeyEvent: _handleGlobalKeyEvent,
+            child: Scaffold(
+              backgroundColor: widget.backgroundColor,
+              body: Column(
+                children: [
+                  // Main desktop body OR Fullscreen Now Playing View
+                  Expanded(
+                    child: isNowPlayingOpen
+                        ? _buildFullscreenNowPlayingView(
+                            textColor,
+                            secondaryTextColor,
+                          )
+                        : Column(
                             children: [
-                              // Left Navigation Sidebar
-                              _buildSidebar(
-                                textColor,
-                                secondaryTextColor,
-                                borderColor,
+                              // Custom borderless title bar (window controls + drag)
+                              DesktopTitleBar(
+                                backgroundColor: widget.backgroundColor,
+                                isLight: widget.isLight,
                               ),
 
-                              // Center Content Area (with floating Queue Overlay)
+                              // Main desktop body (Sidebar + Content Viewport + Optional Right Queue)
                               Expanded(
-                                child: Stack(
+                                child: Row(
                                   children: [
-                                    Container(
-                                      color: widget.backgroundColor,
-                                      child: Column(
+                                    // Left Navigation Sidebar
+                                    _buildSidebar(
+                                      textColor,
+                                      secondaryTextColor,
+                                      borderColor,
+                                    ),
+
+                                    // Center Content Area (with floating Queue Overlay)
+                                    Expanded(
+                                      child: Stack(
                                         children: [
-                                          // Header Search & Actions
-                                          _buildTopHeader(
-                                            textColor,
-                                            secondaryTextColor,
-                                            borderColor,
+                                          Container(
+                                            color: widget.backgroundColor,
+                                            child: Column(
+                                              children: [
+                                                // Header Search & Actions
+                                                _buildTopHeader(
+                                                  textColor,
+                                                  secondaryTextColor,
+                                                  borderColor,
+                                                  loc,
+                                                ),
+                                                Divider(
+                                                  color: borderColor,
+                                                  height: 1,
+                                                  thickness: 1,
+                                                ),
+                                                // Main Viewport
+                                                Expanded(
+                                                  child: _buildMainContent(
+                                                    textColor,
+                                                    secondaryTextColor,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                          Divider(
-                                            color: borderColor,
-                                            height: 1,
-                                            thickness: 1,
-                                          ),
-                                          // Main Viewport
-                                          Expanded(
-                                            child: _buildMainContent(
+
+                                          // Click-outside backdrop to dismiss queue cleanly
+                                          if (_isQueueOpen)
+                                            Positioned.fill(
+                                              child: GestureDetector(
+                                                behavior: HitTestBehavior.translucent,
+                                                onTap: () => setState(() => _isQueueOpen = false),
+                                                child: Container(
+                                                  color: Colors.black.withValues(
+                                                    alpha: widget.isLight ? 0.08 : 0.25,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+
+                                          // Floating Playback Queue Overlay (slides smoothly from right)
+                                          AnimatedPositioned(
+                                            duration: const Duration(milliseconds: 260),
+                                            curve: Curves.easeOutCubic,
+                                            top: 0,
+                                            right: _isQueueOpen ? 0 : -360,
+                                            bottom: 0,
+                                            width: 340,
+                                            child: _buildQueueSidePanel(
                                               textColor,
                                               secondaryTextColor,
+                                              borderColor,
                                             ),
                                           ),
                                         ],
-                                      ),
-                                    ),
-
-                                    // Click-outside backdrop to dismiss queue cleanly
-                                    if (_isQueueOpen)
-                                      Positioned.fill(
-                                        child: GestureDetector(
-                                          behavior: HitTestBehavior.translucent,
-                                          onTap: () => setState(() => _isQueueOpen = false),
-                                          child: Container(
-                                            color: Colors.black.withValues(
-                                              alpha: widget.isLight ? 0.08 : 0.25,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-
-                                    // Floating Playback Queue Overlay (slides smoothly from right)
-                                    AnimatedPositioned(
-                                      duration: const Duration(milliseconds: 260),
-                                      curve: Curves.easeOutCubic,
-                                      top: 0,
-                                      right: _isQueueOpen ? 0 : -360,
-                                      bottom: 0,
-                                      width: 340,
-                                      child: _buildQueueSidePanel(
-                                        textColor,
-                                        secondaryTextColor,
-                                        borderColor,
                                       ),
                                     ),
                                   ],
@@ -1354,21 +1443,21 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-            ),
+                  ),
 
-            // Bottom Audio Player Bar (only visible when a track is active)
-            if (widget.playingTrack != null)
-              _buildPersistentBottomPlayer(
-                textColor,
-                secondaryTextColor,
-                borderColor,
+                  // Bottom Audio Player Bar (only visible when a track is active)
+                  if (widget.playingTrack != null)
+                    _buildPersistentBottomPlayer(
+                      textColor,
+                      secondaryTextColor,
+                      borderColor,
+                    ),
+                ],
               ),
-          ],
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1376,6 +1465,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
     Color textColor,
     Color secondaryTextColor,
     Color borderColor,
+    AppLocalizations loc,
   ) {
     return Container(
       height: 56,
@@ -1392,7 +1482,9 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
                 if (_isLyricsViewOpen) {
                   setState(() => _isLyricsViewOpen = false);
                 }
-                if (_activeSection != DesktopNavSection.songs) {
+                if (_activeSection != DesktopNavSection.songs &&
+                    _activeSection != DesktopNavSection.albums &&
+                    _activeSection != DesktopNavSection.artists) {
                   setState(() => _activeSection = DesktopNavSection.songs);
                 }
               },
@@ -1400,14 +1492,20 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
                 setState(() {
                   _isLyricsViewOpen = false;
                   _searchQuery = val;
-                  if (_activeSection != DesktopNavSection.songs) {
+                  if (_activeSection != DesktopNavSection.songs &&
+                      _activeSection != DesktopNavSection.albums &&
+                      _activeSection != DesktopNavSection.artists) {
                     _activeSection = DesktopNavSection.songs;
                   }
                 });
               },
               style: TextStyle(fontSize: 13.5, color: textColor),
               decoration: InputDecoration(
-                hintText: 'Search songs, albums, artists...',
+                hintText: _activeSection == DesktopNavSection.albums
+                    ? '${loc.search} ${loc.albums}...'
+                    : (_activeSection == DesktopNavSection.artists
+                        ? '${loc.search} ${loc.artists}...'
+                        : loc.searchSongs),
                 hintStyle: TextStyle(
                   fontSize: 13,
                   color: secondaryTextColor,
@@ -1441,7 +1539,15 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
           const Spacer(),
           // Stats or current status
           Text(
-            '${_filteredTracks.length} tracks available',
+            _activeSection == DesktopNavSection.albums
+                ? (_selectedAlbumName != null
+                    ? '${widget.allTracks.where((t) => t.album.toLowerCase() == _selectedAlbumName!.toLowerCase() && (_searchQuery.trim().isEmpty || t.title.toLowerCase().contains(_searchQuery.trim().toLowerCase()) || t.artist.toLowerCase().contains(_searchQuery.trim().toLowerCase()))).length} ${loc.songsCount}'
+                    : '$_filteredAlbumsCount ${loc.albumsCount}')
+                : (_activeSection == DesktopNavSection.artists
+                    ? (_selectedArtistName != null
+                        ? '${widget.allTracks.where((t) => t.artist.toLowerCase() == _selectedArtistName!.toLowerCase() && (_searchQuery.trim().isEmpty || t.title.toLowerCase().contains(_searchQuery.trim().toLowerCase()) || t.album.toLowerCase().contains(_searchQuery.trim().toLowerCase()))).length} ${loc.songsCount}'
+                        : '$_filteredArtistsCount ${loc.artistsCount}')
+                    : '${_filteredTracks.length} ${loc.songsCount}'),
             style: TextStyle(fontSize: 12.5, color: secondaryTextColor),
           ),
         ],
@@ -1470,6 +1576,8 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
         return _buildArtistsGridView(textColor, secondaryTextColor);
       case DesktopNavSection.folders:
         return _buildFoldersManagementView(textColor, secondaryTextColor);
+      case DesktopNavSection.hiddenTracks:
+        return _buildHiddenTracksView(textColor, secondaryTextColor);
       case DesktopNavSection.profile:
         return _buildProfileDesktopView(textColor, secondaryTextColor);
       default:

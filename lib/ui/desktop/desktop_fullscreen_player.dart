@@ -27,74 +27,10 @@ extension _DesktopFullscreenPlayerUI on _DesktopLayoutShellState {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // 1. APPLE MUSIC FLUID AMBIENT BACKGROUND: Heavy Blurred Artwork
-              Positioned.fill(
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(
-                    sigmaX: 75,
-                    sigmaY: 75,
-                    tileMode: TileMode.mirror,
-                  ),
-                  child: Transform.scale(
-                    scale: 1.55,
-                    child: _DesktopTrackArtwork(
-                      track: track,
-                      size: 900,
-                      radius: 0,
-                    ),
-                  ),
-                ),
-              ),
+              // 1. DYNAMIC BACKGROUND (amoled, blur, custom, or fluid)
+              _buildDesktopPlayerBackground(track, themeColor),
 
-              // 2. AMBIENT RADIAL COLOR BLOOMS (Adds vivid saturation & depth)
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.55, -0.30),
-                      radius: 1.15,
-                      colors: [
-                        themeColor.withValues(alpha: 0.50),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(0.65, 0.25),
-                      radius: 1.25,
-                      colors: [
-                        themeColor.withValues(alpha: 0.38),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // 3. DARK VIGNETTE & CONTRAST OVERLAY (Ensures maximum text legibility)
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.30),
-                        Colors.black.withValues(alpha: 0.52),
-                        Colors.black.withValues(alpha: 0.80),
-                      ],
-                      stops: const [0.0, 0.55, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-
-              // 4. FOREGROUND CONTENT
+              // 2. FOREGROUND CONTENT
               Column(
                 children: [
                   // Top Title Bar
@@ -154,6 +90,122 @@ extension _DesktopFullscreenPlayerUI on _DesktopLayoutShellState {
                           tooltip: 'Queue',
                           onPressed: () =>
                               setState(() => _isQueueOpen = !_isQueueOpen),
+                        ),
+                        // 3-Dots More Options
+                        PopupMenuButton<String>(
+                          icon: const Icon(
+                            Icons.more_horiz_rounded,
+                            size: 22,
+                            color: Colors.white70,
+                          ),
+                          tooltip: 'More Options',
+                          color: const Color(0xFF1E1E1E),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              width: 1,
+                            ),
+                          ),
+                          onSelected: (val) {
+                            if (val == 'details') {
+                              _showSongDetailsDialog(track);
+                            } else if (val == 'edit') {
+                              _showEditSongTagsDialog(track);
+                            } else if (val == 'playlist') {
+                              _showAddToPlaylistDialog(track);
+                            } else if (val == 'timer') {
+                              _showSleepTimerDialog();
+                            } else if (val == 'eq') {
+                              widget.onOpenEqualizer?.call();
+                            }
+                          },
+                          itemBuilder: (context) {
+                            final loc = AppLocalizations.of(context);
+                            return [
+                              PopupMenuItem(
+                                value: 'details',
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.info_outline_rounded,
+                                        size: 18, color: Colors.white70),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      loc.songInfo,
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.edit_outlined,
+                                        size: 18, color: Colors.white70),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      loc.editMetadata,
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'playlist',
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.playlist_add_rounded,
+                                        size: 18, color: Colors.white70),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      loc.addToPlaylist,
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'timer',
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.bedtime_outlined,
+                                        size: 18, color: Colors.white70),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      loc.sleepTimer,
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (widget.onOpenEqualizer != null)
+                                PopupMenuItem(
+                                  value: 'eq',
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.equalizer_rounded,
+                                          size: 18, color: Colors.white70),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        loc.equalizer,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ];
+                          },
                         ),
                         IconButton(
                           icon: const Icon(
@@ -253,74 +305,10 @@ extension _DesktopFullscreenPlayerUI on _DesktopLayoutShellState {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // 1. APPLE MUSIC FLUID AMBIENT BACKGROUND: Heavy Blurred Artwork
-              Positioned.fill(
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(
-                    sigmaX: 75,
-                    sigmaY: 75,
-                    tileMode: TileMode.mirror,
-                  ),
-                  child: Transform.scale(
-                    scale: 1.55,
-                    child: _DesktopTrackArtwork(
-                      track: track,
-                      size: 900,
-                      radius: 0,
-                    ),
-                  ),
-                ),
-              ),
+              // 1. DYNAMIC BACKGROUND
+              _buildDesktopPlayerBackground(track, themeColor),
 
-              // 2. AMBIENT RADIAL COLOR BLOOMS (Depth & Saturation)
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.55, -0.30),
-                      radius: 1.15,
-                      colors: [
-                        themeColor.withValues(alpha: 0.50),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(0.65, 0.25),
-                      radius: 1.25,
-                      colors: [
-                        themeColor.withValues(alpha: 0.38),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // 3. DARK VIGNETTE & CONTRAST OVERLAY
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.30),
-                        Colors.black.withValues(alpha: 0.52),
-                        Colors.black.withValues(alpha: 0.80),
-                      ],
-                      stops: const [0.0, 0.55, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-
-              // 4. FOREGROUND CONTENT: Pure Lyrics (Cover and Title removed in-shell)
+              // 2. FOREGROUND CONTENT: Pure Lyrics (Cover and Title removed in-shell)
               LayoutBuilder(
                 builder: (context, constraints) {
                   return Container(
@@ -781,6 +769,181 @@ extension _DesktopFullscreenPlayerUI on _DesktopLayoutShellState {
           radius: 20,
         ),
       ),
+    );
+  }
+
+  Widget _buildDesktopPlayerBackground(Track track, Color themeColor) {
+    return ValueListenableBuilder<String>(
+      valueListenable: playerBackgroundStyleNotifier,
+      builder: (context, style, _) {
+        if (style == 'amoled') {
+          return Positioned.fill(
+            child: Container(color: Colors.black),
+          );
+        } else if (style == 'blur') {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned.fill(
+                child: Container(color: const Color(0xFF0A0A0A)),
+              ),
+              Positioned.fill(
+                child: ClipRect(
+                  child: ImageFiltered(
+                    imageFilter: ImageFilter.blur(
+                      sigmaX: 55,
+                      sigmaY: 55,
+                      tileMode: TileMode.mirror,
+                    ),
+                    child: Transform.scale(
+                      scale: 1.55,
+                      child: _DesktopTrackArtwork(
+                        track: track,
+                        size: 900,
+                        radius: 0,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.35),
+                        Colors.black.withValues(alpha: 0.70),
+                        Colors.black.withValues(alpha: 0.90),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        } else if (style == 'custom') {
+          return ValueListenableBuilder<String?>(
+            valueListenable: playerCustomBgPathNotifier,
+            builder: (context, customPath, _) {
+              if (customPath != null && File(customPath).existsSync()) {
+                return ValueListenableBuilder<double>(
+                  valueListenable: playerCustomBgBlurNotifier,
+                  builder: (context, blurVal, _) {
+                    return ValueListenableBuilder<double>(
+                      valueListenable: playerCustomBgDimNotifier,
+                      builder: (context, dimVal, _) {
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Positioned.fill(
+                              child: Container(color: const Color(0xFF0A0A0A)),
+                            ),
+                            Positioned.fill(
+                              child: ClipRect(
+                                child: ImageFiltered(
+                                  imageFilter: ImageFilter.blur(
+                                    sigmaX: blurVal,
+                                    sigmaY: blurVal,
+                                  ),
+                                  child: Image.file(
+                                    File(customPath),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: Container(
+                                color: Colors.black.withValues(
+                                  alpha: dimVal.clamp(0.0, 1.0),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                );
+              }
+              return _buildFluidAmbientBackground(track, themeColor);
+            },
+          );
+        }
+
+        return _buildFluidAmbientBackground(track, themeColor);
+      },
+    );
+  }
+
+  Widget _buildFluidAmbientBackground(Track track, Color themeColor) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(
+          child: ImageFiltered(
+            imageFilter: ImageFilter.blur(
+              sigmaX: 75,
+              sigmaY: 75,
+              tileMode: TileMode.mirror,
+            ),
+            child: Transform.scale(
+              scale: 1.55,
+              child: _DesktopTrackArtwork(
+                track: track,
+                size: 900,
+                radius: 0,
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(-0.55, -0.30),
+                radius: 1.15,
+                colors: [
+                  themeColor.withValues(alpha: 0.50),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.65, 0.25),
+                radius: 1.25,
+                colors: [
+                  themeColor.withValues(alpha: 0.38),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.30),
+                  Colors.black.withValues(alpha: 0.52),
+                  Colors.black.withValues(alpha: 0.80),
+                ],
+                stops: const [0.0, 0.55, 1.0],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

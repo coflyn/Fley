@@ -8,6 +8,7 @@ extension _DesktopQueueDrawerUI on _DesktopLayoutShellState {
     Color borderColor, {
     bool isFloatingInFullscreen = false,
   }) {
+    final loc = AppLocalizations.of(context);
     final currentTrack = widget.playingTrack;
     final queue = widget.playbackQueue;
 
@@ -65,7 +66,7 @@ extension _DesktopQueueDrawerUI on _DesktopLayoutShellState {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      'Play Queue',
+                      loc.upNext,
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -114,7 +115,7 @@ extension _DesktopQueueDrawerUI on _DesktopLayoutShellState {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          'NOW PLAYING',
+                          loc.nowPlaying.toUpperCase(),
                           style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
@@ -187,7 +188,7 @@ extension _DesktopQueueDrawerUI on _DesktopLayoutShellState {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'NEXT UP (${upcomingTracks.length})',
+                            '${loc.upNext.toUpperCase()} (${upcomingTracks.length})',
                             style: TextStyle(
                               fontSize: 10.5,
                               fontWeight: FontWeight.w700,
@@ -197,7 +198,7 @@ extension _DesktopQueueDrawerUI on _DesktopLayoutShellState {
                           ),
                           if (upcomingTracks.isNotEmpty)
                             Text(
-                              '${upcomingTracks.length} songs',
+                              '${upcomingTracks.length} ${loc.songsCount}',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: secondaryTextColor.withValues(alpha: 0.7),
@@ -222,7 +223,7 @@ extension _DesktopQueueDrawerUI on _DesktopLayoutShellState {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'No upcoming songs',
+                                loc.noMatchingSongs,
                                 style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w500,
@@ -234,90 +235,137 @@ extension _DesktopQueueDrawerUI on _DesktopLayoutShellState {
                         ),
                       )
                     else
-                      ...List.generate(upcomingTracks.length, (uIndex) {
-                        final track = upcomingTracks[uIndex];
-                        final queueIndex = currentIndex != -1
-                            ? currentIndex + 1 + uIndex
-                            : uIndex;
+                      ReorderableListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        buildDefaultDragHandles: false,
+                        itemCount: upcomingTracks.length,
+                        // ignore: deprecated_member_use
+                        onReorder: (oldIndex, newIndex) {
+                          if (widget.onReorderQueue == null) return;
+                          final track = upcomingTracks[oldIndex];
+                          int target = currentIndex != -1
+                              ? currentIndex + 1 + newIndex
+                              : newIndex;
+                          if (newIndex > oldIndex) {
+                            target--;
+                          }
+                          widget.onReorderQueue!(track, target);
+                        },
+                        itemBuilder: (context, uIndex) {
+                          final track = upcomingTracks[uIndex];
+                          final queueIndex = currentIndex != -1
+                              ? currentIndex + 1 + uIndex
+                              : uIndex;
 
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 2,
-                          ),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(8),
-                            onTap: () => widget.onPlayTrack(track, queue, queueIndex),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 6,
+                          return Padding(
+                            key: ValueKey('queue_${track.id}_$uIndex'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 2,
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () => widget.onPlayTrack(
+                                track,
+                                queue,
+                                queueIndex,
                               ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    width: 22,
-                                    child: Text(
-                                      '${uIndex + 1}',
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w500,
-                                        color: secondaryTextColor
-                                            .withValues(alpha: 0.6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 22,
+                                      child: Text(
+                                        '${uIndex + 1}',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w500,
+                                          color: secondaryTextColor
+                                              .withValues(alpha: 0.6),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  _DesktopTrackArtwork(
-                                    track: track,
-                                    size: 36,
-                                    radius: 5,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          track.title,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w500,
-                                            color: textColor,
+                                    _DesktopTrackArtwork(
+                                      track: track,
+                                      size: 36,
+                                      radius: 5,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            track.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w500,
+                                              color: textColor,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            track.artist,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: secondaryTextColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (widget.onRemoveFromQueue != null)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.close_rounded,
+                                          size: 16,
+                                        ),
+                                        tooltip: loc.remove,
+                                        color: secondaryTextColor
+                                            .withValues(alpha: 0.6),
+                                        splashRadius: 14,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 26,
+                                          minHeight: 26,
+                                        ),
+                                        onPressed: () =>
+                                            widget.onRemoveFromQueue!(track.id),
+                                      ),
+                                    if (widget.onReorderQueue != null)
+                                      ReorderableDragStartListener(
+                                        index: uIndex,
+                                        child: Padding(
+                                          padding:
+                                              const EdgeInsets.only(left: 4),
+                                          child: Icon(
+                                            Icons.drag_handle_rounded,
+                                            size: 16,
+                                            color: secondaryTextColor
+                                                .withValues(alpha: 0.5),
                                           ),
                                         ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          track.artist,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: secondaryTextColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _formatDuration(track.duration),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: secondaryTextColor
-                                          .withValues(alpha: 0.7),
-                                    ),
-                                  ),
-                                ],
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      }),
+                          );
+                        },
+                      ),
 
                     // Previously Played Section
                     if (previousTracks.isNotEmpty) ...[

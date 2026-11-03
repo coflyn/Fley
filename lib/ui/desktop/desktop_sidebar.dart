@@ -7,6 +7,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
     Color secondaryTextColor,
     Color borderColor,
   ) {
+    final loc = AppLocalizations.of(context);
     return Container(
       width: 240,
       decoration: BoxDecoration(
@@ -139,8 +140,8 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                           Icons.chevron_right_rounded,
                           size: 16,
                           color: isProfileSelected
-                              ? widget.activeAccentColor
-                              : secondaryTextColor,
+                            ? widget.activeAccentColor
+                            : secondaryTextColor,
                         ),
                       ],
                     ),
@@ -162,13 +163,13 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                   // Main Navigation Items
                   _buildNavItem(
                     icon: Icons.home_rounded,
-                    label: 'Home',
+                    label: loc.home,
                     section: DesktopNavSection.home,
                     textColor: textColor,
                   ),
                   _buildNavItem(
                     icon: Icons.music_note_rounded,
-                    label: 'All Songs',
+                    label: loc.allSongs,
                     count: widget.allTracks.length,
                     section: DesktopNavSection.songs,
                     isSelectedOverride:
@@ -188,14 +189,20 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                   ),
                   _buildNavItem(
                     icon: Icons.album_outlined,
-                    label: 'Albums',
+                    label: loc.albums,
                     section: DesktopNavSection.albums,
                     textColor: textColor,
                   ),
                   _buildNavItem(
                     icon: Icons.person_outline_rounded,
-                    label: 'Artists',
+                    label: loc.artists,
                     section: DesktopNavSection.artists,
+                    textColor: textColor,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.folder_outlined,
+                    label: loc.folders,
+                    section: DesktopNavSection.folders,
                     textColor: textColor,
                   ),
 
@@ -220,7 +227,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                   const SizedBox(height: 6),
                   _buildNavItem(
                     icon: Icons.favorite_rounded,
-                    label: 'Favourites',
+                    label: loc.favourites,
                     count: _favoriteTracks.length,
                     section: DesktopNavSection.songs,
                     isSelectedOverride:
@@ -238,7 +245,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                   ),
                   _buildNavItem(
                     icon: Icons.local_fire_department_rounded,
-                    label: 'Most Played',
+                    label: loc.mostPlayed,
                     count: _mostPlayedTracks.length,
                     section: DesktopNavSection.songs,
                     isSelectedOverride:
@@ -256,7 +263,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                   ),
                   _buildNavItem(
                     icon: Icons.new_releases_rounded,
-                    label: 'Recently Added',
+                    label: loc.recentlyAdded,
                     count: _recentlyAddedTracks.length,
                     section: DesktopNavSection.songs,
                     isSelectedOverride:
@@ -274,7 +281,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                   ),
                   _buildNavItem(
                     icon: Icons.history_rounded,
-                    label: 'Last Played',
+                    label: loc.lastPlayed,
                     count: _lastPlayedTracks.length,
                     section: DesktopNavSection.songs,
                     isSelectedOverride:
@@ -292,7 +299,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                   ),
                   _buildNavItem(
                     icon: Icons.diamond_outlined,
-                    label: 'Forgotten Gems',
+                    label: loc.forgottenGems,
                     count: _forgottenGemsTracks.length,
                     section: DesktopNavSection.songs,
                     isSelectedOverride:
@@ -333,7 +340,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                         IconButton(
                           icon: const Icon(Icons.add_rounded, size: 18),
                           color: secondaryTextColor,
-                          tooltip: 'Create Playlist',
+                          tooltip: loc.createNewPlaylist,
                           onPressed: _showCreatePlaylistDialog,
                         ),
                       ],
@@ -344,7 +351,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                       child: Text(
-                        'No playlists yet',
+                        loc.noSongsInPlaylist,
                         style: TextStyle(
                           fontSize: 12,
                           color: secondaryTextColor.withValues(alpha: 0.6),
@@ -370,7 +377,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                         trailing: PopupMenuButton<String>(
                           padding: EdgeInsets.zero,
                           iconSize: 16,
-                          tooltip: 'Playlist options',
+                          tooltip: 'Options',
                           icon: Icon(
                             Icons.more_vert_rounded,
                             size: 16,
@@ -386,37 +393,37 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                             }
                           },
                           itemBuilder: (context) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'rename',
                               child: Row(
                                 children: [
-                                  Icon(Icons.edit_outlined, size: 18),
-                                  SizedBox(width: 10),
-                                  Text('Rename',
-                                      style: TextStyle(fontSize: 13)),
+                                  const Icon(Icons.edit_outlined, size: 18),
+                                  const SizedBox(width: 10),
+                                  Text(loc.rename,
+                                      style: const TextStyle(fontSize: 13)),
                                 ],
                               ),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'cover',
                               child: Row(
                                 children: [
-                                  Icon(Icons.image_outlined, size: 18),
-                                  SizedBox(width: 10),
-                                  Text('Change Cover',
-                                      style: TextStyle(fontSize: 13)),
+                                  const Icon(Icons.image_outlined, size: 18),
+                                  const SizedBox(width: 10),
+                                  Text(loc.editCover,
+                                      style: const TextStyle(fontSize: 13)),
                                 ],
                               ),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'delete',
                               child: Row(
                                 children: [
-                                  Icon(Icons.delete_outline_rounded,
+                                  const Icon(Icons.delete_outline_rounded,
                                       size: 18, color: Colors.redAccent),
-                                  SizedBox(width: 10),
-                                  Text('Delete',
-                                      style: TextStyle(
+                                  const SizedBox(width: 10),
+                                  Text(loc.delete,
+                                      style: const TextStyle(
                                           fontSize: 13,
                                           color: Colors.redAccent)),
                                 ],
@@ -449,7 +456,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                 if (widget.onOpenEqualizer != null) ...[
                   _buildSidebarActionBtn(
                     icon: Icons.equalizer_rounded,
-                    label: 'Equalizer',
+                    label: loc.equalizer,
                     onTap: widget.onOpenEqualizer!,
                     textColor: secondaryTextColor,
                   ),
@@ -459,9 +466,9 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                   icon: Icons.bedtime_outlined,
                   label: _desktopSleepTimerMinutes != null
                       ? (_desktopSleepTimerMinutes == -1
-                          ? 'Sleep Timer (End of track)'
-                          : 'Sleep Timer (${_desktopSleepTimerMinutes}m)')
-                      : 'Sleep Timer',
+                          ? '${loc.sleepTimer} (End)'
+                          : '${loc.sleepTimer} (${_desktopSleepTimerMinutes}m)')
+                      : loc.sleepTimer,
                   onTap: _showSleepTimerDialog,
                   textColor: _desktopSleepTimerMinutes != null
                       ? widget.activeAccentColor
@@ -470,14 +477,14 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                 const SizedBox(height: 4),
                 _buildSidebarActionBtn(
                   icon: Icons.refresh_rounded,
-                  label: 'Rescan Library',
+                  label: loc.rescanLibrary,
                   onTap: widget.onRescan,
                   textColor: secondaryTextColor,
                 ),
                 const SizedBox(height: 4),
                 _buildSidebarActionBtn(
                   icon: Icons.settings_outlined,
-                  label: 'Settings',
+                  label: loc.settings,
                   onTap: widget.onOpenSettings,
                   textColor: secondaryTextColor,
                 ),
@@ -494,6 +501,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
     String name,
     Offset position,
   ) async {
+    final loc = AppLocalizations.of(context);
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
     final value = await showMenu<String>(
@@ -509,7 +517,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
             children: [
               const Icon(Icons.edit_outlined, size: 18),
               const SizedBox(width: 10),
-              const Text('Rename Playlist', style: TextStyle(fontSize: 13)),
+              Text(loc.rename, style: const TextStyle(fontSize: 13)),
             ],
           ),
         ),
@@ -519,7 +527,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
             children: [
               const Icon(Icons.image_outlined, size: 18),
               const SizedBox(width: 10),
-              const Text('Change Cover Art', style: TextStyle(fontSize: 13)),
+              Text(loc.editCover, style: const TextStyle(fontSize: 13)),
             ],
           ),
         ),
@@ -530,8 +538,8 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
               const Icon(Icons.delete_outline_rounded,
                   size: 18, color: Colors.redAccent),
               const SizedBox(width: 10),
-              const Text('Delete Playlist',
-                  style: TextStyle(fontSize: 13, color: Colors.redAccent)),
+              Text(loc.delete,
+                  style: const TextStyle(fontSize: 13, color: Colors.redAccent)),
             ],
           ),
         ),
@@ -548,18 +556,19 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
   }
 
   void _confirmDeletePlaylist(String name) {
+    final loc = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: widget.isLight
             ? const Color(0xFFFAFAFD)
             : const Color(0xFF1E1E24),
-        title: const Text('Delete Playlist'),
+        title: Text(loc.delete),
         content: Text('Are you sure you want to delete "$name"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(loc.cancel),
           ),
           FilledButton(
             onPressed: () {
@@ -570,7 +579,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
               }
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text('Delete'),
+            child: Text(loc.delete),
           ),
         ],
       ),
@@ -602,6 +611,8 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
             } else {
               setState(() {
                 _isFullscreenPlayerOpen = false;
+                _searchQuery = '';
+                _searchController.clear();
                 if (section == DesktopNavSection.albums) {
                   _selectedAlbumName = null;
                 }

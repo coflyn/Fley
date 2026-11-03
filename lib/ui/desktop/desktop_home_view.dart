@@ -9,30 +9,50 @@ extension _DesktopHomeViewUI on _DesktopLayoutShellState {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Banner Gif
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              height: 180,
-              width: double.infinity,
-              child: Image.asset(
-                'assets/hey.gif',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: widget.activeAccentColor.withValues(alpha: 0.2),
-                  child: Center(
-                    child: Icon(
-                      Icons.music_note_rounded,
-                      size: 48,
-                      color: widget.activeAccentColor,
-                    ),
-                  ),
+          // Banner Gif / Custom Banner
+          ValueListenableBuilder<bool>(
+            valueListenable: showHomeBannerNotifier,
+            builder: (context, showBanner, _) {
+              if (!showBanner) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 28),
+                child: ValueListenableBuilder<String?>(
+                  valueListenable: homeBannerPathNotifier,
+                  builder: (context, bannerPath, _) {
+                    final hasCustom =
+                        bannerPath != null && File(bannerPath).existsSync();
+                    return Tooltip(
+                      message: 'Click to customize banner',
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: _showDesktopHomeBannerPicker,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: SizedBox(
+                            height: 180,
+                            width: double.infinity,
+                            child: hasCustom
+                                ? Image.file(
+                                    File(bannerPath),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => Image.asset(
+                                      'assets/hey.gif',
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : Image.asset(
+                                    'assets/hey.gif',
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              ),
-            ),
+              );
+            },
           ),
-
-          const SizedBox(height: 28),
 
           // 4 Quick Pins Cards
           _buildQuickPinsGrid(textColor, secondaryTextColor),
@@ -57,30 +77,31 @@ extension _DesktopHomeViewUI on _DesktopLayoutShellState {
   }
 
   Widget _buildQuickPinsGrid(Color textColor, Color secondaryTextColor) {
+    final loc = AppLocalizations.of(context);
     final quickItems = [
       (
-        'Most Played',
+        loc.mostPlayed,
         Icons.local_fire_department,
         const Color(0xFFF44336),
         _mostPlayedTracks,
         SongFilter.mostPlayed,
       ),
       (
-        'Favourites',
+        loc.favourites,
         Icons.favorite,
         const Color(0xFFE91E63),
         _favoriteTracks,
         SongFilter.favorites,
       ),
       (
-        'Recently Added',
+        loc.recentlyAdded,
         Icons.new_releases,
         const Color(0xFF2196F3),
         _recentlyAddedTracks,
         SongFilter.recentlyAdded,
       ),
       (
-        'Forgotten Gems',
+        loc.forgottenGems,
         Icons.diamond_outlined,
         const Color(0xFF9C27B0),
         _forgottenGemsTracks,
@@ -212,12 +233,13 @@ extension _DesktopHomeViewUI on _DesktopLayoutShellState {
     }
 
     if (!showResumeTile && recentTracks.isEmpty) return const SizedBox.shrink();
+    final loc = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Your Recent Rotation',
+          loc.recentRotation,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -389,43 +411,44 @@ extension _DesktopHomeViewUI on _DesktopLayoutShellState {
   }
 
   Widget _buildRecentsCarouselSection(Color textColor, Color secondaryTextColor) {
+    final loc = AppLocalizations.of(context);
     List<Map<String, dynamic>> items = [];
 
     items.add({
-      'title': 'Favourites',
-      'subtitle': 'Playlist • ${_favoriteTracks.length} songs',
+      'title': loc.favourites,
+      'subtitle': '${loc.playlist} • ${_favoriteTracks.length} ${loc.songsCount}',
       'sampleTrack': _favoriteTracks.firstOrNull,
       'color': const Color(0xFFE91E63),
       'icon': Icons.favorite,
       'filter': SongFilter.favorites,
     });
     items.add({
-      'title': 'Most Played',
-      'subtitle': 'Playlist • ${_mostPlayedTracks.length} songs',
+      'title': loc.mostPlayed,
+      'subtitle': '${loc.playlist} • ${_mostPlayedTracks.length} ${loc.songsCount}',
       'sampleTrack': _mostPlayedTracks.firstOrNull,
       'color': const Color(0xFFF44336),
       'icon': Icons.local_fire_department,
       'filter': SongFilter.mostPlayed,
     });
     items.add({
-      'title': 'Recently Added',
-      'subtitle': 'Playlist • ${_recentlyAddedTracks.length} songs',
+      'title': loc.recentlyAdded,
+      'subtitle': '${loc.playlist} • ${_recentlyAddedTracks.length} ${loc.songsCount}',
       'sampleTrack': _recentlyAddedTracks.firstOrNull,
       'color': const Color(0xFF2196F3),
       'icon': Icons.new_releases,
       'filter': SongFilter.recentlyAdded,
     });
     items.add({
-      'title': 'Last Played',
-      'subtitle': 'Playlist • ${_lastPlayedTracks.length} songs',
+      'title': loc.lastPlayed,
+      'subtitle': '${loc.playlist} • ${_lastPlayedTracks.length} ${loc.songsCount}',
       'sampleTrack': _lastPlayedTracks.firstOrNull,
       'color': const Color(0xFFFF9800),
       'icon': Icons.history_rounded,
       'filter': SongFilter.lastPlayed,
     });
     items.add({
-      'title': 'Forgotten Gems',
-      'subtitle': 'Playlist • ${_forgottenGemsTracks.length} songs',
+      'title': loc.forgottenGems,
+      'subtitle': '${loc.playlist} • ${_forgottenGemsTracks.length} ${loc.songsCount}',
       'sampleTrack': _forgottenGemsTracks.firstOrNull,
       'color': const Color(0xFF9C27B0),
       'icon': Icons.diamond_outlined,
@@ -442,7 +465,7 @@ extension _DesktopHomeViewUI on _DesktopLayoutShellState {
           : null;
       items.add({
         'title': entry.key,
-        'subtitle': 'Playlist • ${pSongs.length} songs',
+        'subtitle': '${loc.playlist} • ${pSongs.length} ${loc.songsCount}',
         'sampleTrack': sample,
         'color': widget.activeAccentColor,
         'icon': Icons.queue_music,
@@ -467,7 +490,7 @@ extension _DesktopHomeViewUI on _DesktopLayoutShellState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Recents',
+          loc.recents,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -564,12 +587,13 @@ extension _DesktopHomeViewUI on _DesktopLayoutShellState {
 
   Widget _buildJumpBackInSection(Color textColor, Color secondaryTextColor) {
     if (widget.allTracks.isEmpty) return const SizedBox.shrink();
+    final loc = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Jump Back In',
+          loc.jumpBackIn,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -633,6 +657,84 @@ extension _DesktopHomeViewUI on _DesktopLayoutShellState {
           ),
         ),
       ],
+    );
+  }
+
+  void _showDesktopHomeBannerPicker() {
+    final loc = AppLocalizations.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: widget.isLight
+            ? const Color(0xFFFAFAFD)
+            : const Color(0xFF1E1E24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(loc.homeBanner),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.image_outlined, color: widget.activeAccentColor),
+              title: Text(loc.changeBannerGif),
+              subtitle: Text(loc.homeBannerDesc),
+              onTap: () async {
+                Navigator.pop(ctx);
+                try {
+                  const typeGroup = XTypeGroup(
+                    label: 'images',
+                    extensions: ['jpg', 'png', 'jpeg', 'webp', 'gif'],
+                  );
+                  final file = await openFile(acceptedTypeGroups: [typeGroup]);
+                  if (file != null && mounted) {
+                    final appDir = await getApplicationSupportDirectory();
+                    final bannerDir = Directory('${appDir.path}/banners');
+                    if (!bannerDir.existsSync()) {
+                      bannerDir.createSync(recursive: true);
+                    }
+                    final ext = file.name.contains('.') ? file.name.split('.').last : 'jpg';
+                    final targetPath = '${bannerDir.path}/custom_banner_${DateTime.now().millisecondsSinceEpoch}.$ext';
+                    final bytes = await file.readAsBytes();
+                    await File(targetPath).writeAsBytes(bytes);
+
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setString('homeBannerPath', targetPath);
+                    homeBannerPathNotifier.value = targetPath;
+                  }
+                } catch (e) {
+                  debugPrint('Error picking banner: $e');
+                }
+              },
+            ),
+            if (homeBannerPathNotifier.value != null)
+              ListTile(
+                leading: const Icon(Icons.refresh_rounded),
+                title: Text(loc.resetDefaultBanner),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('homeBannerPath');
+                  homeBannerPathNotifier.value = null;
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.visibility_off_outlined),
+              title: Text(loc.hideBanner),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('showHomeBanner', false);
+                showHomeBannerNotifier.value = false;
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(loc.cancel),
+          ),
+        ],
+      ),
     );
   }
 }

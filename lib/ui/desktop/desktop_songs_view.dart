@@ -3,12 +3,13 @@ part of 'desktop_layout_shell.dart';
 
 extension _DesktopSongsViewUI on _DesktopLayoutShellState {
   Widget _buildSongsTableView(Color textColor, Color secondaryTextColor) {
+    final loc = AppLocalizations.of(context);
     final tracks = _filteredTracks;
     final totalDurationMs = tracks.fold<int>(0, (sum, t) => sum + t.duration);
 
     // Metadata & Cover for the Album-View Header
     String categoryName = 'COLLECTION';
-    String title = 'All Songs';
+    String title = loc.allSongs;
     Widget coverWidget;
 
     Widget buildCollectionCover(
@@ -104,7 +105,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
       switch (_activeSongFilter) {
         case SongFilter.all:
           categoryName = 'COLLECTION';
-          title = 'All Songs';
+          title = loc.allSongs;
           coverWidget = buildCollectionCover(
             Icons.music_note_rounded,
             [
@@ -115,7 +116,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
           break;
         case SongFilter.favorites:
           categoryName = 'COLLECTION';
-          title = 'Favourites';
+          title = loc.favourites;
           coverWidget = buildCollectionCover(
             Icons.favorite_rounded,
             const [Color(0xFFE91E63), Color(0xFF9C27B0)],
@@ -123,7 +124,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
           break;
         case SongFilter.mostPlayed:
           categoryName = 'COLLECTION';
-          title = 'Most Played';
+          title = loc.mostPlayed;
           coverWidget = buildCollectionCover(
             Icons.local_fire_department_rounded,
             const [Color(0xFFF44336), Color(0xFFFF9800)],
@@ -131,7 +132,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
           break;
         case SongFilter.recentlyAdded:
           categoryName = 'COLLECTION';
-          title = 'Recently Added';
+          title = loc.recentlyAdded;
           coverWidget = buildCollectionCover(
             Icons.new_releases_rounded,
             const [Color(0xFF2196F3), Color(0xFF00BCD4)],
@@ -139,7 +140,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
           break;
         case SongFilter.lastPlayed:
           categoryName = 'COLLECTION';
-          title = 'Last Played';
+          title = loc.lastPlayed;
           coverWidget = buildCollectionCover(
             Icons.history_rounded,
             const [Color(0xFFFF9800), Color(0xFFFFC107)],
@@ -147,7 +148,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
           break;
         case SongFilter.forgottenGems:
           categoryName = 'COLLECTION';
-          title = 'Forgotten Gems';
+          title = loc.forgottenGems;
           coverWidget = buildCollectionCover(
             Icons.diamond_outlined,
             const [Color(0xFF9C27B0), Color(0xFF673AB7)],
@@ -195,7 +196,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${tracks.length} songs • ${_formatTotalAlbumDuration(totalDurationMs)}',
+                      '${tracks.length} ${loc.songsCount} • ${_formatTotalAlbumDuration(totalDurationMs)}',
                       style: TextStyle(
                         fontSize: 12.5,
                         color: secondaryTextColor,
@@ -253,7 +254,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                         ),
                         const SizedBox(width: 8),
                         PopupMenuButton<String>(
-                          tooltip: 'Sort songs',
+                          tooltip: loc.sortSongs,
                           initialValue: _songSortKey,
                           onSelected: (key) => setState(() => _songSortKey = key),
                           icon: Container(
@@ -307,7 +308,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                               size: 19,
                             ),
                             color: textColor,
-                            tooltip: 'Rename Playlist',
+                            tooltip: loc.rename,
                             onPressed: () => _renamePlaylistDialog(_selectedPlaylistName!),
                           ),
                           const SizedBox(width: 4),
@@ -317,7 +318,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                               size: 19,
                             ),
                             color: textColor,
-                            tooltip: 'Change Playlist Cover',
+                            tooltip: loc.editCover,
                             onPressed: () => _changePlaylistCoverDialog(_selectedPlaylistName!),
                           ),
                           const SizedBox(width: 4),
@@ -327,7 +328,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                               size: 20,
                             ),
                             color: Colors.redAccent,
-                            tooltip: 'Delete Playlist',
+                            tooltip: loc.delete,
                             onPressed: () {
                               final name = _selectedPlaylistName!;
                               showDialog(
@@ -336,14 +337,14 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                                   backgroundColor: widget.isLight
                                       ? const Color(0xFFFAFAFD)
                                       : const Color(0xFF1E1E24),
-                                  title: const Text('Delete Playlist'),
+                                  title: Text(loc.delete),
                                   content: Text(
                                     'Are you sure you want to delete "$name"?',
                                   ),
                                   actions: [
                                     TextButton(
                                       onPressed: () => Navigator.pop(context),
-                                      child: const Text('Cancel'),
+                                      child: Text(loc.cancel),
                                     ),
                                     FilledButton(
                                       onPressed: () {
@@ -356,7 +357,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                                       style: FilledButton.styleFrom(
                                         backgroundColor: Colors.redAccent,
                                       ),
-                                      child: const Text('Delete'),
+                                      child: Text(loc.delete),
                                     ),
                                   ],
                                 ),
@@ -394,7 +395,7 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'No tracks found in this category',
+                    loc.noMatchingSongs,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -445,6 +446,9 @@ extension _DesktopSongsViewUI on _DesktopLayoutShellState {
                       onEditTags: (t) => _showEditSongTagsDialog(t),
                       onChangeArtwork: (t) => _changeTrackArtwork(t),
                       onHideTrack: (t) => _hideTrack(t),
+                      onDeletePermanently: widget.onDeletePermanently != null
+                          ? (t) => _showDeletePermanentlyDialog(t)
+                          : null,
                       onGoToArtist: (artist) {
                         setState(() {
                           _selectedArtistName = artist;
