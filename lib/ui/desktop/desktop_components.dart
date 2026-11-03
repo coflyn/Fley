@@ -24,6 +24,7 @@ class _DesktopSongRow extends StatefulWidget {
   final void Function(String)? onGoToAlbum;
   final void Function(String)? onGoToArtist;
   final void Function(Track)? onHideTrack;
+  final void Function(Track)? onDeletePermanently;
 
   const _DesktopSongRow({
     required this.index,
@@ -49,6 +50,7 @@ class _DesktopSongRow extends StatefulWidget {
     this.onGoToAlbum,
     this.onGoToArtist,
     this.onHideTrack,
+    this.onDeletePermanently,
   });
 
   @override
@@ -72,6 +74,7 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
   }
 
   void _showContextMenu(BuildContext context, Offset position) async {
+    final loc = AppLocalizations.of(context);
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
     final value = await showMenu<String>(
@@ -92,7 +95,7 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
             children: [
               Icon(Icons.playlist_play_rounded, size: 20, color: widget.activeAccentColor),
               const SizedBox(width: 12),
-              Text('Play Next', style: TextStyle(color: widget.textColor, fontSize: 13)),
+              Text(loc.playNext, style: TextStyle(color: widget.textColor, fontSize: 13)),
             ],
           ),
         ),
@@ -102,7 +105,7 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
             children: [
               const Icon(Icons.queue_music_rounded, size: 20),
               const SizedBox(width: 12),
-              Text('Add to Queue', style: TextStyle(color: widget.textColor, fontSize: 13)),
+              Text(loc.addToQueue, style: TextStyle(color: widget.textColor, fontSize: 13)),
             ],
           ),
         ),
@@ -112,7 +115,7 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
             children: [
               const Icon(Icons.playlist_add_rounded, size: 20),
               const SizedBox(width: 12),
-              Text('Add to Playlist', style: TextStyle(color: widget.textColor, fontSize: 13)),
+              Text(loc.addToPlaylist, style: TextStyle(color: widget.textColor, fontSize: 13)),
             ],
           ),
         ),
@@ -123,7 +126,7 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
               children: [
                 const Icon(Icons.playlist_remove_rounded, size: 20, color: Colors.redAccent),
                 const SizedBox(width: 12),
-                const Text('Remove from Playlist', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+                Text(loc.removeFromPlaylist, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
               ],
             ),
           ),
@@ -134,7 +137,7 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
               children: [
                 const Icon(Icons.person_outline_rounded, size: 20),
                 const SizedBox(width: 12),
-                Text('Go to Artist', style: TextStyle(color: widget.textColor, fontSize: 13)),
+                Text(loc.goToArtist, style: TextStyle(color: widget.textColor, fontSize: 13)),
               ],
             ),
           ),
@@ -145,7 +148,7 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
               children: [
                 const Icon(Icons.album_outlined, size: 20),
                 const SizedBox(width: 12),
-                Text('Go to Album', style: TextStyle(color: widget.textColor, fontSize: 13)),
+                Text(loc.goToAlbum, style: TextStyle(color: widget.textColor, fontSize: 13)),
               ],
             ),
           ),
@@ -171,7 +174,7 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
             children: [
               const Icon(Icons.info_outline_rounded, size: 20),
               const SizedBox(width: 12),
-              Text('Song Details', style: TextStyle(color: widget.textColor, fontSize: 13)),
+              Text(loc.songInfo, style: TextStyle(color: widget.textColor, fontSize: 13)),
             ],
           ),
         ),
@@ -181,7 +184,7 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
             children: [
               const Icon(Icons.edit_outlined, size: 20),
               const SizedBox(width: 12),
-              Text('Edit Tags', style: TextStyle(color: widget.textColor, fontSize: 13)),
+              Text(loc.editMetadata, style: TextStyle(color: widget.textColor, fontSize: 13)),
             ],
           ),
         ),
@@ -192,7 +195,7 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
               children: [
                 const Icon(Icons.image_outlined, size: 20),
                 const SizedBox(width: 12),
-                Text('Change Cover Art', style: TextStyle(color: widget.textColor, fontSize: 13)),
+                Text(loc.editCover, style: TextStyle(color: widget.textColor, fontSize: 13)),
               ],
             ),
           ),
@@ -203,7 +206,18 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
               children: [
                 const Icon(Icons.visibility_off_outlined, size: 20, color: Colors.redAccent),
                 const SizedBox(width: 12),
-                const Text('Hide from Library', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+                Text(loc.hideTrack, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+              ],
+            ),
+          ),
+        if (widget.onDeletePermanently != null)
+          PopupMenuItem(
+            value: 'delete_permanently',
+            child: Row(
+              children: [
+                const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.redAccent),
+                const SizedBox(width: 12),
+                Text(loc.deleteFromDevice, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
               ],
             ),
           ),
@@ -232,6 +246,8 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
       widget.onChangeArtwork!(widget.track);
     } else if (value == 'hide_track' && widget.onHideTrack != null) {
       widget.onHideTrack!(widget.track);
+    } else if (value == 'delete_permanently' && widget.onDeletePermanently != null) {
+      widget.onDeletePermanently!(widget.track);
     }
   }
 

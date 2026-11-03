@@ -6,6 +6,7 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
     Color textColor,
     Color secondaryTextColor,
   ) {
+    final loc = AppLocalizations.of(context);
     final defaultDirs = DesktopAudioScanner.getDefaultMusicDirectories();
 
     return Padding(
@@ -17,7 +18,7 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back_rounded),
-                tooltip: 'Back to Profile & Settings',
+                tooltip: loc.cancel,
                 onPressed: () => _setActiveSection(DesktopNavSection.profile),
               ),
               const SizedBox(width: 8),
@@ -25,7 +26,7 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Music Folders',
+                    loc.folders,
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
@@ -186,6 +187,199 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHiddenTracksView(
+    Color textColor,
+    Color secondaryTextColor,
+  ) {
+    final loc = AppLocalizations.of(context);
+    final borderColor = widget.isLight
+        ? Colors.black.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.08);
+
+    return FutureBuilder<List<Track>>(
+      future: DesktopAudioScanner.scanAllTracks(),
+      builder: (context, snapshot) {
+        final hiddenIds = widget.hiddenTrackIds;
+        final hiddenTracks = (snapshot.data ?? [])
+            .where((t) => hiddenIds.contains(t.id))
+            .toList();
+
+        return Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    tooltip: loc.cancel,
+                    onPressed: () => _setActiveSection(DesktopNavSection.profile),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        loc.hideFromLibrary,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Manage tracks hidden from your library',
+                        style: TextStyle(fontSize: 13.5, color: secondaryTextColor),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  if (hiddenTracks.isNotEmpty)
+                    Text(
+                      '${hiddenTracks.length} ${loc.songsCount}',
+                      style: TextStyle(fontSize: 13, color: secondaryTextColor),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              if (snapshot.connectionState == ConnectionState.waiting)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 60),
+                    child: CircularProgressIndicator(
+                      color: widget.activeAccentColor,
+                    ),
+                  ),
+                )
+              else if (hiddenTracks.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.visibility_off_outlined,
+                          size: 64,
+                          color: secondaryTextColor.withValues(alpha: 0.4),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No Hidden Tracks',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Tracks you hide from song options will appear here.',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: secondaryTextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: hiddenTracks.length,
+                    separatorBuilder: (_, _) => Divider(color: borderColor, height: 1),
+                    itemBuilder: (context, idx) {
+                      final track = hiddenTracks[idx];
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: widget.isLight
+                              ? Colors.black.withValues(alpha: 0.02)
+                              : Colors.white.withValues(alpha: 0.03),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            _DesktopTrackArtwork(
+                              track: track,
+                              size: 44,
+                              radius: 8,
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    track.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${track.artist} • ${track.album}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: secondaryTextColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: widget.activeAccentColor.withValues(alpha: 0.5),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              icon: Icon(
+                                Icons.visibility_rounded,
+                                size: 16,
+                                color: widget.activeAccentColor,
+                              ),
+                              label: Text(
+                                'Unhide',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: widget.activeAccentColor,
+                                ),
+                              ),
+                              onPressed: () {
+                                widget.onUnhideTrack?.call(track.id);
+                                setState(() {});
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -404,6 +598,7 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
     Color textColor,
     Color secondaryTextColor,
   ) {
+    final loc = AppLocalizations.of(context);
     final borderColor = widget.isLight
         ? Colors.black.withValues(alpha: 0.08)
         : Colors.white.withValues(alpha: 0.08);
@@ -594,7 +789,7 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
               Row(
                 children: [
                   _buildStatCard(
-                    title: 'Total Songs',
+                    title: loc.allSongs,
                     value: '${widget.allTracks.length}',
                     icon: Icons.music_note_rounded,
                     color: widget.activeAccentColor,
@@ -604,7 +799,7 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
                   ),
                   const SizedBox(width: 14),
                   _buildStatCard(
-                    title: 'Favourites',
+                    title: loc.favourites,
                     value: '${_favoriteTracks.length}',
                     icon: Icons.favorite_rounded,
                     color: const Color(0xFFE91E63),
@@ -624,13 +819,56 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
                   ),
                   const SizedBox(width: 14),
                   _buildStatCard(
-                    title: 'Albums',
+                    title: loc.albums,
                     value: '$totalAlbums',
                     icon: Icons.album_rounded,
                     color: const Color(0xFF9C27B0),
                     textColor: textColor,
                     secondaryTextColor: secondaryTextColor,
                     borderColor: borderColor,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Quick Actions: Folders, Hidden Tracks, Settings
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildProfileQuickAction(
+                      icon: Icons.folder_outlined,
+                      title: loc.folders,
+                      subtitle: 'Manage scan directories',
+                      onTap: () => _setActiveSection(DesktopNavSection.folders),
+                      textColor: textColor,
+                      secondaryTextColor: secondaryTextColor,
+                      borderColor: borderColor,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: _buildProfileQuickAction(
+                      icon: Icons.visibility_off_outlined,
+                      title: loc.hideFromLibrary,
+                      subtitle: '${widget.hiddenTrackIds.length} hidden',
+                      onTap: () => _setActiveSection(DesktopNavSection.hiddenTracks),
+                      textColor: textColor,
+                      secondaryTextColor: secondaryTextColor,
+                      borderColor: borderColor,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: _buildProfileQuickAction(
+                      icon: Icons.settings_outlined,
+                      title: loc.settings,
+                      subtitle: 'Preferences & audio',
+                      onTap: widget.onOpenSettings,
+                      textColor: textColor,
+                      secondaryTextColor: secondaryTextColor,
+                      borderColor: borderColor,
+                    ),
                   ),
                 ],
               ),
@@ -699,6 +937,72 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileQuickAction({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required Color textColor,
+    required Color secondaryTextColor,
+    required Color borderColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: widget.isLight
+              ? Colors.black.withValues(alpha: 0.02)
+              : Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: widget.activeAccentColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: widget.activeAccentColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: secondaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 18, color: secondaryTextColor),
+          ],
         ),
       ),
     );

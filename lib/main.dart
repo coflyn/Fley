@@ -339,6 +339,13 @@ class MainScreen extends StatefulWidget {
 
   static void showEqualizer(BuildContext context) {
     if (mainScreenState != null) {
+      if (!Platform.isAndroid) {
+        showFleyToast(
+          lookupAppLocalizations(Locale(FleyStrings.currentLang))
+              .eqErrorUnsupported,
+        );
+        return;
+      }
       final sessionId = mainScreenState!.player.androidAudioSessionId ?? 0;
       if (sessionId == 0) {
         showFleyToast("Please play a song first to use the Equalizer!");
@@ -802,6 +809,39 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               SharedPreferences.getInstance().then((prefs) {
                 prefs.setStringList('hidden_track_ids', _hiddenTrackIds.toList());
               });
+            },
+            hiddenTrackIds: _hiddenTrackIds,
+            onUnhideTrack: (trackId) async {
+              setState(() {
+                _hiddenTrackIds.remove(trackId);
+              });
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setStringList('hidden_track_ids', _hiddenTrackIds.toList());
+              _requestPermissionAndScan(showLoading: false);
+            },
+            onRemoveFromQueue: (trackId) => _removeFromQueueAndPlayer(trackId),
+            onReorderQueue: (track, newIndex) => _moveTrackInQueue(track, newIndex),
+            onDeletePermanently: (track) async {
+              try {
+                final file = File(track.path);
+                if (track.path.isNotEmpty && await file.exists()) {
+                  await file.delete();
+                  setState(() {
+                    _allTracks.removeWhere((t) => t.id == track.id);
+                  });
+                  _removeFromQueueAndPlayer(track.id);
+                  final prefs = await SharedPreferences.getInstance();
+                  final serialized = _allTracks.map((t) => t.toMap()).toList();
+                  await prefs.setString('cached_tracks_list', jsonEncode(serialized));
+                  showFleyToast(
+                    lookupAppLocalizations(
+                      Locale(FleyStrings.currentLang),
+                    ).trackDeleted,
+                  );
+                }
+              } catch (e) {
+                debugPrint('Delete error: $e');
+              }
             },
             onLibraryUpdated: () => _requestPermissionAndScan(showLoading: false),
             onOpenEqualizer: () => _showEqualizerSheet(context),
