@@ -51,6 +51,14 @@ class _EqualizerSheetContentState extends State<_EqualizerSheetContent> {
   }
 
   Future<void> _initEQ() async {
+    if (!Platform.isAndroid) {
+      setState(() {
+        _error = AppLocalizations.of(context).eqErrorUnsupported;
+        _initialized = true;
+      });
+      return;
+    }
+
     final sessionId = widget.player.androidAudioSessionId ?? 0;
     if (sessionId == 0) {
       setState(() {
