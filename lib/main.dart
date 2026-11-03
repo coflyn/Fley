@@ -477,8 +477,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     if (_currentNavIndex == 1 && index != 1) {
       _searchFocusNode.unfocus();
     }
-    if (_currentNavIndex == index) return;
+    final isDetail =
+        _selectedPlaylistDetail != null ||
+        _selectedArtistDetail != null ||
+        _selectedAlbumDetail != null;
+    if (_currentNavIndex == index && !isDetail) return;
     setState(() {
+      _selectedPlaylistDetail = null;
+      _selectedArtistDetail = null;
+      _selectedAlbumDetail = null;
       _currentNavIndex = index;
       _tabContentOpacity = 0.0;
     });
@@ -1060,7 +1067,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
               if (_playingTrack != null) _buildMiniPlayer(_playingTrack!),
 
-              if (!isDetailView) _buildBottomNavBar(),
+              _buildBottomNavBar(),
 
               Positioned.fill(
                 child: ListenableBuilder(

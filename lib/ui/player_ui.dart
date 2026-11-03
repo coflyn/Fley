@@ -4,11 +4,7 @@ part of '../main.dart';
 extension _PlayerUI on _MainScreenState {
   Widget _buildMiniPlayer(Track currentTrack) {
     final double bottomInset = MediaQuery.of(context).padding.bottom;
-    final isDetailView =
-        _selectedPlaylistDetail != null ||
-        _selectedArtistDetail != null ||
-        _selectedAlbumDetail != null;
-    final double navBarHeight = isDetailView ? 0.0 : 60.0;
+    const double navBarHeight = 60.0;
 
     return Positioned(
       bottom: 0,

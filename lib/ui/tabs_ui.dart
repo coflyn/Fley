@@ -3,11 +3,8 @@ part of '../main.dart';
 
 extension _TabsUI on _MainScreenState {
   double get _bottomListPadding {
-    final isDetailView = _selectedPlaylistDetail != null ||
-        _selectedArtistDetail != null ||
-        _selectedAlbumDetail != null;
     final double bottomInset = MediaQuery.of(context).padding.bottom;
-    final navPadding = isDetailView ? 0.0 : 64.0;
+    const navPadding = 64.0;
     return navPadding + bottomInset + (_playingTrack != null ? 88.0 : 24.0);
   }
 
