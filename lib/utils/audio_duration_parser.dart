@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-/// Parser ringan native tanpa dependensi eksternal untuk mengekstrak durasi
-/// file audio (MP3, WAV, FLAC, M4A/AAC, OGG) langsung dari header file.
+/// Lightweight native parser with no external dependencies to extract
+/// audio duration (MP3, WAV, FLAC, M4A/AAC, OGG) directly from file headers.
 class AudioDurationParser {
   static int? getDurationMs(File file) {
     try {
@@ -24,7 +24,7 @@ class AudioDurationParser {
     return null;
   }
 
-  /// Ekstraksi durasi MP3 via Xing/Info header atau estimasi MPEG bitrate
+  /// Extract MP3 duration via Xing/Info header or estimated MPEG bitrate
   static int? parseMp3(File file) {
     RandomAccessFile? raf;
     try {
@@ -133,7 +133,7 @@ class AudioDurationParser {
     return null;
   }
 
-  /// Ekstraksi durasi WAV (RIFF Header)
+  /// Extract WAV duration (RIFF Header)
   static int? parseWav(File file) {
     RandomAccessFile? raf;
     try {
@@ -192,7 +192,7 @@ class AudioDurationParser {
     return null;
   }
 
-  /// Ekstraksi durasi FLAC (STREAMINFO metadata block)
+  /// Extract FLAC duration (STREAMINFO metadata block)
   static int? parseFlac(File file) {
     RandomAccessFile? raf;
     try {
@@ -225,7 +225,7 @@ class AudioDurationParser {
     return null;
   }
 
-  /// Ekstraksi durasi M4A / AAC / MP4 (mvhd atom)
+  /// Extract M4A / AAC / MP4 duration (mvhd atom)
   static int? parseM4a(File file) {
     RandomAccessFile? raf;
     try {
@@ -295,7 +295,7 @@ class AudioDurationParser {
     return null;
   }
 
-  /// Ekstraksi durasi Ogg Vorbis/Opus
+  /// Extract Ogg Vorbis/Opus duration
   static int? parseOgg(File file) {
     RandomAccessFile? raf;
     try {
@@ -303,7 +303,7 @@ class AudioDurationParser {
       final fileSize = raf.lengthSync();
       if (fileSize < 500) return null;
 
-      // Baca 8192 bytes terakhir untuk mencari last OggS page
+      // Read last 8192 bytes to locate the final OggS page
       final readSize = fileSize > 8192 ? 8192 : fileSize;
       raf.setPositionSync(fileSize - readSize);
       final buffer = Uint8List(readSize);

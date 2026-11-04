@@ -104,43 +104,83 @@ extension _AudioLibraryScanLogic on _MainScreenState {
           prefs.setString('cached_tracks_list', jsonEncode(serialized));
         }
       } else {
+        final List<Track> mobileTracks = [];
+
+        // iOS: Scan app Documents directory (Files app -> On My iPhone -> Fley)
+        if (Platform.isIOS) {
+          try {
+            final docs = await getApplicationDocumentsDirectory();
+            final iosDocTracks = await DesktopAudioScanner.scanFolders(
+              [docs.path],
+              filterShortAudio: _filterShortAudio,
+            );
+            for (final track in iosDocTracks) {
+              String title = track.title;
+              String artist = track.artist;
+              String album = track.album;
+              if (_metadataOverrides.containsKey(track.id)) {
+                final overrides = _metadataOverrides[track.id]!;
+                title = overrides['title'] ?? title;
+                artist = overrides['artist'] ?? artist;
+                album = overrides['album'] ?? album;
+              }
+              mobileTracks.add(
+                Track(
+                  id: track.id,
+                  title: title,
+                  artist: artist,
+                  album: album,
+                  url: track.url,
+                  path: track.path,
+                  lyrics: track.lyrics,
+                  duration: track.duration,
+                ),
+              );
+            }
+          } catch (e) {
+            debugPrint('Error scanning iOS documents directory: $e');
+          }
+        }
+
         bool permissionGranted = await _audioQuery.permissionsStatus();
         if (!permissionGranted) {
           permissionGranted = await _audioQuery.permissionsRequest();
         }
 
-        final notificationStatus = await Permission.notification.request();
-        if (!notificationStatus.isGranted) {
-          if (mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => AlertDialog(
-                title: const Row(
-                  children: [
-                    Icon(Icons.warning, color: Colors.orange),
-                    SizedBox(width: 8),
-                    Text("Notification Required"),
+        if (Platform.isAndroid) {
+          final notificationStatus = await Permission.notification.request();
+          if (!notificationStatus.isGranted) {
+            if (mounted) {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => AlertDialog(
+                  title: const Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text("Notification Required"),
+                    ],
+                  ),
+                  content: const Text(
+                    "Fley needs the Notification permission to show music playback controls on your lock screen and background.\n\nPlease enable Notifications for Fley in your phone's App Settings.",
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("CANCEL"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await openAppSettings();
+                      },
+                      child: const Text("OPEN SETTINGS"),
+                    ),
                   ],
                 ),
-                content: const Text(
-                  "Fley needs the Notification permission to show music playback controls on your lock screen and background.\n\nPlease enable Notifications for Fley in your phone's App Settings.",
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("CANCEL"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      Navigator.pop(context);
-                      await openAppSettings();
-                    },
-                    child: const Text("OPEN SETTINGS"),
-                  ),
-                ],
-              ),
-            );
+              );
+            }
           }
         }
 
@@ -152,119 +192,128 @@ extension _AudioLibraryScanLogic on _MainScreenState {
             ignoreCase: true,
           );
 
-        if (songs.isNotEmpty) {
-          var filteredSongs = songs;
-          if (_filterShortAudio) {
-            filteredSongs = filteredSongs
-                .where((s) => (s.duration ?? 0) >= 30000)
-                .toList();
-          }
-          if (_specificFolderScan.isNotEmpty) {
-            try {
-              final allowedDirs = List<String>.from(
-                jsonDecode(_specificFolderScan),
-              );
-              if (allowedDirs.isNotEmpty) {
-                filteredSongs = filteredSongs.where((song) {
-                  final parentDir = _getParentDirectory(song.data);
-                  return allowedDirs.contains(parentDir);
-                }).toList();
-              }
-            } catch (_) {}
-          }
+          if (songs.isNotEmpty) {
+            var filteredSongs = songs;
+            if (_filterShortAudio) {
+              filteredSongs = filteredSongs
+                  .where((s) => (s.duration ?? 0) >= 30000)
+                  .toList();
+            }
+            if (_specificFolderScan.isNotEmpty) {
+              try {
+                final allowedDirs = List<String>.from(
+                  jsonDecode(_specificFolderScan),
+                );
+                if (allowedDirs.isNotEmpty) {
+                  filteredSongs = filteredSongs.where((song) {
+                    final parentDir = _getParentDirectory(song.data);
+                    return allowedDirs.contains(parentDir);
+                  }).toList();
+                }
+              } catch (_) {}
+            }
 
-          final seenPaths = <String>{};
-          final seenUris = <String>{};
-          final List<SongModel> deduplicatedSongs = [];
+            final seenPaths = <String>{};
+            final seenUris = <String>{};
+            final List<SongModel> deduplicatedSongs = [];
 
-          for (final song in filteredSongs) {
-            final pathKey = song.data.trim().toLowerCase();
-            final uriKey = (song.uri != null && song.uri!.isNotEmpty)
-                ? song.uri!
-                : 'content://media/external/audio/media/${song.id}';
+            for (final song in filteredSongs) {
+              final pathKey = song.data.trim().toLowerCase();
+              final uriKey = (song.uri != null && song.uri!.isNotEmpty)
+                  ? song.uri!
+                  : 'content://media/external/audio/media/${song.id}';
 
-            if (pathKey.isNotEmpty) {
-              if (seenPaths.add(pathKey)) {
-                seenUris.add(uriKey);
+              if (pathKey.isNotEmpty) {
+                if (seenPaths.add(pathKey)) {
+                  seenUris.add(uriKey);
+                  deduplicatedSongs.add(song);
+                }
+              } else if (seenUris.add(uriKey)) {
                 deduplicatedSongs.add(song);
               }
-            } else if (seenUris.add(uriKey)) {
-              deduplicatedSongs.add(song);
             }
-          }
 
-          _allTracks = deduplicatedSongs
-              .map((song) {
-                String safeUri = (song.uri != null && song.uri!.isNotEmpty)
-                    ? song.uri!
-                    : 'content://media/external/audio/media/${song.id}';
+            final queryTracks = deduplicatedSongs.map((song) {
+              String safeUri = (song.uri != null && song.uri!.isNotEmpty)
+                  ? song.uri!
+                  : 'content://media/external/audio/media/${song.id}';
 
-                String title = song.title;
-                String artist =
-                    (song.artist == null || song.artist == '<unknown>')
-                    ? AppLocalizations.of(context).unknownArtist
-                    : song.artist!;
-                String album = song.album ?? 'Unknown Album';
+              String title = song.title;
+              String artist =
+                  (song.artist == null || song.artist == '<unknown>')
+                  ? AppLocalizations.of(context).unknownArtist
+                  : song.artist!;
+              String album = song.album ?? 'Unknown Album';
 
-                if (_metadataOverrides.containsKey(song.id.toString())) {
-                  final overrides = _metadataOverrides[song.id.toString()]!;
-                  title = overrides['title'] ?? title;
-                  artist = overrides['artist'] ?? artist;
-                  album = overrides['album'] ?? album;
-                }
+              if (_metadataOverrides.containsKey(song.id.toString())) {
+                final overrides = _metadataOverrides[song.id.toString()]!;
+                title = overrides['title'] ?? title;
+                artist = overrides['artist'] ?? artist;
+                album = overrides['album'] ?? album;
+              }
 
-                if (_autoRegexClean &&
-                    !_metadataOverrides.containsKey(song.id.toString())) {
-                  final artistPrefix = RegExp(
-                    '^${RegExp.escape(artist)}\\s*[-|:]\\s*',
-                    caseSensitive: false,
-                  );
-                  if (artistPrefix.hasMatch(title)) {
-                    title = title.replaceAll(artistPrefix, '');
-                  }
-                  final tagsToRemove = RegExp(
-                    r'[\[\(](official|audio|video|lyric|lyrics|music video|official video|official audio|official lyric video|official music video)[\]\)]',
-                    caseSensitive: false,
-                  );
-                  title = title.replaceAll(tagsToRemove, '').trim();
-
-                  final artistSuffix = RegExp(
-                    r'\s*[-|:]\s*' + RegExp.escape(artist) + r'$',
-                    caseSensitive: false,
-                  );
-                  if (artistSuffix.hasMatch(title)) {
-                    title = title.replaceAll(artistSuffix, '').trim();
-                  }
-                }
-
-                return Track(
-                  id: song.id.toString(),
-                  title: title,
-                  artist: artist,
-                  album: album,
-                  url: safeUri,
-                  path: song.data,
-                  lyrics: [
-                    "Playing '$title'...",
-                    "Brought to you by Fley Music,",
-                    "Your premium local audio choice.",
-                    "Feel the deep rhythm in your soul.",
-                    "Let the notes carry you away,",
-                    "Into the beautiful flow of the day.",
-                    "Pure high fidelity local sound.",
-                  ],
-                  duration: song.duration ?? 0,
+              if (_autoRegexClean &&
+                  !_metadataOverrides.containsKey(song.id.toString())) {
+                final artistPrefix = RegExp(
+                  '^${RegExp.escape(artist)}\\s*[-|:]\\s*',
+                  caseSensitive: false,
                 );
-              })
-              .where((t) => !_hiddenTrackIds.contains(t.id))
-              .toList();
-          if (_allTracks.isNotEmpty) {
-            final serialized = _allTracks.map((t) => t.toMap()).toList();
-            prefs.setString('cached_tracks_list', jsonEncode(serialized));
+                if (artistPrefix.hasMatch(title)) {
+                  title = title.replaceAll(artistPrefix, '');
+                }
+                final tagsToRemove = RegExp(
+                  r'[\[\(](official|audio|video|lyric|lyrics|music video|official video|official audio|official lyric video|official music video)[\]\)]',
+                  caseSensitive: false,
+                );
+                title = title.replaceAll(tagsToRemove, '').trim();
+
+                final artistSuffix = RegExp(
+                  r'\s*[-|:]\s*' + RegExp.escape(artist) + r'$',
+                  caseSensitive: false,
+                );
+                if (artistSuffix.hasMatch(title)) {
+                  title = title.replaceAll(artistSuffix, '').trim();
+                }
+              }
+
+              return Track(
+                id: song.id.toString(),
+                title: title,
+                artist: artist,
+                album: album,
+                url: safeUri,
+                path: song.data,
+                lyrics: [
+                  "Playing '$title'...",
+                  "Brought to you by Fley Music,",
+                  "Your premium local audio choice.",
+                  "Feel the deep rhythm in your soul.",
+                  "Let the notes carry you away,",
+                  "Into the beautiful flow of the day.",
+                  "Pure high fidelity local sound.",
+                ],
+                duration: song.duration ?? 0,
+              );
+            });
+
+            mobileTracks.addAll(queryTracks);
           }
         }
+
+        final seenFinal = <String>{};
+        _allTracks = mobileTracks
+            .where((t) => !_hiddenTrackIds.contains(t.id))
+            .where((t) {
+              final key = t.path.isNotEmpty ? t.path.toLowerCase() : t.id;
+              return seenFinal.add(key);
+            })
+            .toList();
+
+        if (_allTracks.isNotEmpty) {
+          final serialized = _allTracks.map((t) => t.toMap()).toList();
+          prefs.setString('cached_tracks_list', jsonEncode(serialized));
+        }
       }
-    }
 
       if (mounted) {
         setState(() {

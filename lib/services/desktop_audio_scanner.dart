@@ -20,7 +20,7 @@ class DesktopAudioScanner {
     '.aac',
   };
 
-  /// Dapatkan direktori musik standar OS
+  /// Get OS standard music directories
   static List<String> getDefaultMusicDirectories() {
     final dirs = <String>[];
     if (Platform.isMacOS || Platform.isLinux) {
@@ -43,13 +43,13 @@ class DesktopAudioScanner {
     return dirs;
   }
 
-  /// Dapatkan daftar folder musik kustom yang disimpan user
+  /// Get user-saved custom music folders
   static Future<List<String>> getCustomDirectories() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getStringList(_prefsKeyCustomFolders) ?? [];
   }
 
-  /// Dialog pemilihan folder kustom menggunakan file_selector native
+  /// Custom folder picker dialog using native file_selector
   static Future<String?> pickAndAddMusicFolder() async {
     try {
       final String? selectedPath = await getDirectoryPath(
@@ -70,7 +70,7 @@ class DesktopAudioScanner {
     return null;
   }
 
-  /// Hapus folder kustom
+  /// Remove custom folder
   static Future<void> removeCustomDirectory(String path) async {
     final prefs = await SharedPreferences.getInstance();
     final current = prefs.getStringList(_prefsKeyCustomFolders) ?? [];
@@ -78,7 +78,7 @@ class DesktopAudioScanner {
     await prefs.setStringList(_prefsKeyCustomFolders, current);
   }
 
-  /// Pindai semua folder musik (default + kustom)
+  /// Scan all music folders (default + custom)
   static Future<List<Track>> scanAllTracks({
     bool filterShortAudio = false,
   }) async {
@@ -86,9 +86,16 @@ class DesktopAudioScanner {
     allFolders.addAll(getDefaultMusicDirectories());
     final customFolders = await getCustomDirectories();
     allFolders.addAll(customFolders);
+    return scanFolders(allFolders, filterShortAudio: filterShortAudio);
+  }
 
+  /// Recursively scan specific audio folders
+  static Future<List<Track>> scanFolders(
+    Iterable<String> folderPaths, {
+    bool filterShortAudio = false,
+  }) async {
     final List<File> audioFiles = [];
-    for (final folderPath in allFolders) {
+    for (final folderPath in folderPaths) {
       final dir = Directory(folderPath);
       if (dir.existsSync()) {
         try {
@@ -126,7 +133,7 @@ class DesktopAudioScanner {
       // 1. Check cached duration first
       int duration = prefs.getInt('track_dur_$trackId') ?? 0;
 
-      // Parse ID3 tags jika file MP3
+      // Parse ID3 tags if MP3 file
       if (path.toLowerCase().endsWith('.mp3')) {
         try {
           final bytes = file.readAsBytesSync();
@@ -171,7 +178,7 @@ class DesktopAudioScanner {
         }
       }
 
-      // 2. Fallback to native audio header parser jika durasi belum terdeteksi
+      // 2. Fallback to native audio header parser if duration not detected yet
       if (duration <= 0) {
         final parsedDur = AudioDurationParser.getDurationMs(file);
         if (parsedDur != null && parsedDur > 0) {
@@ -194,7 +201,7 @@ class DesktopAudioScanner {
           }).toList();
 
           if (candidateCovers.isNotEmpty) {
-            // Prioritaskan cover, folder, album, front
+            // Prioritize cover, folder, album, front
             File coverFile = candidateCovers.first;
             for (final f in candidateCovers) {
               final lower = f.path.toLowerCase();
@@ -212,7 +219,7 @@ class DesktopAudioScanner {
         } catch (_) {}
       }
 
-      // Smart Fallback jika title / artist kosong: parse nama file
+      // Smart fallback if title / artist is empty: parse filename
       final filenameWithExt = file.uri.pathSegments.isNotEmpty
           ? file.uri.pathSegments.last
           : 'Track ${i + 1}';
@@ -233,14 +240,14 @@ class DesktopAudioScanner {
         }
       }
 
-      // Bersihkan suffix tag seperti (Official Video), [Audio], dsb
+      // Strip suffix tags such as (Official Video), [Audio], etc.
       final cleanRegex = RegExp(
         r'[\[\(](official|audio|video|lyric|lyrics|music video|official video|official audio|official lyric video|official music video)[\]\)]',
         caseSensitive: false,
       );
       title = title.replaceAll(cleanRegex, '').trim();
 
-      // Fallback album dari folder nama jika album kosong
+      // Fallback album name from parent folder if album is empty
       if (album == 'Unknown Album' && file.parent.path.isNotEmpty) {
         final parentName = file.parent.uri.pathSegments
             .where((s) => s.isNotEmpty)
