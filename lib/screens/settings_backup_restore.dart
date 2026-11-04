@@ -12,11 +12,13 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
     );
     if (confirm != true) return;
 
-    try {
-      await Permission.storage.request();
-      await Permission.manageExternalStorage.request();
-      await Permission.audio.request();
-    } catch (_) {}
+    if (Platform.isAndroid) {
+      try {
+        await Permission.storage.request();
+        await Permission.manageExternalStorage.request();
+        await Permission.audio.request();
+      } catch (_) {}
+    }
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -30,13 +32,24 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
       bool saved = false;
 
       try {
-        final publicDir = Directory('/storage/emulated/0/Download');
-        if (!await publicDir.exists()) {
-          await publicDir.create(recursive: true);
+        String? downloadDir;
+        if (Platform.isAndroid) {
+          final publicDir = Directory('/storage/emulated/0/Download');
+          if (!await publicDir.exists()) {
+            await publicDir.create(recursive: true);
+          }
+          downloadDir = publicDir.path;
+        } else if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+          final down = await getDownloadsDirectory();
+          if (down != null) {
+            downloadDir = down.path;
+          }
         }
-        final file = File('${publicDir.path}/Fley_Backup.json');
-        await file.writeAsString(jsonString);
-        saved = true;
+        if (downloadDir != null) {
+          final file = File('$downloadDir/Fley_Backup.json');
+          await file.writeAsString(jsonString);
+          saved = true;
+        }
       } catch (_) {}
 
       if (!saved) {
@@ -78,17 +91,28 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
     );
     if (confirm != true) return;
 
-    try {
-      await Permission.storage.request();
-      await Permission.manageExternalStorage.request();
-      await Permission.audio.request();
-    } catch (_) {}
+    if (Platform.isAndroid) {
+      try {
+        await Permission.storage.request();
+        await Permission.manageExternalStorage.request();
+        await Permission.audio.request();
+      } catch (_) {}
+    }
 
     try {
-      final List<File> candidateFiles = [
-        File('/storage/emulated/0/Download/Fley_Backup.json'),
-        File('/storage/emulated/0/Download/Flow_Backup.json'),
-      ];
+      final List<File> candidateFiles = [];
+      if (Platform.isAndroid) {
+        candidateFiles.add(File('/storage/emulated/0/Download/Fley_Backup.json'));
+        candidateFiles.add(File('/storage/emulated/0/Download/Flow_Backup.json'));
+      } else if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+        try {
+          final down = await getDownloadsDirectory();
+          if (down != null) {
+            candidateFiles.add(File('${down.path}/Fley_Backup.json'));
+            candidateFiles.add(File('${down.path}/Flow_Backup.json'));
+          }
+        } catch (_) {}
+      }
 
       try {
         final extDir = await getExternalStorageDirectory();

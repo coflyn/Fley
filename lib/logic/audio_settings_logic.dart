@@ -191,6 +191,7 @@ extension _AudioSettingsLogic on _MainScreenState {
 
   void _startBatteryMonitor() {
     _batteryCheckTimer?.cancel();
+    if (!Platform.isAndroid) return;
     _batteryCheckTimer = Timer.periodic(const Duration(seconds: 30), (
       timer,
     ) async {

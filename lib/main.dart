@@ -21,6 +21,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:file_selector/file_selector.dart';
 
 import 'models/track.dart';
 import 'models/lyrics_line.dart';
@@ -851,7 +852,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               }
             },
             onLibraryUpdated: () => _requestPermissionAndScan(showLoading: false),
-            onOpenEqualizer: () => _showEqualizerSheet(context),
+            onOpenEqualizer: Platform.isAndroid ? () => _showEqualizerSheet(context) : null,
             onOpenSleepTimer: () => _showFullSleepTimerDialog(context),
           );
         }

@@ -581,13 +581,31 @@ extension _PlayerUI on _MainScreenState {
                             OutlinedButton.icon(
                               onPressed: () async {
                                 try {
-                                  final result = await const MethodChannel(
-                                    'com.fley.audio/equalizer',
-                                  ).invokeMethod<String>('pickLyricsFile');
-                                  if (result != null && result.isNotEmpty) {
-                                    textController.text = result;
-                                    setModalState(() {});
-                                    showFleyToast(loc.toastLyricsUpdated);
+                                  if (Platform.isAndroid) {
+                                    final result = await const MethodChannel(
+                                      'com.fley.audio/equalizer',
+                                    ).invokeMethod<String>('pickLyricsFile');
+                                    if (result != null && result.isNotEmpty) {
+                                      textController.text = result;
+                                      setModalState(() {});
+                                      showFleyToast(loc.toastLyricsUpdated);
+                                    }
+                                  } else {
+                                    const typeGroup = XTypeGroup(
+                                      label: 'lyrics',
+                                      extensions: ['lrc', 'txt'],
+                                    );
+                                    final file = await openFile(
+                                      acceptedTypeGroups: [typeGroup],
+                                    );
+                                    if (file != null) {
+                                      final content = await file.readAsString();
+                                      if (content.isNotEmpty) {
+                                        textController.text = content;
+                                        setModalState(() {});
+                                        showFleyToast(loc.toastLyricsUpdated);
+                                      }
+                                    }
                                   }
                                 } catch (_) {}
                               },

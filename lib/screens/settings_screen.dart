@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 import '../main.dart';
 import '../utils/globals.dart';
 import '../utils/image_cropper_util.dart';
+import '../services/desktop_audio_scanner.dart';
 
 import '../widgets/settings/settings_ui_components.dart';
 import '../widgets/desktop_title_bar.dart';
@@ -833,31 +834,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     '${_playbackSpeed}x${_pitchLock ? ' • ${AppLocalizations.of(context).pitchLock}' : ''}',
                 onTap: () => _showPlaybackSpeedDialog(),
               ),
-              SettingsPremiumSwitchTile(
-                isLight: _selectedThemeMode == 'light',
-                activeAccentColor: _activeAccentColor,
-                icon: Icons.call_missed_outgoing_rounded,
-                title: AppLocalizations.of(context).resumeAfterCall,
-                subtitle: AppLocalizations.of(context).resumeAfterCallSubtitle,
-                value: _autoPlayAfterCall,
-                onChanged: (val) {
-                  setState(() => _autoPlayAfterCall = val);
-                  _saveBool('autoPlayAfterCall', val);
-                },
-              ),
-              SettingsPremiumSwitchTile(
-                isLight: _selectedThemeMode == 'light',
-                activeAccentColor: _activeAccentColor,
-                icon: Icons.layers_rounded,
-                title: AppLocalizations.of(context).playTogether,
-                subtitle: AppLocalizations.of(context).playTogetherSubtitle,
-                value: _playTogether,
-                onChanged: (val) {
-                  setState(() => _playTogether = val);
-                  _saveBool('playTogether', val);
-                  configureAudioSession(val); // Reconfigure dynamically
-                },
-              ),
+              if (!isDesktop) ...[
+                SettingsPremiumSwitchTile(
+                  isLight: _selectedThemeMode == 'light',
+                  activeAccentColor: _activeAccentColor,
+                  icon: Icons.call_missed_outgoing_rounded,
+                  title: AppLocalizations.of(context).resumeAfterCall,
+                  subtitle: AppLocalizations.of(context).resumeAfterCallSubtitle,
+                  value: _autoPlayAfterCall,
+                  onChanged: (val) {
+                    setState(() => _autoPlayAfterCall = val);
+                    _saveBool('autoPlayAfterCall', val);
+                  },
+                ),
+                SettingsPremiumSwitchTile(
+                  isLight: _selectedThemeMode == 'light',
+                  activeAccentColor: _activeAccentColor,
+                  icon: Icons.layers_rounded,
+                  title: AppLocalizations.of(context).playTogether,
+                  subtitle: AppLocalizations.of(context).playTogetherSubtitle,
+                  value: _playTogether,
+                  onChanged: (val) {
+                    setState(() => _playTogether = val);
+                    _saveBool('playTogether', val);
+                    configureAudioSession(val); // Reconfigure dynamically
+                  },
+                ),
+              ],
               SettingsPremiumSwitchTile(
                 isLight: _selectedThemeMode == 'light',
                 activeAccentColor: _activeAccentColor,
@@ -876,56 +879,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                 },
               ),
-              SettingsPremiumSwitchTile(
-                isLight: _selectedThemeMode == 'light',
-                activeAccentColor: _activeAccentColor,
-                icon: Icons.battery_saver_rounded,
-                title: AppLocalizations.of(context).stopOnLowBattery,
-                subtitle: AppLocalizations.of(context).stopOnLowBatterySubtitle,
-                value: _stopOnLowBattery,
-                onChanged: (val) {
-                  setState(() => _stopOnLowBattery = val);
-                  _saveBool('stopOnLowBattery', val);
-                },
-              ),
-              SettingsPremiumSwitchTile(
-                isLight: _selectedThemeMode == 'light',
-                activeAccentColor: _activeAccentColor,
-                icon: Icons.hearing_rounded,
-                title: AppLocalizations.of(context).monoAudio,
-                subtitle: AppLocalizations.of(context).monoAudioSubtitle,
-                value: _monoAudio,
-                onChanged: (val) async {
-                  setState(() => _monoAudio = val);
-                  await _saveBool('monoAudio', val);
-                  try {
-                    const channel = MethodChannel('com.fley.audio/equalizer');
-                    await channel.invokeMethod('toggleMonoAudio', {
-                      'enable': val,
-                    });
-                  } catch (e) {
-                    if (e is PlatformException &&
-                        e.code == 'PERMISSION_DENIED') {
-                      showFleyToast(
-                        lookupAppLocalizations(
-                          Locale(FleyStrings.currentLang),
-                        ).monoAudioPermission,
-                        isLong: true,
-                      );
+              if (Platform.isAndroid) ...[
+                SettingsPremiumSwitchTile(
+                  isLight: _selectedThemeMode == 'light',
+                  activeAccentColor: _activeAccentColor,
+                  icon: Icons.battery_saver_rounded,
+                  title: AppLocalizations.of(context).stopOnLowBattery,
+                  subtitle: AppLocalizations.of(context).stopOnLowBatterySubtitle,
+                  value: _stopOnLowBattery,
+                  onChanged: (val) {
+                    setState(() => _stopOnLowBattery = val);
+                    _saveBool('stopOnLowBattery', val);
+                  },
+                ),
+                SettingsPremiumSwitchTile(
+                  isLight: _selectedThemeMode == 'light',
+                  activeAccentColor: _activeAccentColor,
+                  icon: Icons.hearing_rounded,
+                  title: AppLocalizations.of(context).monoAudio,
+                  subtitle: AppLocalizations.of(context).monoAudioSubtitle,
+                  value: _monoAudio,
+                  onChanged: (val) async {
+                    setState(() => _monoAudio = val);
+                    await _saveBool('monoAudio', val);
+                    try {
+                      const channel = MethodChannel('com.fley.audio/equalizer');
+                      await channel.invokeMethod('toggleMonoAudio', {
+                        'enable': val,
+                      });
+                    } catch (e) {
+                      if (e is PlatformException &&
+                          e.code == 'PERMISSION_DENIED') {
+                        showFleyToast(
+                          lookupAppLocalizations(
+                            Locale(FleyStrings.currentLang),
+                          ).monoAudioPermission,
+                          isLong: true,
+                        );
+                      }
                     }
-                  }
-                },
-              ),
-              SettingsPremiumListTile(
-                isLight: _selectedThemeMode == 'light',
-                activeAccentColor: _activeAccentColor,
-                icon: Icons.equalizer_rounded,
-                title: AppLocalizations.of(context).equalizer,
-                subtitle: AppLocalizations.of(context).equalizerSubtitle,
-                onTap: () {
-                  MainScreen.showEqualizer(context);
-                },
-              ),
+                  },
+                ),
+                SettingsPremiumListTile(
+                  isLight: _selectedThemeMode == 'light',
+                  activeAccentColor: _activeAccentColor,
+                  icon: Icons.equalizer_rounded,
+                  title: AppLocalizations.of(context).equalizer,
+                  subtitle: AppLocalizations.of(context).equalizerSubtitle,
+                  onTap: () {
+                    MainScreen.showEqualizer(context);
+                  },
+                ),
+              ],
               SettingsPremiumListTile(
                 isLight: _selectedThemeMode == 'light',
                 activeAccentColor: _activeAccentColor,
@@ -978,16 +983,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   widget.onRescanLibrary(); // Needs immediate rescan to filter
                 },
               ),
-              SettingsPremiumListTile(
-                isLight: _selectedThemeMode == 'light',
-                activeAccentColor: _activeAccentColor,
-                icon: Icons.folder_outlined,
-                title: AppLocalizations.of(context).specificFolderScan,
-                subtitle: AppLocalizations.of(context).specificFolderSubtitle,
-                onTap: () {
-                  widget.onManageFolders();
-                },
-              ),
+              if (Platform.isAndroid) ...[
+                SettingsPremiumListTile(
+                  isLight: _selectedThemeMode == 'light',
+                  activeAccentColor: _activeAccentColor,
+                  icon: Icons.folder_outlined,
+                  title: AppLocalizations.of(context).specificFolderScan,
+                  subtitle: AppLocalizations.of(context).specificFolderSubtitle,
+                  onTap: () {
+                    widget.onManageFolders();
+                  },
+                ),
+              ] else if (isDesktop) ...[
+                SettingsPremiumListTile(
+                  isLight: _selectedThemeMode == 'light',
+                  activeAccentColor: _activeAccentColor,
+                  icon: Icons.folder_outlined,
+                  title: AppLocalizations.of(context).folders,
+                  subtitle: 'Manage scanned music folders',
+                  onTap: () async {
+                    final added =
+                        await DesktopAudioScanner.pickAndAddMusicFolder();
+                    if (added != null) {
+                      widget.onRescanLibrary();
+                    }
+                  },
+                ),
+              ],
               SettingsPremiumListTile(
                 isLight: _selectedThemeMode == 'light',
                 activeAccentColor: _activeAccentColor,

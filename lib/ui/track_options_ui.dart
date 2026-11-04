@@ -169,22 +169,24 @@ extension _TrackOptionsUI on _MainScreenState {
                        _showFullSleepTimerDialog(context);
                     },
                   ),
-                  _buildOptionItem(
-                    Icons.content_cut_rounded,
-                    AppLocalizations.of(context).ringtoneCutter,
-                    () {
-                      Navigator.pop(context);
-                      _showRingtoneCutterModal(context, track);
-                    },
-                  ),
-                  _buildOptionItem(
-                    Icons.equalizer_rounded,
-                    AppLocalizations.of(context).equalizer,
-                    () {
-                      Navigator.pop(context);
-                      MainScreen.showEqualizer(context);
-                    },
-                  ),
+                  if (Platform.isAndroid) ...[
+                    _buildOptionItem(
+                      Icons.content_cut_rounded,
+                      AppLocalizations.of(context).ringtoneCutter,
+                      () {
+                        Navigator.pop(context);
+                        _showRingtoneCutterModal(context, track);
+                      },
+                    ),
+                    _buildOptionItem(
+                      Icons.equalizer_rounded,
+                      AppLocalizations.of(context).equalizer,
+                      () {
+                        Navigator.pop(context);
+                        MainScreen.showEqualizer(context);
+                      },
+                    ),
+                  ],
                   _buildOptionItem(
                     isFavorited ? Icons.favorite : Icons.favorite_border,
                     AppLocalizations.of(context).favourites,
