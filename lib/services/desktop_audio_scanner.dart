@@ -129,6 +129,7 @@ class DesktopAudioScanner {
       String artist = 'Unknown Artist';
       String album = 'Unknown Album';
       final trackId = 'desktop_${path.hashCode.abs()}';
+      ArtworkCacheManager.registerTrackPath(trackId, path);
 
       // 1. Check cached duration first
       int duration = prefs.getInt('track_dur_$trackId') ?? 0;

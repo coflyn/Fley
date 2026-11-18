@@ -95,6 +95,9 @@ extension _AudioSettingsLogic on _MainScreenState {
             _allTracks = loadedTracks;
             _playbackQueue = List.from(loadedTracks);
             _isLoading = false;
+            for (final t in loadedTracks) {
+              ArtworkCacheManager.registerTrackPath(t.id, t.path);
+            }
           }
         } catch (_) {}
       }
@@ -234,12 +237,22 @@ extension _AudioSettingsLogic on _MainScreenState {
       if (customPath != null) {
         provider = ResizeImage(FileImage(File(customPath)), width: 64);
       } else {
-        final artwork = await _audioQuery.queryArtwork(
-          int.parse(track.id),
-          ArtworkType.AUDIO,
-          size: 100,
-        );
-        if (artwork != null) provider = MemoryImage(artwork);
+        final cached = ArtworkCacheManager.getCachedArtwork(track.id);
+        if (cached != null) {
+          provider = MemoryImage(cached);
+        } else {
+          final id = int.tryParse(track.id);
+          if (id != null) {
+            try {
+              final artwork = await _audioQuery.queryArtwork(
+                id,
+                ArtworkType.AUDIO,
+                size: 100,
+              );
+              if (artwork != null) provider = MemoryImage(artwork);
+            } catch (_) {}
+          }
+        }
       }
     }
 
