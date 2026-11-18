@@ -115,6 +115,7 @@ extension _AudioLibraryScanLogic on _MainScreenState {
               filterShortAudio: _filterShortAudio,
             );
             for (final track in iosDocTracks) {
+              ArtworkCacheManager.registerTrackPath(track.id, track.path);
               String title = track.title;
               String artist = track.artist;
               String album = track.album;
@@ -499,6 +500,9 @@ extension _AudioLibraryScanLogic on _MainScreenState {
         imageProvider = ResizeImage(FileImage(File(customPath)), width: 600);
       } else if (cachedBytes != null && cachedBytes.isNotEmpty) {
         imageProvider = MemoryImage(cachedBytes);
+      } else if (track.id.startsWith('ytm_') && track.url.isNotEmpty) {
+        final highResUrl = YtMusicService.getHighResThumbnail(track.url);
+        imageProvider = NetworkImage(highResUrl);
       } else {
         final idInt = int.tryParse(track.id);
         if (idInt != null) {

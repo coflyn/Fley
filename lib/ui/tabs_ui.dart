@@ -53,22 +53,7 @@ extension _TabsUI on _MainScreenState {
       allSorted.sort((a, b) => a.duration.compareTo(b.duration));
     }
 
-    List<Track> displayed = allSorted;
-    if (_searchQuery.isNotEmpty) {
-      displayed = allSorted
-          .where(
-            (t) =>
-                t.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                t.artist.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                t.album.toLowerCase().contains(_searchQuery.toLowerCase()),
-          )
-          .toList();
-    }
-
-    return _buildSongList(
-      displayed,
-      fullQueueList: _searchQuery.isNotEmpty ? allSorted : null,
-    );
+    return _buildSongList(allSorted);
   }
 
   Widget _buildPlaylistsTab() {
@@ -204,8 +189,7 @@ extension _TabsUI on _MainScreenState {
 
     if (_memoArtistTracksMap == null ||
         _memoArtistPoolLen != activeTrackPool.length ||
-        _memoArtistSortBy != _sortBy ||
-        _memoArtistSearchQuery != _searchQuery) {
+        _memoArtistSortBy != _sortBy) {
       final Map<String, List<Track>> artistTracksMap = {};
       for (final t in activeTrackPool) {
         if (t.artist.isNotEmpty && t.artist != '<unknown>') {
@@ -262,12 +246,6 @@ extension _TabsUI on _MainScreenState {
         final allUnique = artistTracksMap.keys.toList()
           ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         artists.addAll(allUnique);
-      }
-
-      if (_searchQuery.isNotEmpty) {
-        artists.retainWhere(
-          (a) => a.toLowerCase().contains(_searchQuery.toLowerCase()),
-        );
       }
 
       final List<MapEntry<String, int>> topArtistCounts = [];
@@ -352,7 +330,7 @@ extension _TabsUI on _MainScreenState {
               physics: const BouncingScrollPhysics(),
               slivers: [
                 // Top Artists Carousel (when search is empty & >= 3 top artists exist)
-                if (_searchQuery.isEmpty && topArtistsList.length >= 3)
+                if (topArtistsList.length >= 3)
                   SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -705,8 +683,7 @@ extension _TabsUI on _MainScreenState {
 
     if (_memoAlbumTracksMap == null ||
         _memoAlbumPoolLen != activeTrackPool.length ||
-        _memoAlbumSortBy != _sortBy ||
-        _memoAlbumSearchQuery != _searchQuery) {
+        _memoAlbumSortBy != _sortBy) {
       final Map<String, List<Track>> albumTracksMap = {};
       for (final t in activeTrackPool) {
         if (_isValidAlbumName(t.album)) {
@@ -759,12 +736,6 @@ extension _TabsUI on _MainScreenState {
         final allUnique = albumTracksMap.keys.toList()
           ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         albums.addAll(allUnique);
-      }
-
-      if (_searchQuery.isNotEmpty) {
-        albums.retainWhere(
-          (a) => a.toLowerCase().contains(_searchQuery.toLowerCase()),
-        );
       }
 
       final List<MapEntry<String, int>> topAlbumCounts = [];
@@ -849,7 +820,7 @@ extension _TabsUI on _MainScreenState {
               physics: const BouncingScrollPhysics(),
               slivers: [
                 // Top Albums Carousel (when search is empty & >= 3 top albums exist)
-                if (_searchQuery.isEmpty && topAlbumsList.length >= 3)
+                if (topAlbumsList.length >= 3)
                   SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1391,7 +1362,7 @@ extension _TabsUI on _MainScreenState {
                   children: [
                     if (isSelected)
                       SizedBox(
-                        width: 16,
+                        width: 20,
                         height: 14,
                         child: MiniMusicVisualizer(
                           color: _activeAccentColor,
@@ -1471,6 +1442,11 @@ extension _TabsUI on _MainScreenState {
               () {
                 _searchQuery = val.trim();
                 _filterSongs();
+                if (_searchMode == 'online' && _searchQuery.isNotEmpty) {
+                  _triggerYtmSearch(_searchQuery);
+                } else if (_searchMode == 'online') {
+                  setState(() { _ytmResults = []; _ytmError = null; });
+                }
               },
             );
           },
@@ -1689,34 +1665,390 @@ extension _TabsUI on _MainScreenState {
   }
 
   Widget _buildSearchTab() {
-    List<Track> searchResults = [];
-    if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
-      searchResults = _allTracks.where((t) =>
-        t.title.toLowerCase().contains(q) ||
-        t.artist.toLowerCase().contains(q) ||
-        t.album.toLowerCase().contains(q)
-      ).toList();
-    }
+    final isLight = isAppLight;
+    final accentColor = _activeAccentColor;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 4),
         _buildSearchBar(),
-        const SizedBox(height: 12),
+        _buildSearchCapsules(),
+        const SizedBox(height: 4),
+
         Expanded(
-          child: _searchQuery.isEmpty
-              ? _buildSearchBrowseCategories()
-              : _buildSongList(
-                  searchResults,
-                  onTrackTap: (track) {
-                    _addToRecentSearches(track.id);
-                  },
-                ),
+          child: _searchMode == 'local'
+              ? _buildLocalSearchContent()
+              : _buildOnlineSearchContent(isLight, accentColor),
         ),
       ],
     );
+  }
+
+  Widget _buildSearchCapsules() {
+    final isLight = isAppLight;
+    final options = [
+      {'mode': 'local', 'label': 'Local'},
+      {'mode': 'online', 'label': 'YouTube Music'},
+    ];
+    final selectedTextColor = _activeAccentColor.computeLuminance() > 0.45
+        ? const Color(0xFF1A1A1A)
+        : Colors.white;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 6, bottom: 8),
+      child: SizedBox(
+        height: 36,
+        child: Row(
+          children: options.asMap().entries.map((entry) {
+            final index = entry.key;
+            final opt = entry.value;
+            final mode = opt['mode']!;
+            final label = opt['label']!;
+            final isSelected = _searchMode == mode;
+
+            return Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  if (_searchMode == mode) return;
+                  setState(() {
+                    _searchMode = mode;
+                    _ytmResults = [];
+                    _ytmError = null;
+                    if (mode == 'online' && _searchQuery.isNotEmpty) {
+                      _triggerYtmSearch(_searchQuery);
+                    }
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  margin: EdgeInsets.only(
+                    right: index == options.length - 1 ? 0 : 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? _activeAccentColor
+                        : (isLight
+                              ? Colors.black.withValues(alpha: 0.05)
+                              : const Color(0xFF1C1C1E)),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.transparent
+                          : (isLight
+                                ? Colors.black.withValues(alpha: 0.06)
+                                : Colors.white.withValues(alpha: 0.06)),
+                      width: 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: _activeAccentColor.withValues(alpha: 0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: isSelected
+                            ? selectedTextColor
+                            : (isLight ? Colors.black54 : Colors.white60),
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w600,
+                        fontSize: 12.5,
+                        fontFamily: getFontFamily(activeFontNotifier.value),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocalSearchContent() {
+    if (_searchQuery.isEmpty) return _buildSearchBrowseCategories();
+    final q = _searchQuery.toLowerCase();
+    final results = _allTracks
+        .where((t) =>
+            t.title.toLowerCase().contains(q) ||
+            t.artist.toLowerCase().contains(q) ||
+            t.album.toLowerCase().contains(q))
+        .toList();
+    return _buildSongList(results, onTrackTap: (track) {
+      _addToRecentSearches(track.id);
+    });
+  }
+
+  void _triggerYtmSearch(String query) {
+    _ytmDebouncer?.cancel();
+    setState(() {
+      _ytmSearching = true;
+      _ytmError = null;
+    });
+    _ytmDebouncer = Timer(const Duration(milliseconds: 500), () async {
+      try {
+        final results = await YtMusicService.search(query);
+        if (mounted) setState(() { _ytmResults = results; _ytmSearching = false; });
+      } catch (e) {
+        if (mounted) setState(() { _ytmError = e.toString(); _ytmSearching = false; });
+      }
+    });
+  }
+
+  Widget _buildOnlineSearchContent(bool isLight, Color accentColor) {
+    final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
+    final subColor = isLight ? Colors.black45 : Colors.white38;
+
+    return ValueListenableBuilder<bool>(
+      valueListenable: ytmLoggedInNotifier,
+      builder: (context, isLoggedIn, _) {
+        if (!isLoggedIn) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 76,
+                    height: 76,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF0000).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: SvgPicture.string(
+                      '''<svg viewBox="0 0 24 24" width="44" height="44">
+                        <circle cx="12" cy="12" r="11.5" fill="#FF0000"/>
+                        <circle cx="12" cy="12" r="6.8" fill="none" stroke="#FFFFFF" stroke-width="1.8"/>
+                        <polygon points="10,8.5 15.5,12 10,15.5" fill="#FFFFFF"/>
+                      </svg>''',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Connect YouTube Music',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                      fontFamily: getFontFamily(activeFontNotifier.value),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Go to your Profile to connect\nyour YouTube Music account.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: subColor,
+                      height: 1.4,
+                      fontFamily: getFontFamily(activeFontNotifier.value),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      foregroundColor: accentColor.computeLuminance() > 0.4
+                          ? Colors.black
+                          : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                    ),
+                    icon: const Icon(Icons.person_rounded, size: 18),
+                    label: const Text(
+                      'Open Profile',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    onPressed: _openProfile,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Logged in — show search results or placeholder
+        if (_searchQuery.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.search, size: 48,
+                    color: isLight ? Colors.black26 : Colors.white24),
+                const SizedBox(height: 12),
+                Text(
+                  'Search YouTube Music',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: subColor,
+                    fontFamily: getFontFamily(activeFontNotifier.value),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Trigger search when query changes (handled via listener below)
+        if (_ytmSearching) {
+          return Center(child: CircularProgressIndicator(color: accentColor));
+        }
+
+        if (_ytmError != null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline, color: Colors.redAccent, size: 36),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Search failed',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w600, color: textColor),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _ytmError!.contains('Not logged in')
+                        ? 'Session expired. Reconnect in Profile.'
+                        : _ytmError!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: subColor),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (_ytmResults.isEmpty) {
+          return Center(
+            child: Text(
+              'No results for "$_searchQuery"',
+              style: TextStyle(color: subColor,
+                  fontFamily: getFontFamily(activeFontNotifier.value)),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.only(bottom: _bottomListPadding),
+          itemCount: _ytmResults.length,
+          itemBuilder: (context, index) {
+            final yt = _ytmResults[index];
+            final isBuffering = _ytmLoadingVideoId == yt.videoId;
+            return ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: yt.thumbnailUrl.isNotEmpty
+                    ? Image.network(
+                        yt.thumbnailUrl,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 48,
+                          height: 48,
+                          color: isLight
+                              ? Colors.black12
+                              : Colors.white12,
+                          child: const Icon(Icons.music_note, size: 24),
+                        ),
+                      )
+                    : Container(
+                        width: 48,
+                        height: 48,
+                        color: isLight ? Colors.black12 : Colors.white12,
+                        child: const Icon(Icons.music_note, size: 24),
+                      ),
+              ),
+              title: Text(
+                yt.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  color: textColor,
+                  fontFamily: getFontFamily(activeFontNotifier.value),
+                ),
+              ),
+              subtitle: Text(
+                [yt.artist, yt.album].where((s) => s.isNotEmpty).join(' • '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: subColor,
+                  fontFamily: getFontFamily(activeFontNotifier.value),
+                ),
+              ),
+              trailing: isBuffering
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: accentColor),
+                    )
+                  : Text(
+                      yt.durationMs > 0
+                          ? _formatDuration(Duration(milliseconds: yt.durationMs))
+                          : '',
+                      style: TextStyle(fontSize: 12, color: subColor),
+                    ),
+              onTap: () => _playYtmTrack(yt),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _playYtmTrack(YtTrack yt) {
+    final queue = _ytmResults
+        .map(
+          (y) => Track(
+            id: 'ytm_${y.videoId}',
+            title: y.title,
+            artist: y.artist,
+            album: y.album,
+            url: y.thumbnailUrl,
+            path: y.videoId,
+            lyrics: const [],
+            duration: y.durationMs,
+          ),
+        )
+        .toList();
+
+    final targetIndex = queue.indexWhere((t) => t.path == yt.videoId);
+    _playTrack(
+      targetIndex != -1 ? targetIndex : 0,
+      sourceList: queue,
+    );
+    setState(() {
+      _isPlayerOpen = true;
+      _playerDragOffsetNotifier.value = 0.0;
+    });
   }
 
   Widget _buildSearchBrowseCategories() {
@@ -1866,7 +2198,7 @@ extension _TabsUI on _MainScreenState {
                           children: [
                             if (isSelected)
                               SizedBox(
-                                width: 16,
+                                width: 20,
                                 height: 14,
                                 child: MiniMusicVisualizer(
                                   color: _activeAccentColor,

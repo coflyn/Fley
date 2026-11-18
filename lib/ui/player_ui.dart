@@ -82,12 +82,12 @@ extension _PlayerUI on _MainScreenState {
                       right: 0,
                       bottom: 0,
                       child: StreamBuilder<Duration>(
-                        stream: _audioPlayer.positionStream,
+                        stream: _currentPlaybackPositionStream,
                         builder: (context, snapshot) {
-                          final pos = snapshot.data ?? _audioPlayer.position;
+                          final pos = snapshot.data ?? _currentPlaybackPosition;
                           final total = currentTrack.duration > 0
                               ? currentTrack.duration
-                              : (_audioPlayer.duration?.inMilliseconds ?? 1);
+                              : (_currentPlaybackDuration?.inMilliseconds ?? 1);
                           final progress =
                               (pos.inMilliseconds / total).clamp(0.0, 1.0);
 
@@ -238,9 +238,9 @@ extension _PlayerUI on _MainScreenState {
                     return false;
                   },
                   child: StreamBuilder<Duration>(
-                    stream: _audioPlayer.positionStream,
+                    stream: _currentPlaybackPositionStream,
                     builder: (context, snapshot) {
-                      final position = snapshot.data ?? Duration.zero;
+                      final position = snapshot.data ?? _currentPlaybackPosition;
 
                       // Find activeIndex
                       int activeIndex = -1;
@@ -1031,10 +1031,37 @@ extension _PlayerUI on _MainScreenState {
     int? cacheWidthOverride,
     String? heroTag,
   }) {
+    if (track.id.startsWith('ytm_') &&
+        track.url.isNotEmpty &&
+        track.url.startsWith('http')) {
+      final highResUrl = YtMusicService.getHighResThumbnail(track.url);
+      final img = ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.network(
+          highResUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, _, _) => Container(
+            width: size,
+            height: size,
+            color: Colors.white10,
+            child: const Icon(Icons.music_note, color: Colors.white38),
+          ),
+        ),
+      );
+      if (heroTag != null && heroTag.isNotEmpty) {
+        return Hero(tag: heroTag, child: img);
+      }
+      return img;
+    }
+
     final customPath = _metadataOverrides[track.id]?['coverPath'];
     final artwork = CachedTrackArtwork(
       key: ValueKey("cached_artwork_${track.id}_$size"),
       trackId: track.id,
+      trackPath: track.path,
       size: size,
       radius: radius,
       customPath: customPath,
@@ -1595,10 +1622,10 @@ extension _PlayerUI on _MainScreenState {
                     const SizedBox(height: 18),
 
                     StreamBuilder<Duration>(
-                      stream: _audioPlayer.positionStream,
+                      stream: _currentPlaybackPositionStream,
                       builder: (context, snapshot) {
-                        final duration = _audioPlayer.duration ?? Duration.zero;
-                        final currentPosition = snapshot.data ?? Duration.zero;
+                        final duration = _currentPlaybackDuration ?? Duration.zero;
+                        final currentPosition = snapshot.data ?? _currentPlaybackPosition;
 
                         return StatefulBuilder(
                           builder: (context, setLocalState) {
@@ -1970,6 +1997,7 @@ class _WaveDotsState extends State<_WaveDots>
 
 class CachedTrackArtwork extends StatefulWidget {
   final String trackId;
+  final String? trackPath;
   final double size;
   final double radius;
   final String? customPath;
@@ -1978,6 +2006,7 @@ class CachedTrackArtwork extends StatefulWidget {
   const CachedTrackArtwork({
     super.key,
     required this.trackId,
+    this.trackPath,
     this.size = 48,
     this.radius = 8,
     this.customPath,
@@ -1994,23 +2023,39 @@ class _CachedTrackArtworkState extends State<CachedTrackArtwork> {
   @override
   void initState() {
     super.initState();
+    ArtworkCacheManager.updateNotifier.addListener(_onArtworkUpdated);
     _load();
+  }
+
+  @override
+  void dispose() {
+    ArtworkCacheManager.updateNotifier.removeListener(_onArtworkUpdated);
+    super.dispose();
+  }
+
+  void _onArtworkUpdated() {
+    if (_bytes == null && mounted) {
+      final cached = ArtworkCacheManager.getCachedArtwork(widget.trackId);
+      if (cached != null) {
+        setState(() {
+          _bytes = cached;
+        });
+      }
+    }
   }
 
   @override
   void didUpdateWidget(CachedTrackArtwork oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.trackId != oldWidget.trackId ||
-        widget.customPath != oldWidget.customPath) {
+        widget.customPath != oldWidget.customPath ||
+        widget.trackPath != oldWidget.trackPath ||
+        _bytes == null) {
       _load();
     }
   }
 
   void _load() {
-    if (widget.size > 200) {
-      return;
-    }
-
     if (widget.customPath != null && widget.customPath!.isNotEmpty) {
       _bytes = null;
       return;
@@ -2022,9 +2067,15 @@ class _CachedTrackArtworkState extends State<CachedTrackArtwork> {
       return;
     }
 
-    ArtworkCacheManager.fetchAndCacheNativeArtwork(widget.trackId).then((
-      bytes,
-    ) {
+    // On Android, high-res artwork (> 200) for integer MediaStore track IDs is handled by QueryArtworkWidget
+    if (widget.size > 200 && Platform.isAndroid && int.tryParse(widget.trackId) != null) {
+      return;
+    }
+
+    ArtworkCacheManager.fetchAndCacheNativeArtwork(
+      widget.trackId,
+      trackPath: widget.trackPath,
+    ).then((bytes) {
       if (mounted && bytes != null) {
         setState(() {
           _bytes = bytes;
@@ -2072,20 +2123,8 @@ class _CachedTrackArtworkState extends State<CachedTrackArtwork> {
       );
     }
 
-    if (widget.size <= 200) {
-      return Container(
-        width: widget.size,
-        height: widget.size,
-        decoration: BoxDecoration(
-          color: Colors.white10,
-          borderRadius: BorderRadius.circular(widget.radius),
-        ),
-        child: const Icon(Icons.music_note, color: Colors.white54),
-      );
-    }
-
     final trackIdInt = int.tryParse(widget.trackId);
-    if (trackIdInt == null) {
+    if (widget.size <= 200 || !Platform.isAndroid || trackIdInt == null) {
       return Container(
         width: widget.size,
         height: widget.size,

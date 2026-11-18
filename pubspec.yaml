@@ -57,6 +57,10 @@ dependencies:
   file_selector: ^1.1.0
   just_audio_windows: ^0.2.3
   id3: ^1.0.2
+  webview_flutter: ^4.10.0
+  webview_flutter_android: ^4.14.1
+  crypto: ^3.0.6
+  flutter_svg: ^2.4.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

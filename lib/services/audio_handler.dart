@@ -4,7 +4,14 @@ class MyAudioHandler extends BaseAudioHandler {
   final player = AudioPlayer(handleInterruptions: false);
 
   MyAudioHandler() {
-    player.playbackEventStream.map(_transformEvent).pipe(playbackState);
+    player.playbackEventStream.listen((event) {
+      if (_MainScreenState.mainScreenState != null &&
+          _MainScreenState.mainScreenState!._isYtmPlaying) {
+        // Do not let stopped local player overwrite YTM playback state
+        return;
+      }
+      playbackState.add(_transformEvent(event));
+    });
 
     player.sequenceStateStream.listen((sequenceState) {
       final queueItems = sequenceState.sequence
@@ -45,6 +52,35 @@ class MyAudioHandler extends BaseAudioHandler {
     }
   }
 
+  void updateYtmMediaItem(MediaItem item) {
+    mediaItem.add(item);
+  }
+
+  void updateYtmPlaybackState({required bool isPlaying}) {
+    playbackState.add(
+      PlaybackState(
+        controls: [
+          MediaControl.skipToPrevious,
+          isPlaying ? MediaControl.pause : MediaControl.play,
+          MediaControl.skipToNext,
+        ],
+        systemActions: const {
+          MediaAction.seek,
+          MediaAction.seekForward,
+          MediaAction.seekBackward,
+          MediaAction.play,
+          MediaAction.pause,
+          MediaAction.skipToNext,
+          MediaAction.skipToPrevious,
+        },
+        androidCompactActionIndices: const [0, 1, 2],
+        processingState: AudioProcessingState.ready,
+        playing: isPlaying,
+        speed: 1.0,
+      ),
+    );
+  }
+
   @override
   Future<void> onTaskRemoved() async {
     try {
@@ -67,7 +103,14 @@ class MyAudioHandler extends BaseAudioHandler {
   }
 
   @override
-  Future<void> seek(Duration position) => player.seek(position);
+  Future<void> seek(Duration position) {
+    if (_MainScreenState.mainScreenState != null &&
+        _MainScreenState.mainScreenState!._isYtmPlaying) {
+      _MainScreenState.mainScreenState!._smoothSeek(position);
+      return Future.value();
+    }
+    return player.seek(position);
+  }
 
   @override
   Future<void> skipToNext() async {
@@ -180,6 +223,17 @@ Future<void> configureAudioSession(bool playTogether) async {
       ),
     );
   } else {
-    await session.configure(const AudioSessionConfiguration.music());
+    await session.configure(
+      const AudioSessionConfiguration(
+        avAudioSessionCategory: AVAudioSessionCategory.playback,
+        avAudioSessionMode: AVAudioSessionMode.defaultMode,
+        androidAudioAttributes: AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.music,
+          usage: AndroidAudioUsage.media,
+        ),
+        androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+        androidWillPauseWhenDucked: false,
+      ),
+    );
   }
 }

@@ -245,6 +245,34 @@ extension _AudioPlaybackLogic on _MainScreenState {
       }
     });
 
+    if (track.id.startsWith('ytm_')) {
+      _audioPlayer.stop();
+      final videoId =
+          track.path.isNotEmpty ? track.path : track.id.replaceFirst('ytm_', '');
+      YtPlayerService.instance.loadAndPlay(videoId);
+
+      final mediaItem = MediaItem(
+        id: track.id,
+        album: track.album.trim().isEmpty ? 'YouTube Music' : track.album,
+        title: track.title.trim().isEmpty ? 'Unknown Title' : track.title,
+        artist: track.artist.trim().isEmpty ? 'Unknown Artist' : track.artist,
+        artUri: Uri.tryParse(track.url),
+        duration: Duration(milliseconds: track.duration),
+      );
+      if (audioHandler is MyAudioHandler) {
+        (audioHandler as MyAudioHandler).updateYtmMediaItem(mediaItem);
+        (audioHandler as MyAudioHandler).updateYtmPlaybackState(isPlaying: true);
+      }
+      _updateDominantColor(track);
+      setState(() {
+        _isPlaying = true;
+        _isProgrammaticLoading = false;
+      });
+      return;
+    } else {
+      YtPlayerService.instance.pause();
+    }
+
     _loadLyricsForTrack(track);
 
     _updateDominantColor(track);
@@ -819,7 +847,12 @@ extension _AudioPlaybackLogic on _MainScreenState {
   void _playPrevious() {
     if (_playbackQueue.isEmpty) return;
 
-    if (_audioPlayer.position.inSeconds > 3) {
+    if (_isYtmPlaying) {
+      if (YtPlayerService.instance.currentPosition.inSeconds > 3) {
+        YtPlayerService.instance.seekTo(Duration.zero);
+        return;
+      }
+    } else if (_audioPlayer.position.inSeconds > 3) {
       _audioPlayer.seek(Duration.zero);
       return;
     }
@@ -1171,6 +1204,14 @@ extension _AudioPlaybackLogic on _MainScreenState {
   }
 
   Future<void> _pauseWithFade() async {
+    if (_isYtmPlaying) {
+      YtPlayerService.instance.pause();
+      setState(() => _isPlaying = false);
+      if (audioHandler is MyAudioHandler) {
+        (audioHandler as MyAudioHandler).updateYtmPlaybackState(isPlaying: false);
+      }
+      return;
+    }
     if (_isFading || !_isPlaying) return;
     _isFading = true;
     final currentVol = _volume;
@@ -1200,6 +1241,14 @@ extension _AudioPlaybackLogic on _MainScreenState {
   }
 
   Future<void> _playWithFade() async {
+    if (_isYtmPlaying) {
+      YtPlayerService.instance.play();
+      setState(() => _isPlaying = true);
+      if (audioHandler is MyAudioHandler) {
+        (audioHandler as MyAudioHandler).updateYtmPlaybackState(isPlaying: true);
+      }
+      return;
+    }
     if (_isFading || _isPlaying) return;
     _isFading = true;
     final currentVol = _volume;
@@ -1221,6 +1270,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
   }
 
   Future<void> _smoothSeek(Duration position) async {
+    if (_isYtmPlaying) {
+      YtPlayerService.instance.seekTo(position);
+      return;
+    }
     final double originalVolume = _volume;
     final int steps = 5;
     final int stepDelay = 15; // Total fade out = 75ms

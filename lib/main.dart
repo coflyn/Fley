@@ -12,6 +12,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mini_music_visualizer/mini_music_visualizer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -36,6 +37,8 @@ import 'ui/animated_splash_screen.dart';
 import 'utils/globals.dart';
 import 'utils/artwork_cache.dart';
 import 'utils/image_cropper_util.dart';
+import 'services/ytmusic_service.dart';
+import 'services/yt_player_service.dart';
 import 'package:fley/l10n/app_localizations.dart';
 part 'ui/player_ui.dart';
 part 'ui/detail_views_ui.dart';
@@ -95,6 +98,7 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final playTogether = prefs.getBool('playTogether') ?? false;
   await configureAudioSession(playTogether);
+  await ytmInitFromPrefs();
 
   if (Platform.isAndroid || Platform.isIOS) {
     try {
@@ -521,6 +525,38 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   List<String> _recentSearchedTrackIds = [];
 
+  // YT Music search state
+  String _searchMode = 'local'; // 'local' | 'online'
+  List<YtTrack> _ytmResults = [];
+  bool _ytmSearching = false;
+  String? _ytmError;
+  String? _ytmLoadingVideoId;
+  Timer? _ytmDebouncer;
+
+  bool get _isYtmPlaying => _playingTrack?.id.startsWith('ytm_') == true;
+
+  Stream<Duration> get _currentPlaybackPositionStream =>
+      _isYtmPlaying
+          ? YtPlayerService.instance.positionStream
+          : _audioPlayer.positionStream;
+
+  Duration get _currentPlaybackPosition =>
+      _isYtmPlaying
+          ? YtPlayerService.instance.currentPosition
+          : _audioPlayer.position;
+
+  Duration? get _currentPlaybackDuration {
+    if (_isYtmPlaying) {
+      final dur = YtPlayerService.instance.currentDuration;
+      if (dur > Duration.zero) return dur;
+      if (_playingTrack != null && _playingTrack!.duration > 0) {
+        return Duration(milliseconds: _playingTrack!.duration);
+      }
+      return null;
+    }
+    return _audioPlayer.duration;
+  }
+
   void _addToRecentSearches(String trackId) async {
     setState(() {
       _recentSearchedTrackIds.remove(trackId);
@@ -600,12 +636,37 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     mainScreenState = this;
-    _pageController = PageController();
+    _pageController = PageController(initialPage: _currentPageIndex);
     _rootNavPageController = PageController(initialPage: _currentNavIndex);
     _loadSettings();
     _requestPermissionAndScan();
     _setupAudioStreams();
     _startBatteryMonitor();
+
+    YtPlayerService.instance.onStateChange = () {
+      if (mounted && _isYtmPlaying) {
+        setState(() {
+          _isPlaying = YtPlayerService.instance.isPlaying;
+        });
+        if (audioHandler is MyAudioHandler) {
+          (audioHandler as MyAudioHandler).updateYtmPlaybackState(
+            isPlaying: YtPlayerService.instance.isPlaying,
+          );
+        }
+      }
+    };
+    YtPlayerService.instance.onSongEnded = () {
+      if (mounted && _isYtmPlaying) {
+        if (_repeatMode == 2) {
+          YtPlayerService.instance.seekTo(Duration.zero);
+          YtPlayerService.instance.play();
+        } else if (_repeatMode == 1) {
+          _playNext();
+        } else {
+          _playNext();
+        }
+      }
+    };
 
     AudioSession.instance.then((session) {
       session.becomingNoisyEventStream.listen((_) {
@@ -624,9 +685,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         if (event.begin) {
           switch (event.type) {
             case AudioInterruptionType.duck:
-              if (_audioPlayer.playing) {
-                _audioPlayer.setVolume(_volume * 0.2);
-              }
               break;
             case AudioInterruptionType.pause:
             case AudioInterruptionType.unknown:
@@ -639,7 +697,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         } else {
           switch (event.type) {
             case AudioInterruptionType.duck:
-              _audioPlayer.setVolume(_volume);
               break;
             case AudioInterruptionType.pause:
             case AudioInterruptionType.unknown:
@@ -892,6 +949,19 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           resizeToAvoidBottomInset: false,
           body: Stack(
             children: [
+              if (Platform.isAndroid || Platform.isIOS)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  width: 2,
+                  height: 2,
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: 0.01,
+                      child: YtPlayerService.instance.buildWidget(),
+                    ),
+                  ),
+                ),
               ValueListenableBuilder<String>(
                 valueListenable: themeModeNotifier,
                 builder: (context, themeMode, child) {

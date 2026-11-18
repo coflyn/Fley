@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/globals.dart';
 import '../utils/image_cropper_util.dart';
+import '../services/ytmusic_service.dart';
+import 'ytmusic_auth_screen.dart';
 import 'package:fley/l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -530,6 +533,141 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 24),
+
+            // Connected Services
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 10),
+                child: Text(
+                  'Connected Services',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                    fontFamily: getFontFamily(),
+                  ),
+                ),
+              ),
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: ytmLoggedInNotifier,
+              builder: (context, isLoggedIn, _) {
+                return ValueListenableBuilder<String?>(
+                  valueListenable: ytmAccountNameNotifier,
+                  builder: (context, accountName, _) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF0000).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.all(9),
+                          child: SvgPicture.string(
+                            '''<svg viewBox="0 0 24 24" width="26" height="26">
+                              <circle cx="12" cy="12" r="11.5" fill="#FF0000"/>
+                              <circle cx="12" cy="12" r="6.8" fill="none" stroke="#FFFFFF" stroke-width="1.8"/>
+                              <polygon points="10,8.5 15.5,12 10,15.5" fill="#FFFFFF"/>
+                            </svg>''',
+                          ),
+                        ),
+                        title: Text(
+                          'YouTube Music',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                            fontFamily: getFontFamily(),
+                          ),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                margin: const EdgeInsets.only(right: 6),
+                                decoration: BoxDecoration(
+                                  color: isLoggedIn
+                                      ? const Color(0xFF22C55E)
+                                      : subTextColor.withValues(alpha: 0.5),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              Flexible(
+                                child: Text(
+                                  isLoggedIn
+                                      ? (accountName != null && accountName.isNotEmpty
+                                          ? accountName
+                                          : 'Connected')
+                                      : 'Tap to connect',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: isLoggedIn
+                                        ? const Color(0xFF22C55E)
+                                        : subTextColor,
+                                    fontFamily: getFontFamily(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        trailing: isLoggedIn
+                            ? Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () async {
+                                    await ytmLogout();
+                                    showFleyToast('YouTube Music disconnected');
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    child: Text(
+                                      'Disconnect',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.redAccent,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Icon(Icons.chevron_right_rounded, color: subTextColor),
+                        onTap: isLoggedIn
+                            ? null
+                            : () async {
+                                await Navigator.push<bool>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const YtMusicAuthScreen(),
+                                  ),
+                                );
+                              },
+                      ),
+                    );
+                  },
+                );
+              },
             ),
             const SizedBox(height: 24),
 
