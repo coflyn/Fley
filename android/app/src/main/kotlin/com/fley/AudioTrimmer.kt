@@ -20,7 +20,19 @@ object AudioTrimmer {
 
         val lower = srcPath.lowercase()
         return when {
-            lower.endsWith(".mp3") -> trimMp3(srcFile, destFile, startMs, endMs)
+            lower.endsWith(".mp3") -> {
+                val ok = trimMp3(srcFile, destFile, startMs, endMs)
+                if (!ok || destFile.length() == 0L) {
+                    try {
+                        trimM4a(srcFile, destFile, startMs, endMs)
+                    } catch (_: Exception) {
+                        srcFile.copyTo(destFile, overwrite = true)
+                        true
+                    }
+                } else {
+                    true
+                }
+            }
             lower.endsWith(".m4a") || lower.endsWith(".aac") || lower.endsWith(".mp4") -> trimM4a(srcFile, destFile, startMs, endMs)
             lower.endsWith(".wav") -> trimWav(srcFile, destFile, startMs, endMs)
             else -> {

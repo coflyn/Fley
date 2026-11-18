@@ -217,8 +217,9 @@ class MainActivity : AudioServiceActivity() {
                 "setAsRingtone" -> {
                     val filePath = call.argument<String>("filePath") ?: ""
                     val title = call.argument<String>("title") ?: "Ringtone"
+                    val setAsDefault = call.argument<Boolean>("setAsDefault") ?: true
                     try {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(this)) {
+                        if (setAsDefault && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(this)) {
                             val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
                                 data = Uri.parse("package:$packageName")
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -235,30 +236,56 @@ class MainActivity : AudioServiceActivity() {
                         }
 
                         val mimeType = if (filePath.endsWith(".m4a", true) || filePath.endsWith(".aac", true)) "audio/mp4" else "audio/mpeg"
-                        val values = ContentValues().apply {
-                            put(MediaStore.MediaColumns.DATA, file.absolutePath)
-                            put(MediaStore.MediaColumns.TITLE, title)
-                            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                        val contentValues = ContentValues().apply {
+                            put(MediaStore.Audio.Media.TITLE, title)
+                            put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
                             put(MediaStore.Audio.Media.IS_RINGTONE, true)
                             put(MediaStore.Audio.Media.IS_NOTIFICATION, true)
                             put(MediaStore.Audio.Media.IS_ALARM, true)
                             put(MediaStore.Audio.Media.IS_MUSIC, false)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                put(MediaStore.Audio.Media.DISPLAY_NAME, file.name)
+                                put(MediaStore.Audio.Media.RELATIVE_PATH, "Ringtones/")
+                                put(MediaStore.Audio.Media.IS_PENDING, 1)
+                            } else {
+                                put(MediaStore.MediaColumns.DATA, file.absolutePath)
+                            }
                         }
 
-                        val uri = MediaStore.Audio.Media.getContentUriForPath(file.absolutePath)
-                        if (uri != null) {
-                            try {
-                                contentResolver.delete(uri, "${MediaStore.MediaColumns.DATA}=?", arrayOf(file.absolutePath))
-                            } catch (_: Exception) {}
-                            val newUri = contentResolver.insert(uri, values) ?: Uri.fromFile(file)
-                            RingtoneManager.setActualDefaultRingtoneUri(
-                                this,
-                                RingtoneManager.TYPE_RINGTONE,
-                                newUri
-                            )
+                        val ringtoneCollection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                        } else {
+                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                        }
+
+                        try {
+                            contentResolver.delete(ringtoneCollection, "${MediaStore.Audio.Media.TITLE}=?", arrayOf(title))
+                        } catch (_: Exception) {}
+
+                        val newUri = contentResolver.insert(ringtoneCollection, contentValues)
+                        if (newUri != null) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                contentResolver.openOutputStream(newUri)?.use { outStream ->
+                                    file.inputStream().use { inStream ->
+                                        inStream.copyTo(outStream)
+                                    }
+                                }
+                                val updateValues = ContentValues().apply {
+                                    put(MediaStore.Audio.Media.IS_PENDING, 0)
+                                }
+                                contentResolver.update(newUri, updateValues, null, null)
+                            }
+
+                            if (setAsDefault) {
+                                RingtoneManager.setActualDefaultRingtoneUri(
+                                    this,
+                                    RingtoneManager.TYPE_RINGTONE,
+                                    newUri
+                                )
+                            }
                             result.success("SUCCESS")
                         } else {
-                            result.error("URI_ERROR", "Cannot obtain URI", null)
+                            result.error("URI_ERROR", "Cannot insert ringtone into MediaStore", null)
                         }
                     } catch (e: Exception) {
                         result.error("RINGTONE_ERROR", e.message, null)

@@ -317,6 +317,9 @@ extension _RingtoneCutterUI on _MainScreenState {
                             previewPlayer = null;
                             setModalState(() => isPreviewPlaying = false);
                           } else {
+                            if (_audioPlayer.playing) {
+                              _pauseWithFade();
+                            }
                             previewPlayer = AudioPlayer();
                             try {
                               final audioPath =
@@ -335,35 +338,28 @@ extension _RingtoneCutterUI on _MainScreenState {
                                 await previewPlayer!.seek(
                                   Duration(seconds: startSec.toInt()),
                                 );
+                                final session = ++previewSession;
                                 previewSub = previewPlayer!.positionStream
                                     .listen((pos) {
+                                      if (session != previewSession) return;
                                       setModalState(() {
                                         previewCurrentSec = pos.inSeconds;
                                       });
+                                      if (pos.inSeconds >= endSec.toInt()) {
+                                        previewSession++;
+                                        previewSub?.cancel();
+                                        previewSub = null;
+                                        previewPlayer?.stop();
+                                        previewPlayer?.dispose();
+                                        previewPlayer = null;
+                                        setModalState(
+                                          () => isPreviewPlaying = false,
+                                        );
+                                      }
                                     });
                                 previewPlayer!.play();
-                                final session = ++previewSession;
                                 setModalState(
                                   () => isPreviewPlaying = true,
-                                );
-
-                                final previewDuration =
-                                    (endSec - startSec).toInt().clamp(0, 3600);
-                                Future.delayed(
-                                  Duration(seconds: previewDuration),
-                                  () async {
-                                    if (session == previewSession &&
-                                        isPreviewPlaying) {
-                                      await previewSub?.cancel();
-                                      previewSub = null;
-                                      await previewPlayer?.stop();
-                                      await previewPlayer?.dispose();
-                                      previewPlayer = null;
-                                      setModalState(
-                                        () => isPreviewPlaying = false,
-                                      );
-                                    }
-                                  },
                                 );
                               }
                             } catch (_) {
@@ -501,21 +497,11 @@ extension _RingtoneCutterUI on _MainScreenState {
     showFleyToast(loc.trimmingAudio);
 
     try {
-      final ringtonesDir = Directory('/storage/emulated/0/Ringtones');
-      final downloadDir = Directory('/storage/emulated/0/Download');
-      Directory targetDir;
-      if (await ringtonesDir.exists()) {
-        targetDir = ringtonesDir;
-      } else if (await downloadDir.exists()) {
-        targetDir = downloadDir;
-      } else {
-        targetDir = Directory.systemTemp;
-      }
-
+      final tempDir = Directory.systemTemp;
       final ext = srcPath.toLowerCase().endsWith('.m4a')
           ? '.m4a'
           : (srcPath.toLowerCase().endsWith('.wav') ? '.wav' : '.mp3');
-      final destFile = File('${targetDir.path}/Fley_$targetName$ext');
+      final destFile = File('${tempDir.path}/Fley_$targetName$ext');
 
       final startMs = (startSec * 1000).toInt();
       final endMs = (endSec * 1000).toInt();
@@ -536,26 +522,27 @@ extension _RingtoneCutterUI on _MainScreenState {
         }
       }
 
-      if (shouldSetRingtone) {
-        final String? res = await const MethodChannel(
-          'com.fley.audio/equalizer',
-        ).invokeMethod<String>('setAsRingtone', {
-          'filePath': destFile.path,
-          'title': 'Fley_$targetName',
-        });
+      final String? res = await const MethodChannel(
+        'com.fley.audio/equalizer',
+      ).invokeMethod<String>('setAsRingtone', {
+        'filePath': destFile.path,
+        'title': 'Fley_$targetName',
+        'setAsDefault': shouldSetRingtone,
+      });
 
-        if (res == 'SUCCESS') {
+      if (res == 'SUCCESS') {
+        if (shouldSetRingtone) {
           showFleyToast(loc.ringtoneSetSuccess);
-        } else if (res == 'PERMISSION_REQUIRED') {
-          showFleyToast(loc.writeSettingsRequired);
         } else {
           showFleyToast(
             loc.toastRingtoneSavedTo.replaceAll('[placeholder]', targetName),
           );
         }
+      } else if (res == 'PERMISSION_REQUIRED') {
+        showFleyToast(loc.writeSettingsRequired);
       } else {
         showFleyToast(
-          loc.toastRingtoneSavedTo.replaceAll('[placeholder]', targetName),
+          '${loc.ringtoneSaved} (${(endSec - startSec).toInt()}s)',
         );
       }
     } catch (_) {
