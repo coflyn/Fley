@@ -25,6 +25,7 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
       final keys = prefs.getKeys();
       final Map<String, dynamic> prefsMap = {};
       for (String key in keys) {
+        if (key == 'cached_tracks_list') continue;
         prefsMap[key] = prefs.get(key);
       }
       final String jsonString = jsonEncode(prefsMap);
@@ -138,28 +139,63 @@ extension SettingsBackupRestoreModals on _SettingsScreenState {
         } catch (_) {}
       }
 
+      if (foundFile == null) {
+        try {
+          final XFile? picked = await openFile(
+            acceptedTypeGroups: [
+              const XTypeGroup(label: 'JSON Backup', extensions: ['json']),
+            ],
+          );
+          if (picked != null) {
+            foundFile = File(picked.path);
+          }
+        } catch (_) {}
+      }
+
       if (foundFile != null) {
         final String jsonString = await foundFile.readAsString();
         final Map<String, dynamic> prefsMap = jsonDecode(jsonString);
 
+        const doubleKeys = {
+          'fontScale',
+          'playbackSpeed',
+          'lyricFontSize',
+          'customThemeBgBlur',
+          'customThemeBgDim',
+          'playerCustomBgBlur',
+          'playerCustomBgDim',
+          'detailViewCustomBgBlur',
+          'detailViewCustomBgDim',
+          'playerCustomBgOffsetX',
+          'playerCustomBgOffsetY',
+        };
+
         final prefs = await SharedPreferences.getInstance();
         for (String key in prefsMap.keys) {
+          if (key == 'cached_tracks_list') continue;
           final value = prefsMap[key];
-          if (value is String) {
-            await prefs.setString(key, value);
-          } else if (value is int) {
-            await prefs.setInt(key, value);
+          if (doubleKeys.contains(key) && value is num) {
+            await prefs.setDouble(key, value.toDouble());
           } else if (value is double) {
             await prefs.setDouble(key, value);
+          } else if (value is int) {
+            await prefs.setInt(key, value);
           } else if (value is bool) {
             await prefs.setBool(key, value);
-          } else if (value is List<dynamic>) {
-            await prefs.setStringList(key, List<String>.from(value));
+          } else if (value is String) {
+            await prefs.setString(key, value);
+          } else if (value is List) {
+            await prefs.setStringList(
+              key,
+              value.map((e) => e.toString()).toList(),
+            );
           }
         }
 
+        await _loadSettings();
         if (!mounted) return;
         showFleyToast(AppLocalizations.of(context).restoreSuccess);
+        widget.onSettingsChanged();
         widget.onRescanLibrary();
       } else {
         if (!mounted) return;

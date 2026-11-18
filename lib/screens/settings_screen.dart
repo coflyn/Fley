@@ -18,6 +18,7 @@ import '../main.dart';
 import '../utils/globals.dart';
 import '../utils/image_cropper_util.dart';
 import '../services/desktop_audio_scanner.dart';
+import 'package:file_selector/file_selector.dart';
 
 import '../widgets/settings/settings_ui_components.dart';
 import '../widgets/desktop_title_bar.dart';
