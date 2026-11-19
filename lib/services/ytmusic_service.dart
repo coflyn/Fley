@@ -80,6 +80,20 @@ class YtTrack {
   });
 }
 
+class YtPlaylist {
+  final String playlistId;
+  final String title;
+  final String author;
+  final String thumbnailUrl;
+
+  const YtPlaylist({
+    required this.playlistId,
+    required this.title,
+    required this.author,
+    required this.thumbnailUrl,
+  });
+}
+
 class YtMusicService {
   static const _apiKey = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-KOEVSHRUA';
   static const _baseUrl = 'music.youtube.com';
@@ -90,12 +104,17 @@ class YtMusicService {
   static Map<String, String> _headers(String cookie) {
     const origin = 'https://music.youtube.com';
     final sapisidHash = _buildSapisidHash(cookie, origin);
+    String acceptLang = 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7';
+    try {
+      final loc = Platform.localeName.replaceAll('_', '-');
+      acceptLang = '$loc,id;q=0.9,en-US;q=0.8,en;q=0.7';
+    } catch (_) {}
     return {
       'Cookie': cookie,
       'User-Agent': _userAgent,
       'Content-Type': 'application/json',
       'Accept': '*/*',
-      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Language': acceptLang,
       'Origin': origin,
       'Referer': '$origin/',
       'X-Goog-AuthUser': '0',
@@ -104,13 +123,28 @@ class YtMusicService {
     };
   }
 
-  static Map<String, dynamic> _context() => {
-        'client': {
-          'clientName': 'WEB_REMIX',
-          'clientVersion': '1.20231101.01.00',
-          'hl': 'en',
-        },
-      };
+  static Map<String, dynamic> _context() {
+    String hl = 'id';
+    String gl = 'ID';
+    try {
+      final loc = Platform.localeName;
+      final parts = loc.split('_');
+      if (parts.isNotEmpty && parts[0].isNotEmpty) hl = parts[0];
+      if (parts.length > 1 && parts[1].isNotEmpty) gl = parts[1];
+      final tz = DateTime.now().timeZoneOffset.inHours;
+      if ((gl == 'US' || gl.isEmpty) && (tz >= 7 && tz <= 9)) {
+        gl = 'ID';
+      }
+    } catch (_) {}
+    return {
+      'client': {
+        'clientName': 'WEB_REMIX',
+        'clientVersion': '1.20231101.01.00',
+        'hl': hl,
+        'gl': gl,
+      },
+    };
+  }
 
   static String getHighResThumbnail(String url) {
     if (url.isEmpty) return url;
@@ -126,11 +160,49 @@ class YtMusicService {
       }
     }
     if (url.contains('ytimg.com')) {
-      return url
-          .replaceFirst('default.jpg', 'hqdefault.jpg')
-          .replaceFirst('mqdefault.jpg', 'hqdefault.jpg');
+      if (url.contains('/hqdefault.jpg') ||
+          url.contains('/maxresdefault.jpg') ||
+          url.contains('/sddefault.jpg')) {
+        return url;
+      }
+      if (url.contains('/default.jpg')) {
+        return url.replaceFirst('/default.jpg', '/hqdefault.jpg');
+      }
+      if (url.contains('/mqdefault.jpg')) {
+        return url.replaceFirst('/mqdefault.jpg', '/hqdefault.jpg');
+      }
     }
     return url;
+  }
+
+  /// Fetch Quick Picks / Home recommendations from YouTube Music home feed.
+  static Future<List<YtTrack>> getHomeQuickPicks({int limit = 20}) async {
+    final cookie = await _getCookie();
+    final client = HttpClient();
+    try {
+      final uri = Uri.https(
+        _baseUrl,
+        '/youtubei/v1/browse',
+        {'key': _apiKey, 'prettyPrint': 'false'},
+      );
+      final req = await client.postUrl(uri);
+      _headers(cookie).forEach((k, v) => req.headers.set(k, v));
+      req.write(jsonEncode({
+        'context': _context(),
+        'browseId': 'FEmusic_home',
+      }));
+      final res = await req.close();
+      final body = await res.transform(utf8.decoder).join();
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      final tracks = _parseBrowseFeed(json, limit);
+      if (tracks.isNotEmpty) return tracks;
+    } catch (e) {
+      debugPrint('YTM browse home error: $e');
+    } finally {
+      client.close();
+    }
+    // Fallback to regional top hits search if browse is empty
+    return search('Top Hits Indonesia', limit: limit);
   }
 
   /// Search YT Music. Returns up to [limit] tracks.
@@ -160,6 +232,99 @@ class YtMusicService {
     }
   }
 
+  static YtTrack? _parseResponsiveItem(Map<String, dynamic> renderer) {
+    final videoId = renderer['playlistItemData']?['videoId'] as String? ??
+        renderer['overlay']?['musicItemThumbnailOverlayRenderer']
+            ?['content']?['musicPlayButtonRenderer']?['playNavigationEndpoint']
+            ?['watchEndpoint']?['videoId'] as String? ??
+        '';
+    if (videoId.isEmpty) return null;
+
+    // columns: 0 = title, 1 = artist•album•duration
+    final cols = renderer['flexColumns'] as List? ?? [];
+    String title = '';
+    String artist = '';
+    String album = '';
+
+    if (cols.isNotEmpty) {
+      final runs = cols[0]['musicResponsiveListItemFlexColumnRenderer']
+          ?['text']?['runs'] as List?;
+      title = runs?.map((r) => r['text']).join('') ?? '';
+    }
+    if (cols.length > 1) {
+      final runs = cols[1]['musicResponsiveListItemFlexColumnRenderer']
+          ?['text']?['runs'] as List? ?? [];
+      final parts = runs
+          .where((r) => (r['text'] as String?) != ' • ')
+          .map((r) => r['text'] as String? ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+      if (parts.isNotEmpty) artist = parts[0];
+      if (parts.length > 1) album = parts[1];
+    }
+
+    final thumbs = renderer['thumbnail']?['musicThumbnailRenderer']
+        ?['thumbnail']?['thumbnails'] as List?;
+    final rawThumbUrl = thumbs?.last?['url'] as String? ?? '';
+    final thumbUrl = getHighResThumbnail(rawThumbUrl);
+
+    // Duration from last run of col1 (format "M:SS")
+    int durationMs = 0;
+    if (cols.length > 1) {
+      final runs = cols[1]['musicResponsiveListItemFlexColumnRenderer']
+          ?['text']?['runs'] as List? ?? [];
+      final lastText = runs.isNotEmpty
+          ? runs.last['text'] as String? ?? ''
+          : '';
+      final dParts = lastText.split(':');
+      if (dParts.length == 2) {
+        final m = int.tryParse(dParts[0]) ?? 0;
+        final s = int.tryParse(dParts[1]) ?? 0;
+        durationMs = (m * 60 + s) * 1000;
+      }
+    }
+
+    return YtTrack(
+      videoId: videoId,
+      title: title,
+      artist: artist,
+      album: album,
+      thumbnailUrl: thumbUrl,
+      durationMs: durationMs,
+    );
+  }
+
+  static List<YtTrack> _parseBrowseFeed(Map<String, dynamic> json, int limit) {
+    final results = <YtTrack>[];
+    try {
+      final tabs = json['contents']?['singleColumnBrowseResultsRenderer']
+          ?['tabs'] as List?;
+      if (tabs == null || tabs.isEmpty) return results;
+      final contents = tabs.first['tabRenderer']?['content']
+          ?['sectionListRenderer']?['contents'] as List?;
+      if (contents == null) return results;
+
+      for (final section in contents) {
+        final shelf = section['musicCarouselShelfRenderer'] as Map<String, dynamic>?;
+        if (shelf == null) continue;
+        final items = shelf['contents'] as List?;
+        if (items == null) continue;
+
+        for (final item in items) {
+          if (results.length >= limit) break;
+          final renderer = item['musicResponsiveListItemRenderer'] as Map<String, dynamic>?;
+          if (renderer == null) continue;
+          final track = _parseResponsiveItem(renderer);
+          if (track != null) results.add(track);
+        }
+        if (results.isNotEmpty) break;
+      }
+    } catch (e) {
+      debugPrint('YTM browse parse error: $e');
+    }
+    return results;
+  }
+
   static List<YtTrack> _parseSearchResults(Map<String, dynamic> json, int limit) {
     final results = <YtTrack>[];
     try {
@@ -175,21 +340,75 @@ class YtMusicService {
         if (items == null) continue;
         for (final item in items) {
           if (results.length >= limit) break;
-          final renderer = item['musicResponsiveListItemRenderer'];
+          final renderer = item['musicResponsiveListItemRenderer'] as Map<String, dynamic>?;
+          if (renderer == null) continue;
+          final track = _parseResponsiveItem(renderer);
+          if (track != null) results.add(track);
+        }
+        if (results.length >= limit) break;
+      }
+    } catch (e) {
+      debugPrint('YTM parse error: $e');
+    }
+    return results;
+  }
+
+  /// Search trending community playlists from YouTube Music.
+  static Future<List<YtPlaylist>> getCommunityPlaylists({int limit = 15}) async {
+    final cookie = await _getCookie();
+    final client = HttpClient();
+    try {
+      final uri = Uri.https(
+        _baseUrl,
+        '/youtubei/v1/search',
+        {'key': _apiKey, 'prettyPrint': 'false'},
+      );
+      final req = await client.postUrl(uri);
+      _headers(cookie).forEach((k, v) => req.headers.set(k, v));
+      req.write(jsonEncode({
+        'context': _context(),
+        'query': 'Trending Indonesia',
+        'params': 'EgeKAQQoAEABahIQDhAKEAUQCRADEAQQFRAQEBE%3D', // Community playlists filter
+      }));
+      final res = await req.close();
+      final body = await res.transform(utf8.decoder).join();
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      return _parseCommunityPlaylists(json, limit);
+    } catch (e) {
+      debugPrint('YTM community playlists error: $e');
+      return [];
+    } finally {
+      client.close();
+    }
+  }
+
+  static List<YtPlaylist> _parseCommunityPlaylists(
+      Map<String, dynamic> json, int limit) {
+    final results = <YtPlaylist>[];
+    try {
+      final tabs = json['contents']?['tabbedSearchResultsRenderer']
+          ?['tabs'] as List?;
+      if (tabs == null || tabs.isEmpty) return results;
+      final contents = tabs.first['tabRenderer']?['content']
+          ?['sectionListRenderer']?['contents'] as List?;
+      if (contents == null) return results;
+
+      for (final section in contents) {
+        final items = section['musicShelfRenderer']?['contents'] as List?;
+        if (items == null) continue;
+        for (final item in items) {
+          if (results.length >= limit) break;
+          final renderer =
+              item['musicResponsiveListItemRenderer'] as Map<String, dynamic>?;
           if (renderer == null) continue;
 
-          final videoId = renderer['playlistItemData']?['videoId'] as String? ??
-              renderer['overlay']?['musicItemThumbnailOverlayRenderer']
-                  ?['content']?['musicPlayButtonRenderer']?['playNavigationEndpoint']
-                  ?['watchEndpoint']?['videoId'] as String? ??
-              '';
-          if (videoId.isEmpty) continue;
+          final browseId = renderer['navigationEndpoint']?['browseEndpoint']
+              ?['browseId'] as String? ?? '';
+          if (browseId.isEmpty) continue;
 
-          // columns: 0 = title, 1 = artist•album•duration
           final cols = renderer['flexColumns'] as List? ?? [];
           String title = '';
-          String artist = '';
-          String album = '';
+          String author = '';
 
           if (cols.isNotEmpty) {
             final runs = cols[0]['musicResponsiveListItemFlexColumnRenderer']
@@ -199,14 +418,12 @@ class YtMusicService {
           if (cols.length > 1) {
             final runs = cols[1]['musicResponsiveListItemFlexColumnRenderer']
                 ?['text']?['runs'] as List? ?? [];
-            // Odd runs = text, even runs = separators ("•")
             final parts = runs
                 .where((r) => (r['text'] as String?) != ' • ')
                 .map((r) => r['text'] as String? ?? '')
                 .where((s) => s.isNotEmpty)
                 .toList();
-            if (parts.isNotEmpty) artist = parts[0];
-            if (parts.length > 1) album = parts[1];
+            if (parts.isNotEmpty) author = parts.join(' • ');
           }
 
           final thumbs = renderer['thumbnail']?['musicThumbnailRenderer']
@@ -214,37 +431,78 @@ class YtMusicService {
           final rawThumbUrl = thumbs?.last?['url'] as String? ?? '';
           final thumbUrl = getHighResThumbnail(rawThumbUrl);
 
-          // Duration from last run of col1 (format "M:SS")
-          int durationMs = 0;
-          if (cols.length > 1) {
-            final runs = cols[1]['musicResponsiveListItemFlexColumnRenderer']
-                ?['text']?['runs'] as List? ?? [];
-            final lastText = runs.isNotEmpty
-                ? runs.last['text'] as String? ?? ''
-                : '';
-            final dParts = lastText.split(':');
-            if (dParts.length == 2) {
-              final m = int.tryParse(dParts[0]) ?? 0;
-              final s = int.tryParse(dParts[1]) ?? 0;
-              durationMs = (m * 60 + s) * 1000;
-            }
-          }
-
-          results.add(YtTrack(
-            videoId: videoId,
+          results.add(YtPlaylist(
+            playlistId: browseId,
             title: title,
-            artist: artist,
-            album: album,
+            author: author,
             thumbnailUrl: thumbUrl,
-            durationMs: durationMs,
           ));
         }
         if (results.length >= limit) break;
       }
     } catch (e) {
-      debugPrint('YTM parse error: $e');
+      debugPrint('YTM community playlist parse error: $e');
     }
     return results;
+  }
+
+  /// Fetch tracks of a YouTube Music playlist.
+  static Future<List<YtTrack>> getPlaylistTracks(String playlistId,
+      {int limit = 50}) async {
+    final cookie = await _getCookie();
+    final client = HttpClient();
+    try {
+      final uri = Uri.https(
+        _baseUrl,
+        '/youtubei/v1/browse',
+        {'key': _apiKey, 'prettyPrint': 'false'},
+      );
+      final req = await client.postUrl(uri);
+      _headers(cookie).forEach((k, v) => req.headers.set(k, v));
+      final browseId =
+          playlistId.startsWith('VL') ? playlistId : 'VL$playlistId';
+      req.write(jsonEncode({
+        'context': _context(),
+        'browseId': browseId,
+      }));
+      final res = await req.close();
+      final body = await res.transform(utf8.decoder).join();
+      final json = jsonDecode(body) as Map<String, dynamic>;
+
+      final results = <YtTrack>[];
+      final secContents = json['contents']?['twoColumnBrowseResultsRenderer']
+          ?['secondaryContents']?['sectionListRenderer']?['contents'] as List?;
+      List? items;
+      if (secContents != null && secContents.isNotEmpty) {
+        items = secContents.first['musicPlaylistShelfRenderer']?['contents']
+            as List?;
+      }
+      if (items == null) {
+        final tabs = json['contents']?['singleColumnBrowseResultsRenderer']
+            ?['tabs'] as List?;
+        final tabContents = tabs?.first['tabRenderer']?['content']
+            ?['sectionListRenderer']?['contents'] as List?;
+        items = tabContents?.first['musicPlaylistShelfRenderer']?['contents']
+            as List?;
+      }
+
+      if (items != null) {
+        for (final item in items) {
+          if (results.length >= limit) break;
+          final renderer =
+              item['musicResponsiveListItemRenderer'] as Map<String, dynamic>?;
+          if (renderer == null) continue;
+          final track = _parseResponsiveItem(renderer);
+          if (track != null) results.add(track);
+        }
+      }
+      return results;
+    } catch (e) {
+      debugPrint('YTM playlist tracks error: $e');
+      return [];
+    } finally {
+      client.close();
+    }
   }
 
   /// Resolve audio stream URL for [videoId].

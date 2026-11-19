@@ -33,6 +33,15 @@ extension _AudioLibraryScanLogic on _MainScreenState {
       if (recentSearches != null) {
         _recentSearchedTrackIds = List<String>.from(recentSearches);
       }
+      final onlineTracksStr = prefs.getString('online_tracks_cache');
+      if (onlineTracksStr != null) {
+        try {
+          final Map<String, dynamic> decoded = jsonDecode(onlineTracksStr);
+          _onlineTracksMap = decoded.map(
+            (k, v) => MapEntry(k, Track.fromMap(Map<String, dynamic>.from(v))),
+          );
+        } catch (_) {}
+      }
       if (playCountsStr != null) {
         try {
           Map<String, dynamic> decoded = jsonDecode(playCountsStr);

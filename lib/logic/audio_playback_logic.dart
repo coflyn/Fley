@@ -246,6 +246,32 @@ extension _AudioPlaybackLogic on _MainScreenState {
     });
 
     if (track.id.startsWith('ytm_')) {
+      _onlineTracksMap[track.id] = track;
+      final startPosMs = initialPosition?.inMilliseconds ?? 0;
+      _lastPlaybackPositionMs = startPosMs;
+      _lastPlaybackTrackId = track.id;
+      SharedPreferences.getInstance().then((prefs) {
+        if (_onlineTracksMap.length > 50) {
+          final toRemove =
+              _onlineTracksMap.keys.take(_onlineTracksMap.length - 50).toList();
+          for (final k in toRemove) {
+            _onlineTracksMap.remove(k);
+          }
+        }
+        prefs.setString(
+          'online_tracks_cache',
+          jsonEncode(
+            _onlineTracksMap.map((k, v) => MapEntry(k, v.toMap())),
+          ),
+        );
+        prefs.setString('last_playing_track_id', track.id);
+        prefs.setString('last_playback_track_id', track.id);
+        prefs.setInt('last_playback_position_ms', startPosMs);
+        if (playImmediately) {
+          prefs.setStringList('last_played_track_ids', _lastPlayedTrackIds);
+        }
+      });
+
       _audioPlayer.stop();
       final videoId =
           track.path.isNotEmpty ? track.path : track.id.replaceFirst('ytm_', '');
