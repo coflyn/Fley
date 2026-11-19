@@ -5,9 +5,8 @@ class MyAudioHandler extends BaseAudioHandler {
 
   MyAudioHandler() {
     player.playbackEventStream.listen((event) {
-      if ((_MainScreenState.mainScreenState != null &&
-              _MainScreenState.mainScreenState!._isYtmPlaying) ||
-          mediaItem.value?.id.startsWith('ytm_') == true) {
+      if (_MainScreenState.mainScreenState != null &&
+          _MainScreenState.mainScreenState!._isYtmPlaying) {
         // Do not let stopped local player overwrite YTM playback state
         return;
       }
@@ -15,9 +14,8 @@ class MyAudioHandler extends BaseAudioHandler {
     });
 
     player.sequenceStateStream.listen((sequenceState) {
-      if ((_MainScreenState.mainScreenState != null &&
-              _MainScreenState.mainScreenState!._isYtmPlaying) ||
-          mediaItem.value?.id.startsWith('ytm_') == true) {
+      if (_MainScreenState.mainScreenState != null &&
+          _MainScreenState.mainScreenState!._isYtmPlaying) {
         // Do not let stopped local player overwrite YTM media item or queue
         return;
       }

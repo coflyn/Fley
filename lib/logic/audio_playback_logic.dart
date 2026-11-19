@@ -294,9 +294,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
         _isPlaying = true;
         _isProgrammaticLoading = false;
       });
+      _loadLyricsForTrack(track);
       return;
     } else {
-      YtPlayerService.instance.pause();
+      YtPlayerService.instance.stop();
     }
 
     _loadLyricsForTrack(track);
@@ -341,20 +342,25 @@ extension _AudioPlaybackLogic on _MainScreenState {
         });
       }
 
+      final currentMediaItem = MediaItem(
+        id: track.id,
+        album: track.album.trim().isEmpty ? 'Unknown Album' : track.album,
+        title: track.title.trim().isEmpty ? 'Unknown Title' : track.title,
+        artist: (track.artist.trim().isEmpty || track.artist == '<unknown>')
+            ? lookupAppLocalizations(
+                Locale(FleyStrings.currentLang),
+              ).unknownArtist
+            : track.artist,
+        artUri: currentCover,
+        duration: Duration(milliseconds: track.duration),
+      );
+      if (audioHandler is MyAudioHandler) {
+        (audioHandler as MyAudioHandler).updateYtmMediaItem(currentMediaItem);
+      }
+
       final currentSource = AudioSource.uri(
         currentUri,
-        tag: MediaItem(
-          id: track.id,
-          album: track.album.trim().isEmpty ? 'Unknown Album' : track.album,
-          title: track.title.trim().isEmpty ? 'Unknown Title' : track.title,
-          artist: (track.artist.trim().isEmpty || track.artist == '<unknown>')
-              ? lookupAppLocalizations(
-                  Locale(FleyStrings.currentLang),
-                ).unknownArtist
-              : track.artist,
-          artUri: currentCover,
-          duration: Duration(milliseconds: track.duration),
-        ),
+        tag: currentMediaItem,
       );
 
       AudioSource source;
@@ -492,6 +498,11 @@ extension _AudioPlaybackLogic on _MainScreenState {
       }
 
       if (requestId != _playRequestId) return;
+      try {
+        final session = await AudioSession.instance;
+        await session.setActive(true);
+      } catch (_) {}
+
       await _audioPlayer.setAudioSource(
         source,
         initialIndex: initialIndex,
@@ -1135,7 +1146,21 @@ extension _AudioPlaybackLogic on _MainScreenState {
         }
       }
 
-      // 3. Fallback: lyrics.ovh for plain lyrics if LRCLIB failed (e.g. 503 ServerOverloaded)
+      // 3. Fallback: YouTube Music InnerTube lyrics for online tracks
+      if (data == null ||
+          (data['syncedLyrics'] == null && data['plainLyrics'] == null)) {
+        if (track.id.startsWith('ytm_') || track.path.isNotEmpty) {
+          final videoId = track.path.isNotEmpty
+              ? track.path
+              : track.id.replaceFirst('ytm_', '');
+          final ytmLyrics = await YtMusicService.getLyrics(videoId);
+          if (ytmLyrics != null && ytmLyrics['plainLyrics'] != null) {
+            data = ytmLyrics;
+          }
+        }
+      }
+
+      // 4. Fallback: lyrics.ovh for plain lyrics if LRCLIB failed (e.g. 503 ServerOverloaded)
       if (data == null ||
           (data['syncedLyrics'] == null && data['plainLyrics'] == null)) {
         if (cleanArtist.isNotEmpty && cleanTitle.isNotEmpty) {
@@ -1278,6 +1303,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
     if (_isFading || _isPlaying) return;
     _isFading = true;
     final currentVol = _volume;
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(true);
+    } catch (_) {}
     await _audioPlayer.setVolume(0.0);
     _audioPlayer.play();
     if (_crossfadeDuration > 0) {

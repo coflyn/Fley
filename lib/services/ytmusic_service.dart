@@ -78,6 +78,24 @@ class YtTrack {
     required this.thumbnailUrl,
     required this.durationMs,
   });
+
+  YtTrack copyWith({
+    String? videoId,
+    String? title,
+    String? artist,
+    String? album,
+    String? thumbnailUrl,
+    int? durationMs,
+  }) {
+    return YtTrack(
+      videoId: videoId ?? this.videoId,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      durationMs: durationMs ?? this.durationMs,
+    );
+  }
 }
 
 class YtPlaylist {
@@ -268,19 +286,50 @@ class YtMusicService {
     final rawThumbUrl = thumbs?.last?['url'] as String? ?? '';
     final thumbUrl = getHighResThumbnail(rawThumbUrl);
 
-    // Duration from last run of col1 (format "M:SS")
+    // Duration parsing
     int durationMs = 0;
-    if (cols.length > 1) {
-      final runs = cols[1]['musicResponsiveListItemFlexColumnRenderer']
+
+    // 1. Check fixedColumns
+    final fixedCols = renderer['fixedColumns'] as List? ?? [];
+    if (fixedCols.isNotEmpty) {
+      final runs = fixedCols[0]['musicResponsiveListItemFixedColumnRenderer']
           ?['text']?['runs'] as List? ?? [];
-      final lastText = runs.isNotEmpty
-          ? runs.last['text'] as String? ?? ''
-          : '';
-      final dParts = lastText.split(':');
-      if (dParts.length == 2) {
-        final m = int.tryParse(dParts[0]) ?? 0;
-        final s = int.tryParse(dParts[1]) ?? 0;
-        durationMs = (m * 60 + s) * 1000;
+      if (runs.isNotEmpty) {
+        final text = runs.first['text'] as String? ?? '';
+        durationMs = _parseDurationText(text);
+      }
+    }
+
+    // 2. Check lengthText
+    if (durationMs == 0 && renderer['lengthText'] != null) {
+      final lengthRuns = renderer['lengthText']['runs'] as List?;
+      final text = lengthRuns != null && lengthRuns.isNotEmpty
+          ? (lengthRuns.first['text'] as String? ?? '')
+          : (renderer['lengthText']['simpleText'] as String? ?? '');
+      durationMs = _parseDurationText(text);
+    }
+
+    // 3. Scan runs and text across flexColumns
+    if (durationMs == 0 && cols.isNotEmpty) {
+      for (final col in cols) {
+        final colText = col['musicResponsiveListItemFlexColumnRenderer']?['text'];
+        final runs = colText?['runs'] as List? ?? [];
+        for (final r in runs) {
+          final t = (r['text'] as String? ?? '').trim();
+          final match = RegExp(r'\b(\d{1,2}:\d{2}(?::\d{2})?)\b').firstMatch(t);
+          if (match != null) {
+            durationMs = _parseDurationText(match.group(1)!);
+            if (durationMs > 0) break;
+          }
+        }
+        if (durationMs == 0 && colText?['simpleText'] != null) {
+          final t = (colText!['simpleText'] as String? ?? '').trim();
+          final match = RegExp(r'\b(\d{1,2}:\d{2}(?::\d{2})?)\b').firstMatch(t);
+          if (match != null) {
+            durationMs = _parseDurationText(match.group(1)!);
+          }
+        }
+        if (durationMs > 0) break;
       }
     }
 
@@ -292,6 +341,22 @@ class YtMusicService {
       thumbnailUrl: thumbUrl,
       durationMs: durationMs,
     );
+  }
+
+  static int _parseDurationText(String text) {
+    final clean = text.trim();
+    final parts = clean.split(':');
+    if (parts.length == 2) {
+      final m = int.tryParse(parts[0]) ?? 0;
+      final s = int.tryParse(parts[1]) ?? 0;
+      return (m * 60 + s) * 1000;
+    } else if (parts.length == 3) {
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m = int.tryParse(parts[1]) ?? 0;
+      final s = int.tryParse(parts[2]) ?? 0;
+      return (h * 3600 + m * 60 + s) * 1000;
+    }
+    return 0;
   }
 
   static List<YtTrack> _parseBrowseFeed(Map<String, dynamic> json, int limit) {
@@ -579,6 +644,107 @@ class YtMusicService {
         if (url != null && url.isNotEmpty) return url;
       }
       throw Exception('No audio stream found from any client');
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Fetch lyrics for [videoId] from YouTube Music InnerTube.
+  /// Returns a map with 'plainLyrics' (string).
+  static Future<Map<String, dynamic>?> getLyrics(String videoId) async {
+    final cookie = await _getCookie();
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 6);
+
+    try {
+      // 1. Next endpoint to find lyrics browseId
+      final nextUri = Uri.https(
+        _baseUrl,
+        '/youtubei/v1/next',
+        {'key': _apiKey, 'prettyPrint': 'false'},
+      );
+      final nextReq = await client.postUrl(nextUri);
+      final headers = _headers(cookie);
+      headers.forEach((k, v) => nextReq.headers.set(k, v));
+      final nextBody = {
+        'context': _context(),
+        'videoId': videoId,
+      };
+      nextReq.write(jsonEncode(nextBody));
+      final nextRes = await nextReq.close();
+      if (nextRes.statusCode != 200) return null;
+      final nextResBody = await nextRes.transform(utf8.decoder).join();
+      final nextJson = jsonDecode(nextResBody) as Map<String, dynamic>;
+
+      final tabs = nextJson['contents']
+          ?['singleColumnMusicWatchNextResultsRenderer']
+          ?['tabbedRenderer']
+          ?['watchNextTabbedResultsRenderer']
+          ?['tabs'] as List?;
+      if (tabs == null || tabs.isEmpty) return null;
+
+      String? lyricsBrowseId;
+      for (final tab in tabs) {
+        final tabRenderer = tab['tabRenderer'] as Map<String, dynamic>?;
+        final endpoint = tabRenderer?['endpoint']?['browseEndpoint']
+            as Map<String, dynamic>?;
+        final browseId = endpoint?['browseId'] as String? ?? '';
+        final title = (tabRenderer?['title'] as String? ?? '').toLowerCase();
+        if (browseId.startsWith('MPLYt') ||
+            title.contains('lirik') ||
+            title.contains('lyrics')) {
+          lyricsBrowseId = browseId;
+          break;
+        }
+      }
+
+      if (lyricsBrowseId == null || lyricsBrowseId.isEmpty) return null;
+
+      // 2. Browse endpoint using lyricsBrowseId
+      final browseUri = Uri.https(
+        _baseUrl,
+        '/youtubei/v1/browse',
+        {'key': _apiKey, 'prettyPrint': 'false'},
+      );
+      final browseReq = await client.postUrl(browseUri);
+      headers.forEach((k, v) => browseReq.headers.set(k, v));
+      final browseBody = {
+        'context': _context(),
+        'browseId': lyricsBrowseId,
+      };
+      browseReq.write(jsonEncode(browseBody));
+      final browseRes = await browseReq.close();
+      if (browseRes.statusCode != 200) return null;
+      final browseResBody = await browseRes.transform(utf8.decoder).join();
+      final browseJson = jsonDecode(browseResBody) as Map<String, dynamic>;
+
+      final contents = browseJson['contents']
+          ?['sectionListRenderer']
+          ?['contents'] as List?;
+      if (contents == null || contents.isEmpty) return null;
+
+      for (final item in contents) {
+        final shelf = item['musicDescriptionShelfRenderer']
+            as Map<String, dynamic>?;
+        if (shelf != null) {
+          final runs = shelf['description']?['runs'] as List?;
+          if (runs != null && runs.isNotEmpty) {
+            final plainText = runs.map((r) => r['text'] ?? '').join('');
+            final footerRuns = shelf['footer']?['runs'] as List?;
+            final source = footerRuns != null && footerRuns.isNotEmpty
+                ? '\n\n${footerRuns.map((r) => r['text'] ?? '').join('')}'
+                : '';
+            return {
+              'plainLyrics': '$plainText$source',
+            };
+          }
+        }
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('YTM getLyrics error: $e');
+      return null;
     } finally {
       client.close();
     }

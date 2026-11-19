@@ -24,7 +24,10 @@ class YtPlayerService {
   Duration currentPosition = Duration.zero;
   Duration currentDuration = Duration.zero;
   bool isPlaying = false;
+  bool isBuffering = false;
+  bool _isPageLoaded = false;
   String? currentVideoId;
+  Timer? _bufferingSafetyTimer;
 
   VoidCallback? onStateChange;
   VoidCallback? onSongEnded;
@@ -194,24 +197,82 @@ try {
       v.play().catch(function(e) {});
     }
 
-    v.onplay = function() {
+    var player = document.getElementById('movie_player');
+    if (player && typeof player.addEventListener === 'function' && !player._fleyHooked) {
+      player._fleyHooked = true;
+      player.addEventListener('onStateChange', function(st) {
+        if (isAd()) return;
+        if (st === 1) {
+          try {
+            FleyBridge.postMessage(JSON.stringify({type: 'play'}));
+            FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: false}));
+          } catch(e){}
+        } else if (st === 2) {
+          try {
+            FleyBridge.postMessage(JSON.stringify({type: 'pause'}));
+            FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: false}));
+          } catch(e){}
+        } else if (st === 3) {
+          try {
+            FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: true}));
+          } catch(e){}
+        }
+      });
+    }
+
+    function reportDuration() {
       if (isAd()) return;
-      try { FleyBridge.postMessage(JSON.stringify({type: 'play'})); } catch(e){}
-    };
-    v.onpause = function() {
+      try {
+        if (v.duration && !isNaN(v.duration) && v.duration > 0) {
+          FleyBridge.postMessage(JSON.stringify({
+            type: 'time',
+            pos: v.currentTime || 0,
+            dur: v.duration
+          }));
+        }
+      } catch(e){}
+    }
+    v.addEventListener('durationchange', reportDuration, true);
+    v.addEventListener('loadedmetadata', reportDuration, true);
+    v.addEventListener('canplay', reportDuration, true);
+
+    v.addEventListener('play', function() {
+      if (isAd()) return;
+      try {
+        v.volume = 1.0;
+        FleyBridge.postMessage(JSON.stringify({type: 'play'}));
+        FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: false}));
+      } catch(e){}
+    }, true);
+
+    v.addEventListener('playing', function() {
+      if (isAd()) return;
+      try {
+        v.volume = 1.0;
+        FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: false}));
+      } catch(e){}
+    }, true);
+
+    v.addEventListener('waiting', function() {
+      if (isAd()) return;
+      try { FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: true})); } catch(e){}
+    }, true);
+
+    v.addEventListener('pause', function() {
       if (isAd()) return;
       if (!window._fleyShouldPlay) {
         try { FleyBridge.postMessage(JSON.stringify({type: 'pause'})); } catch(e){}
       }
-    };
-    v.onended = function() {
+    }, true);
+
+    v.addEventListener('ended', function() {
       if (isAd()) return;
-      // Guard against premature ended events (only trigger if near the actual end)
       if (v.duration && v.currentTime && (v.duration - v.currentTime < 2.5)) {
         try { FleyBridge.postMessage(JSON.stringify({type: 'ended'})); } catch(e){}
       }
-    };
-    v.ontimeupdate = function() {
+    }, true);
+
+    v.addEventListener('timeupdate', function() {
       if (isAd()) return;
       try {
         FleyBridge.postMessage(JSON.stringify({
@@ -220,7 +281,7 @@ try {
           dur: v.duration
         }));
       } catch(e){}
-    };
+    }, true);
   }
   hook();
 })();
@@ -250,20 +311,52 @@ try {
           final type = data['type'] as String?;
           if (type == 'play') {
             isPlaying = true;
+            isBuffering = false;
+            _bufferingSafetyTimer?.cancel();
+            onStateChange?.call();
+          } else if (type == 'buffering') {
+            final val = data['val'] == true;
+            if (val) {
+              isBuffering = true;
+              _bufferingSafetyTimer?.cancel();
+              _bufferingSafetyTimer =
+                  Timer(const Duration(milliseconds: 1000), () {
+                if (isBuffering) {
+                  isBuffering = false;
+                  onStateChange?.call();
+                }
+              });
+            } else {
+              isBuffering = false;
+              _bufferingSafetyTimer?.cancel();
+            }
             onStateChange?.call();
           } else if (type == 'pause') {
             isPlaying = false;
+            isBuffering = false;
+            _bufferingSafetyTimer?.cancel();
             onStateChange?.call();
           } else if (type == 'ended') {
             isPlaying = false;
+            isBuffering = false;
+            _bufferingSafetyTimer?.cancel();
             onStateChange?.call();
             onSongEnded?.call();
           } else if (type == 'time') {
             final posSec = (data['pos'] as num?)?.toDouble() ?? 0.0;
             final durSec = (data['dur'] as num?)?.toDouble() ?? 0.0;
             currentPosition = Duration(milliseconds: (posSec * 1000).toInt());
+            final wasZero = currentDuration == Duration.zero;
             if (durSec > 0) {
               currentDuration = Duration(milliseconds: (durSec * 1000).toInt());
+              if (wasZero) {
+                onStateChange?.call();
+              }
+            }
+            if (isBuffering) {
+              isBuffering = false;
+              _bufferingSafetyTimer?.cancel();
+              onStateChange?.call();
             }
             _positionStreamController.add(currentPosition);
           }
@@ -273,9 +366,11 @@ try {
 
     c.setNavigationDelegate(NavigationDelegate(
       onPageStarted: (url) {
+        _isPageLoaded = false;
         c.runJavaScript(_visibilitySpoofScript).catchError((_) {});
       },
       onPageFinished: (url) {
+        _isPageLoaded = true;
         c.runJavaScript(_hookScript);
       },
     ));
@@ -283,11 +378,80 @@ try {
     return c;
   }
 
-  void loadAndPlay(String videoId) {
+  Future<void> loadAndPlay(String videoId) async {
     currentVideoId = videoId;
     currentPosition = Duration.zero;
+    currentDuration = Duration.zero;
     isPlaying = true;
+    isBuffering = true;
+    _bufferingSafetyTimer?.cancel();
+    _bufferingSafetyTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (isBuffering) {
+        isBuffering = false;
+        onStateChange?.call();
+      }
+    });
+    onStateChange?.call();
+
+    if (_isPageLoaded) {
+      try {
+        final result = await controller.runJavaScriptReturningResult('''
+(function() {
+  window._fleyShouldPlay = true;
+  var v = document.querySelector('video');
+  if (v) {
+    try { v.volume = 0; } catch(e){}
+  }
+  var p = document.getElementById('movie_player');
+  if (p && typeof p.loadVideoById === 'function') {
+    p.loadVideoById('$videoId');
+    setTimeout(function() {
+      var vid = document.querySelector('video');
+      if (vid && vid.volume === 0) {
+        vid.volume = 1.0;
+      }
+    }, 300);
+    return 'ok';
+  }
+  return 'fallback';
+})();
+''');
+        final str = result.toString().replaceAll('"', '').trim();
+        if (str == 'ok') {
+          return;
+        }
+      } catch (e) {
+        debugPrint('YtPlayerService SPA switch fallback: $e');
+      }
+    }
+
+    _isPageLoaded = false;
     controller.loadRequest(Uri.parse('https://music.youtube.com/watch?v=$videoId'));
+  }
+
+  void stop() {
+    isPlaying = false;
+    isBuffering = false;
+    currentVideoId = null;
+    currentPosition = Duration.zero;
+    currentDuration = Duration.zero;
+    _bufferingSafetyTimer?.cancel();
+    controller.runJavaScript('''
+window._fleyShouldPlay = false;
+try {
+  var v = document.querySelector('video');
+  if (v) {
+    try { v.volume = 0; } catch(e){}
+    v.pause();
+    v.currentTime = 0;
+    v.src = '';
+  }
+  var p = document.getElementById('movie_player');
+  if (p && typeof p.stopVideo === 'function') {
+    p.stopVideo();
+  }
+} catch(e){}
+''');
   }
 
   void play() {
@@ -337,7 +501,15 @@ try {
 ''');
   }
 
+  Widget? _cachedWidget;
+
   Widget buildWidget() {
-    return WebViewWidget(controller: controller);
+    return _cachedWidget ??= RepaintBoundary(
+      child: SizedBox(
+        width: 1,
+        height: 1,
+        child: WebViewWidget(controller: controller),
+      ),
+    );
   }
 }

@@ -42,6 +42,22 @@ extension _AudioLibraryScanLogic on _MainScreenState {
           );
         } catch (_) {}
       }
+      final recentOnlineStr = prefs.getString('recent_online_searches');
+      if (recentOnlineStr != null) {
+        try {
+          final List list = jsonDecode(recentOnlineStr);
+          _recentOnlineSearches = list
+              .map((m) => YtTrack(
+                    videoId: m['videoId'] ?? '',
+                    title: m['title'] ?? '',
+                    artist: m['artist'] ?? '',
+                    album: m['album'] ?? '',
+                    durationMs: m['durationMs'] ?? 0,
+                    thumbnailUrl: m['thumbnailUrl'] ?? '',
+                  ))
+              .toList();
+        } catch (_) {}
+      }
       if (playCountsStr != null) {
         try {
           Map<String, dynamic> decoded = jsonDecode(playCountsStr);
@@ -510,8 +526,7 @@ extension _AudioLibraryScanLogic on _MainScreenState {
       } else if (cachedBytes != null && cachedBytes.isNotEmpty) {
         imageProvider = MemoryImage(cachedBytes);
       } else if (track.id.startsWith('ytm_') && track.url.isNotEmpty) {
-        final highResUrl = YtMusicService.getHighResThumbnail(track.url);
-        imageProvider = NetworkImage(highResUrl);
+        imageProvider = ResizeImage(NetworkImage(track.url), width: 100);
       } else {
         final idInt = int.tryParse(track.id);
         if (idInt != null) {

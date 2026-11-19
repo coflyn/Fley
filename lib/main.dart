@@ -405,6 +405,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final Set<String> _animatedAlbumIds = {};
   String _artistViewMode = 'grid';
   String _albumViewMode = 'grid';
+  List<Track>? _memoSortedTracks;
+  String? _memoSongSortBy;
+  int? _memoSongPoolLen;
   Map<String, List<Track>>? _memoArtistTracksMap;
   List<String>? _memoArtistsList;
   List<String>? _memoTopArtistsList;
@@ -535,6 +538,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   List<String> _recentSearchedTrackIds = [];
+  List<YtTrack> _recentOnlineSearches = [];
 
   // YT Music search state
   String _searchMode = 'local'; // 'local' | 'online'
@@ -545,6 +549,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Timer? _ytmDebouncer;
 
   bool get _isYtmPlaying => _playingTrack?.id.startsWith('ytm_') == true;
+
+  bool get _isBuffering =>
+      _isYtmPlaying
+          ? YtPlayerService.instance.isBuffering
+          : (_processingState == ProcessingState.loading ||
+              _processingState == ProcessingState.buffering);
 
   Stream<Duration> get _currentPlaybackPositionStream =>
       _isYtmPlaying
@@ -578,6 +588,33 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     });
     final prefs = await SharedPreferences.getInstance();
     prefs.setStringList('recent_searched_track_ids', _recentSearchedTrackIds);
+  }
+
+  void _addToRecentOnlineSearches(YtTrack track) {
+    setState(() {
+      _recentOnlineSearches.removeWhere((t) => t.videoId == track.videoId);
+      _recentOnlineSearches.insert(0, track);
+      if (_recentOnlineSearches.length > 20) {
+        _recentOnlineSearches = _recentOnlineSearches.sublist(0, 20);
+      }
+    });
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString(
+        'recent_online_searches',
+        jsonEncode(
+          _recentOnlineSearches
+              .map((t) => {
+                    'videoId': t.videoId,
+                    'title': t.title,
+                    'artist': t.artist,
+                    'album': t.album,
+                    'durationMs': t.durationMs,
+                    'thumbnailUrl': t.thumbnailUrl,
+                  })
+              .toList(),
+        ),
+      );
+    });
   }
 
   Map<String, int> _playCounts = {};
@@ -656,6 +693,32 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
     YtPlayerService.instance.onStateChange = () {
       if (mounted && _isYtmPlaying) {
+        final dur = YtPlayerService.instance.currentDuration;
+        if (_playingTrack != null &&
+            _playingTrack!.id.startsWith('ytm_') &&
+            _playingTrack!.duration <= 0 &&
+            dur > Duration.zero) {
+          _playingTrack = _playingTrack!.copyWith(duration: dur.inMilliseconds);
+          _onlineTracksMap[_playingTrack!.id] = _playingTrack!;
+          final idx = _recentOnlineSearches.indexWhere(
+            (yt) =>
+                'ytm_${yt.videoId}' == _playingTrack!.id ||
+                yt.videoId == _playingTrack!.path,
+          );
+          if (idx != -1) {
+            _recentOnlineSearches[idx] = _recentOnlineSearches[idx].copyWith(
+              durationMs: dur.inMilliseconds,
+            );
+          }
+          if (audioHandler is MyAudioHandler) {
+            final cur = (audioHandler as MyAudioHandler).mediaItem.value;
+            if (cur != null) {
+              (audioHandler as MyAudioHandler).updateYtmMediaItem(
+                cur.copyWith(duration: dur),
+              );
+            }
+          }
+        }
         setState(() {
           _isPlaying = YtPlayerService.instance.isPlaying;
         });
@@ -966,13 +1029,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 Positioned(
                   bottom: 0,
                   right: 0,
-                  width: 2,
-                  height: 2,
+                  width: 1,
+                  height: 1,
                   child: IgnorePointer(
-                    child: Opacity(
-                      opacity: 0.01,
-                      child: YtPlayerService.instance.buildWidget(),
-                    ),
+                    child: YtPlayerService.instance.buildWidget(),
                   ),
                 ),
               ValueListenableBuilder<String>(

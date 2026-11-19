@@ -153,9 +153,9 @@ extension _PlayerUI on _MainScreenState {
                 ),
                 onPressed: () => _playPrevious(),
               ),
-              _processingState == ProcessingState.loading
+              _isBuffering
                   ? Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: SizedBox(
                         width: 20,
                         height: 20,
@@ -1734,7 +1734,7 @@ extension _PlayerUI on _MainScreenState {
                         ),
                         GestureDetector(
                           onTap: () {
-                            if (_processingState == ProcessingState.loading) {
+                            if (_isBuffering) {
                               return;
                             }
                             if (_isPlaying) {
@@ -1750,7 +1750,7 @@ extension _PlayerUI on _MainScreenState {
                               color: Colors.white,
                               shape: BoxShape.circle,
                             ),
-                            child: _processingState == ProcessingState.loading
+                            child: _isBuffering
                                 ? const Center(
                                     child: SizedBox(
                                       width: 24,
