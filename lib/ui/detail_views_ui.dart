@@ -3,6 +3,31 @@ part of '../main.dart';
 
 extension _DetailViewsUI on _MainScreenState {
   Widget _getActiveDetailView() {
+    if (_selectedOnlinePlaylist != null) {
+      final pl = _selectedOnlinePlaylist!;
+      final imageWidget = Image.network(
+        pl.thumbnailUrl,
+        fit: BoxFit.cover,
+        width: 300,
+        height: 300,
+        errorBuilder: (_, _, _) => Container(
+          color: Colors.white10,
+          child: const Icon(
+            Icons.queue_music_rounded,
+            size: 60,
+            color: Colors.white54,
+          ),
+        ),
+      );
+      return _buildDetailView(
+        title: pl.title,
+        subtitle: pl.author,
+        type: 'Playlist',
+        imageWidget: imageWidget,
+        tracks: _onlinePlaylistTracks,
+      );
+    }
+
     String? baseName =
         _selectedPlaylistDetail ??
         _selectedArtistDetail ??
@@ -294,6 +319,7 @@ extension _DetailViewsUI on _MainScreenState {
             _selectedPlaylistDetail = null;
             _selectedArtistDetail = null;
             _selectedAlbumDetail = null;
+            _selectedOnlinePlaylist = null;
           });
         } else {
           _detailDragOffsetNotifier.value = 0.0;
@@ -342,6 +368,7 @@ extension _DetailViewsUI on _MainScreenState {
                               _selectedPlaylistDetail = null;
                               _selectedArtistDetail = null;
                               _selectedAlbumDetail = null;
+                              _selectedOnlinePlaylist = null;
                             });
                           },
                         ),
@@ -1059,6 +1086,7 @@ extension _DetailViewsUI on _MainScreenState {
                                 _selectedPlaylistDetail = null;
                                 _selectedArtistDetail = null;
                                 _selectedAlbumDetail = null;
+                                _selectedOnlinePlaylist = null;
                               });
                             },
                           ),
@@ -1120,6 +1148,7 @@ extension _DetailViewsUI on _MainScreenState {
             _selectedPlaylistDetail = null;
             _selectedArtistDetail = null;
             _selectedAlbumDetail = null;
+            _selectedOnlinePlaylist = null;
           });
         } else {
           _detailDragOffsetNotifier.value = 0.0;

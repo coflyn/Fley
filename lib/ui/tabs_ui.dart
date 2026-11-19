@@ -1251,9 +1251,27 @@ extension _TabsUI on _MainScreenState {
         top: 12,
         bottom: _bottomListPadding,
       ),
-      itemCount: list.length + (header != null ? 1 : 0),
+      itemCount: list.length +
+          (header != null ? 1 : 0) +
+          (_onlinePlaylistLoading && list.isEmpty ? 1 : 0),
       itemBuilder: (context, index) {
         if (header != null && index == 0) return header;
+        if (_onlinePlaylistLoading && list.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 48),
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(_activeAccentColor),
+                ),
+              ),
+            ),
+          );
+        }
         final trackIndex = header != null ? index - 1 : index;
         final track = list[trackIndex];
         final isSelected =
@@ -2024,8 +2042,9 @@ extension _TabsUI on _MainScreenState {
     );
   }
 
-  void _playYtmTrack(YtTrack yt) {
-    final queue = _ytmResults
+  void _playYtmTrack(YtTrack yt, {List<YtTrack>? customQueue}) {
+    final sourceList = customQueue ?? _ytmResults;
+    final queue = sourceList
         .map(
           (y) => Track(
             id: 'ytm_${y.videoId}',

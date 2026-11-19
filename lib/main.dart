@@ -39,6 +39,7 @@ import 'utils/artwork_cache.dart';
 import 'utils/image_cropper_util.dart';
 import 'services/ytmusic_service.dart';
 import 'services/yt_player_service.dart';
+import 'screens/ytmusic_auth_screen.dart';
 import 'package:fley/l10n/app_localizations.dart';
 part 'ui/player_ui.dart';
 part 'ui/detail_views_ui.dart';
@@ -421,6 +422,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final int _albumsAnimToken = 0;
 
   List<Track> _allTracks = [];
+  Map<String, Track> _onlineTracksMap = {};
+  List<YtTrack> _ytmTrendingTracks = [];
+  bool _ytmTrendingLoading = false;
+  List<YtPlaylist> _ytmPlaylists = [];
+  bool _ytmPlaylistsLoading = false;
+  YtPlaylist? _selectedOnlinePlaylist;
+  List<Track> _onlinePlaylistTracks = [];
+  bool _onlinePlaylistLoading = false;
   bool _isLoading = true;
   bool _showSplash = true;
   bool _isPlayerOpen = false;
@@ -485,12 +494,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final isDetail =
         _selectedPlaylistDetail != null ||
         _selectedArtistDetail != null ||
-        _selectedAlbumDetail != null;
+        _selectedAlbumDetail != null ||
+        _selectedOnlinePlaylist != null;
     if (_currentNavIndex == index && !isDetail) return;
     setState(() {
       _selectedPlaylistDetail = null;
       _selectedArtistDetail = null;
       _selectedAlbumDetail = null;
+      _selectedOnlinePlaylist = null;
       _currentNavIndex = index;
       _tabContentOpacity = 0.0;
     });
@@ -917,7 +928,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         final isDetailView =
             _selectedPlaylistDetail != null ||
             _selectedArtistDetail != null ||
-            _selectedAlbumDetail != null;
+            _selectedAlbumDetail != null ||
+            _selectedOnlinePlaylist != null;
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -940,6 +952,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               _selectedPlaylistDetail = null;
               _selectedArtistDetail = null;
               _selectedAlbumDetail = null;
+              _selectedOnlinePlaylist = null;
             });
           } else if (_currentNavIndex != 0) {
             _switchToNavTab(0);
