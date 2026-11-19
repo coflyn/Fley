@@ -138,7 +138,12 @@ class MainActivity : AudioServiceActivity() {
                                 try {
                                     equalizer?.release()
                                 } catch (e: Exception) {}
-                                equalizer = Equalizer(0, sessionId)
+                                // Priority 1000 prevents Launcher/SystemUI from stealing effect control
+                                equalizer = try {
+                                    Equalizer(1000, sessionId)
+                                } catch (_: Exception) {
+                                    Equalizer(0, sessionId)
+                                }
                                 activeSessionId = sessionId
                             }
                             
@@ -296,6 +301,21 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
         }
+    }
+
+    private fun releaseEqualizer() {
+        try {
+            equalizer?.enabled = false
+        } catch (_: Exception) {}
+        try {
+            equalizer?.release()
+        } catch (_: Exception) {}
+        equalizer = null
+    }
+
+    override fun onDestroy() {
+        releaseEqualizer()
+        super.onDestroy()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

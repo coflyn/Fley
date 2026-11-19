@@ -5,14 +5,17 @@ extension _AudioStreamsLogic on _MainScreenState {
   void _setupAudioStreams() {
     _audioPlayer.setLoopMode(_repeatMode == 2 ? LoopMode.one : LoopMode.off);
     _audioPlayer.playingStream.listen((playing) {
+      if (_isYtmPlaying) return;
       if (mounted) setState(() => _isPlaying = playing);
     });
 
     _audioPlayer.processingStateStream.listen((state) {
+      if (_isYtmPlaying) return;
       if (mounted) setState(() => _processingState = state);
     });
 
     _audioPlayer.durationStream.listen((dur) {
+      if (_isYtmPlaying) return;
       if (dur != null && dur > Duration.zero && _playingTrack != null) {
         final durMs = dur.inMilliseconds;
         if (_playingTrack!.duration <= 0 ||
@@ -42,7 +45,7 @@ extension _AudioStreamsLogic on _MainScreenState {
     });
 
     _audioPlayer.currentIndexStream.listen((nativeIndex) {
-      if (_isProgrammaticLoading) return;
+      if (_isYtmPlaying || _isProgrammaticLoading) return;
       if (nativeIndex == null) return;
       if (_audioPlayer.audioSource is ConcatenatingAudioSource) {
         final concatenating =
@@ -82,6 +85,7 @@ extension _AudioStreamsLogic on _MainScreenState {
 
     bool isHandlingCompletion = false;
     _audioPlayer.playerStateStream.listen((state) {
+      if (_isYtmPlaying) return;
       if (state.processingState == ProcessingState.completed) {
         if (isHandlingCompletion) return;
         isHandlingCompletion = true;
@@ -101,6 +105,7 @@ extension _AudioStreamsLogic on _MainScreenState {
     });
 
     _audioPlayer.positionStream.listen((pos) {
+      if (_isYtmPlaying) return;
       if (pos.inSeconds < 2) {
         _hasResetPosition = true;
       }

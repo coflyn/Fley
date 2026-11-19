@@ -5,8 +5,9 @@ class MyAudioHandler extends BaseAudioHandler {
 
   MyAudioHandler() {
     player.playbackEventStream.listen((event) {
-      if (_MainScreenState.mainScreenState != null &&
-          _MainScreenState.mainScreenState!._isYtmPlaying) {
+      if ((_MainScreenState.mainScreenState != null &&
+              _MainScreenState.mainScreenState!._isYtmPlaying) ||
+          mediaItem.value?.id.startsWith('ytm_') == true) {
         // Do not let stopped local player overwrite YTM playback state
         return;
       }
@@ -14,6 +15,12 @@ class MyAudioHandler extends BaseAudioHandler {
     });
 
     player.sequenceStateStream.listen((sequenceState) {
+      if ((_MainScreenState.mainScreenState != null &&
+              _MainScreenState.mainScreenState!._isYtmPlaying) ||
+          mediaItem.value?.id.startsWith('ytm_') == true) {
+        // Do not let stopped local player overwrite YTM media item or queue
+        return;
+      }
       final queueItems = sequenceState.sequence
           .map((source) => source.tag as MediaItem)
           .toList();
@@ -219,7 +226,7 @@ Future<void> configureAudioSession(bool playTogether) async {
         ),
         androidAudioFocusGainType:
             AndroidAudioFocusGainType.gainTransientMayDuck,
-        androidWillPauseWhenDucked: false,
+        androidWillPauseWhenDucked: true,
       ),
     );
   } else {
@@ -232,7 +239,7 @@ Future<void> configureAudioSession(bool playTogether) async {
           usage: AndroidAudioUsage.media,
         ),
         androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
-        androidWillPauseWhenDucked: false,
+        androidWillPauseWhenDucked: true,
       ),
     );
   }
