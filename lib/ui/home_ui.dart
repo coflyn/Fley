@@ -574,15 +574,18 @@ extension _HomeUI on _MainScreenState {
               ),
             ),
             const SizedBox(width: 8),
-            IconButton(
-              icon: Icon(
-                Icons.more_vert,
-                color: isLight ? Colors.black45 : Colors.white54,
-                size: 20,
+            Transform.translate(
+              offset: const Offset(12, 0),
+              child: IconButton(
+                icon: Icon(
+                  Icons.more_vert,
+                  color: isLight ? Colors.black45 : Colors.white54,
+                  size: 20,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _showTrackOptions(context, track),
               ),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: () => _showTrackOptions(context, track),
             ),
           ],
         ),
@@ -670,10 +673,6 @@ extension _HomeUI on _MainScreenState {
               _updatePlayingFrom();
               if (track.id.startsWith('ytm_')) {
                 _playTrack(0, sourceList: [track]);
-                setState(() {
-                  _isPlayerOpen = true;
-                  _playerDragOffsetNotifier.value = 0.0;
-                });
               } else {
                 setState(() {
                   _playbackQueue = List.from(_allTracks);
@@ -748,33 +747,37 @@ extension _HomeUI on _MainScreenState {
                       ],
                     ),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _formatDuration(
-                          Duration(milliseconds: track.duration),
+                  Transform.translate(
+                    offset: const Offset(12, 0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (track.duration > 0)
+                          Text(
+                            _formatDuration(
+                              Duration(milliseconds: track.duration),
+                            ),
+                            style: TextStyle(
+                              color: isLight ? Colors.black45 : Colors.white38,
+                              fontSize: 12,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(
+                            Icons.more_vert,
+                            color: isLight ? Colors.black45 : Colors.white54,
+                            size: 20,
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _showTrackOptions(context, track),
                         ),
-                        style: TextStyle(
-                          color: isLight ? Colors.black45 : Colors.white38,
-                          fontSize: 12,
-                          fontFeatures: const [
-                            FontFeature.tabularFigures(),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: Icon(
-                          Icons.more_vert,
-                          color: isLight ? Colors.black45 : Colors.white54,
-                          size: 20,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () => _showTrackOptions(context, track),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),

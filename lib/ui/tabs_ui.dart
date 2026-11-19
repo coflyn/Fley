@@ -31,29 +31,37 @@ extension _TabsUI on _MainScreenState {
   }
 
   Widget _buildSongsTab() {
-    List<Track> allSorted = List<Track>.from(_allTracks);
+    if (_memoSortedTracks == null ||
+        _memoSongSortBy != _sortBy ||
+        _memoSongPoolLen != _allTracks.length) {
+      List<Track> allSorted = List<Track>.from(_allTracks);
 
-    if (_sortBy == 'title') {
-      allSorted.sort(
-        (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
-      );
-    } else if (_sortBy == 'artist') {
-      allSorted.sort(
-        (a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()),
-      );
-    } else if (_sortBy == 'album') {
-      allSorted.sort(
-        (a, b) => a.album.toLowerCase().compareTo(b.album.toLowerCase()),
-      );
-    } else if (_sortBy == 'date_oldest') {
-      allSorted = allSorted.reversed.toList();
-    } else if (_sortBy == 'duration_longest') {
-      allSorted.sort((a, b) => b.duration.compareTo(a.duration));
-    } else if (_sortBy == 'duration_shortest') {
-      allSorted.sort((a, b) => a.duration.compareTo(b.duration));
+      if (_sortBy == 'title') {
+        allSorted.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
+      } else if (_sortBy == 'artist') {
+        allSorted.sort(
+          (a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()),
+        );
+      } else if (_sortBy == 'album') {
+        allSorted.sort(
+          (a, b) => a.album.toLowerCase().compareTo(b.album.toLowerCase()),
+        );
+      } else if (_sortBy == 'date_oldest') {
+        allSorted = allSorted.reversed.toList();
+      } else if (_sortBy == 'duration_longest') {
+        allSorted.sort((a, b) => b.duration.compareTo(a.duration));
+      } else if (_sortBy == 'duration_shortest') {
+        allSorted.sort((a, b) => a.duration.compareTo(b.duration));
+      }
+
+      _memoSortedTracks = allSorted;
+      _memoSongSortBy = _sortBy;
+      _memoSongPoolLen = _allTracks.length;
     }
 
-    return _buildSongList(allSorted);
+    return _buildSongList(_memoSortedTracks!);
   }
 
   Widget _buildPlaylistsTab() {
@@ -1517,12 +1525,6 @@ extension _TabsUI on _MainScreenState {
               child: GestureDetector(
                 onTap: () {
                   if (_currentPageIndex != index) {
-                    setState(() {
-                      if (index == 0) _animatedTrackIds.clear();
-                      if (index == 1) _animatedPlaylistIds.clear();
-                      if (index == 2) _animatedArtistIds.clear();
-                      if (index == 3) _animatedAlbumIds.clear();
-                    });
                     _pageController.jumpToPage(index);
                   }
                 },
@@ -1901,25 +1903,13 @@ extension _TabsUI on _MainScreenState {
           );
         }
 
-        // Logged in — show search results or placeholder
+        // Logged in — show discovery view when search query is empty
         if (_searchQuery.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.search, size: 48,
-                    color: isLight ? Colors.black26 : Colors.white24),
-                const SizedBox(height: 12),
-                Text(
-                  'Search YouTube Music',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: subColor,
-                    fontFamily: getFontFamily(activeFontNotifier.value),
-                  ),
-                ),
-              ],
-            ),
+          return _buildYtmSearchDiscoverView(
+            textColor,
+            subColor,
+            accentColor,
+            isLight,
           );
         }
 
@@ -1968,73 +1958,141 @@ extension _TabsUI on _MainScreenState {
 
         return ListView.builder(
           physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.only(bottom: _bottomListPadding),
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            bottom: _bottomListPadding,
+          ),
           itemCount: _ytmResults.length,
           itemBuilder: (context, index) {
             final yt = _ytmResults[index];
+            final track = Track(
+              id: 'ytm_${yt.videoId}',
+              title: yt.title,
+              artist: yt.artist,
+              album: yt.album,
+              url: yt.thumbnailUrl,
+              path: yt.videoId,
+              lyrics: const [],
+              duration: yt.durationMs,
+            );
+            _onlineTracksMap[track.id] = track;
+
+            final isSelected = _playingTrack != null &&
+                (_playingTrack!.id == track.id ||
+                    _playingTrack!.path == yt.videoId);
             final isBuffering = _ytmLoadingVideoId == yt.videoId;
-            return ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              leading: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: yt.thumbnailUrl.isNotEmpty
-                    ? Image.network(
-                        yt.thumbnailUrl,
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          width: 48,
-                          height: 48,
-                          color: isLight
-                              ? Colors.black12
-                              : Colors.white12,
-                          child: const Icon(Icons.music_note, size: 24),
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.03)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListTile(
+                visualDensity: _libraryDensity == 'compact'
+                    ? const VisualDensity(vertical: -2)
+                    : VisualDensity.standard,
+                contentPadding: EdgeInsets.only(
+                  left: 8,
+                  right: 0,
+                  top: _libraryDensity == 'compact' ? 0 : 4,
+                  bottom: _libraryDensity == 'compact' ? 0 : 4,
+                ),
+                onLongPress: () {
+                  _searchFocusNode.unfocus();
+                  _showTrackOptions(context, track);
+                },
+                onTap: () {
+                  _searchFocusNode.unfocus();
+                  _addToRecentOnlineSearches(yt);
+                  _playYtmTrack(yt);
+                },
+                leading: _buildTrackArtwork(
+                  track,
+                  size: _libraryDensity == 'compact' ? 36 : 44,
+                  radius: _libraryDensity == 'compact' ? 4 : 6,
+                ),
+                title: Text(
+                  track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: isSelected ? _activeAccentColor : textColor,
+                    fontFamily: getFontFamily(activeFontNotifier.value),
+                  ),
+                ),
+                subtitle: Text(
+                  track.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: subColor,
+                    fontFamily: getFontFamily(activeFontNotifier.value),
+                  ),
+                ),
+                trailing: Transform.translate(
+                  offset: const Offset(12, 0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isBuffering)
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: accentColor,
+                          ),
+                        )
+                      else if (isSelected)
+                        SizedBox(
+                          width: 20,
+                          height: 14,
+                          child: MiniMusicVisualizer(
+                            color: _activeAccentColor,
+                            width: 4,
+                            height: 14,
+                            radius: 2,
+                            animate: _isPlaying,
+                          ),
+                        )
+                      else if (track.duration > 0)
+                        Text(
+                          _formatDuration(
+                            Duration(milliseconds: track.duration),
+                          ),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: subColor,
+                            fontFeatures: const [
+                              FontFeature.tabularFigures(),
+                            ],
+                          ),
                         ),
-                      )
-                    : Container(
-                        width: 48,
-                        height: 48,
-                        color: isLight ? Colors.black12 : Colors.white12,
-                        child: const Icon(Icons.music_note, size: 24),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          Icons.more_vert,
+                          color: isLight ? Colors.black45 : Colors.white54,
+                          size: 20,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _showTrackOptions(
+                          context,
+                          track,
+                        ),
                       ),
-              ),
-              title: Text(
-                yt.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                  color: textColor,
-                  fontFamily: getFontFamily(activeFontNotifier.value),
+                    ],
+                  ),
                 ),
               ),
-              subtitle: Text(
-                [yt.artist, yt.album].where((s) => s.isNotEmpty).join(' • '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: subColor,
-                  fontFamily: getFontFamily(activeFontNotifier.value),
-                ),
-              ),
-              trailing: isBuffering
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: accentColor),
-                    )
-                  : Text(
-                      yt.durationMs > 0
-                          ? _formatDuration(Duration(milliseconds: yt.durationMs))
-                          : '',
-                      style: TextStyle(fontSize: 12, color: subColor),
-                    ),
-              onTap: () => _playYtmTrack(yt),
             );
           },
         );
@@ -2064,10 +2122,298 @@ extension _TabsUI on _MainScreenState {
       targetIndex != -1 ? targetIndex : 0,
       sourceList: queue,
     );
-    setState(() {
-      _isPlayerOpen = true;
-      _playerDragOffsetNotifier.value = 0.0;
-    });
+  }
+
+  Widget _buildYtmSearchDiscoverView(
+    Color textColor,
+    Color subColor,
+    Color accentColor,
+    bool isLight,
+  ) {
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
+    final recentTracks = _recentOnlineSearches.take(5).toList();
+
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 8,
+        bottom: _bottomListPadding,
+      ),
+      children: [
+        // 1. Recent Searches
+        if (recentTracks.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: Text(
+              loc.recentSearches,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+                fontFamily: getFontFamily(activeFontNotifier.value),
+              ),
+            ),
+          ),
+          ...recentTracks.map((yt) {
+            final track = Track(
+              id: 'ytm_${yt.videoId}',
+              title: yt.title,
+              artist: yt.artist,
+              album: yt.album,
+              url: yt.thumbnailUrl,
+              path: yt.videoId,
+              lyrics: const [],
+              duration: yt.durationMs,
+            );
+            _onlineTracksMap[track.id] = track;
+
+            final isSelected = _playingTrack != null &&
+                (_playingTrack!.id == track.id ||
+                    _playingTrack!.path == yt.videoId);
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.03)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListTile(
+                visualDensity: _libraryDensity == 'compact'
+                    ? const VisualDensity(vertical: -2)
+                    : VisualDensity.standard,
+                contentPadding: EdgeInsets.only(
+                  left: 8,
+                  right: 0,
+                  top: _libraryDensity == 'compact' ? 0 : 4,
+                  bottom: _libraryDensity == 'compact' ? 0 : 4,
+                ),
+                onLongPress: () {
+                  _searchFocusNode.unfocus();
+                  _showTrackOptions(context, track);
+                },
+                onTap: () {
+                  _searchFocusNode.unfocus();
+                  _addToRecentOnlineSearches(yt);
+                  _playYtmTrack(yt, customQueue: _recentOnlineSearches);
+                },
+                leading: _buildTrackArtwork(
+                  track,
+                  size: _libraryDensity == 'compact' ? 36 : 44,
+                  radius: _libraryDensity == 'compact' ? 4 : 6,
+                ),
+                title: Text(
+                  track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: isSelected ? _activeAccentColor : textColor,
+                    fontFamily: getFontFamily(activeFontNotifier.value),
+                  ),
+                ),
+                subtitle: Text(
+                  track.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: subColor,
+                    fontSize: 12,
+                  ),
+                ),
+                trailing: Transform.translate(
+                  offset: const Offset(12, 0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isSelected)
+                        SizedBox(
+                          width: 20,
+                          height: 14,
+                          child: MiniMusicVisualizer(
+                            color: _activeAccentColor,
+                            width: 4,
+                            height: 14,
+                            radius: 2,
+                            animate: _isPlaying,
+                          ),
+                        )
+                      else if (track.duration > 0)
+                        Text(
+                          _formatDuration(
+                            Duration(milliseconds: track.duration),
+                          ),
+                          style: TextStyle(
+                            color: subColor,
+                            fontSize: 12,
+                            fontFeatures: const [
+                              FontFeature.tabularFigures(),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          Icons.more_vert,
+                          color: isLight ? Colors.black45 : Colors.white54,
+                          size: 20,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _showTrackOptions(
+                          context,
+                          track,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: 16),
+        ],
+
+        // 2. Trending
+        if (_ytmTrendingTracks.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: Text(
+              'Trending',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+                fontFamily: getFontFamily(activeFontNotifier.value),
+              ),
+            ),
+          ),
+          ..._ytmTrendingTracks.map((yt) {
+            final track = Track(
+              id: 'ytm_${yt.videoId}',
+              title: yt.title,
+              artist: yt.artist,
+              album: yt.album,
+              url: yt.thumbnailUrl,
+              path: yt.videoId,
+              lyrics: const [],
+              duration: yt.durationMs,
+            );
+            _onlineTracksMap[track.id] = track;
+
+            final isSelected = _playingTrack != null &&
+                (_playingTrack!.id == track.id ||
+                    _playingTrack!.path == yt.videoId);
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.03)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListTile(
+                visualDensity: _libraryDensity == 'compact'
+                    ? const VisualDensity(vertical: -2)
+                    : VisualDensity.standard,
+                contentPadding: EdgeInsets.only(
+                  left: 8,
+                  right: 0,
+                  top: _libraryDensity == 'compact' ? 0 : 4,
+                  bottom: _libraryDensity == 'compact' ? 0 : 4,
+                ),
+                onLongPress: () {
+                  _searchFocusNode.unfocus();
+                  _showTrackOptions(context, track);
+                },
+                onTap: () {
+                  _searchFocusNode.unfocus();
+                  _addToRecentOnlineSearches(yt);
+                  _playYtmTrack(yt, customQueue: _ytmTrendingTracks);
+                },
+                leading: _buildTrackArtwork(
+                  track,
+                  size: _libraryDensity == 'compact' ? 36 : 44,
+                  radius: _libraryDensity == 'compact' ? 4 : 6,
+                ),
+                title: Text(
+                  track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: isSelected ? _activeAccentColor : textColor,
+                    fontFamily: getFontFamily(activeFontNotifier.value),
+                  ),
+                ),
+                subtitle: Text(
+                  track.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: subColor,
+                    fontSize: 12,
+                  ),
+                ),
+                trailing: Transform.translate(
+                  offset: const Offset(12, 0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isSelected)
+                        SizedBox(
+                          width: 20,
+                          height: 14,
+                          child: MiniMusicVisualizer(
+                            color: _activeAccentColor,
+                            width: 4,
+                            height: 14,
+                            radius: 2,
+                            animate: _isPlaying,
+                          ),
+                        )
+                      else if (track.duration > 0)
+                        Text(
+                          _formatDuration(
+                            Duration(milliseconds: track.duration),
+                          ),
+                          style: TextStyle(
+                            color: subColor,
+                            fontSize: 12,
+                            fontFeatures: const [
+                              FontFeature.tabularFigures(),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          Icons.more_vert,
+                          color: isLight ? Colors.black45 : Colors.white54,
+                          size: 20,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _showTrackOptions(
+                          context,
+                          track,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ],
+    );
   }
 
   Widget _buildSearchBrowseCategories() {
@@ -2130,7 +2476,7 @@ extension _TabsUI on _MainScreenState {
         if (recentTracks.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 8),
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 8),
               child: Text(
                 loc.recentSearches,
                 style: TextStyle(
@@ -2274,7 +2620,12 @@ extension _TabsUI on _MainScreenState {
         ],
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: recentTracks.isNotEmpty ? 0 : 12,
+              bottom: 12,
+            ),
             child: Text(
               loc.browseAll,
               style: TextStyle(
