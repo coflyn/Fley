@@ -204,15 +204,57 @@ class DownloadService {
         } catch (_) {}
       }
 
+      String albumName = task.track.album.trim();
+      String? albumBrowseId = task.track.albumBrowseId;
+      String? artistBrowseId = task.track.artistBrowseId;
+
+      bool isIgnoredAlbum(String s) {
+        final t = s.trim().toLowerCase();
+        if (t.isEmpty ||
+            t == 'youtube music' ||
+            t == '<unknown>' ||
+            t == 'unknown album') {
+          return true;
+        }
+        if (RegExp(
+          r'^\d+([.,]\d+)?[kmb]?\s*(plays?|views?|ditonton|tayangan|x ditonton)?$',
+          caseSensitive: false,
+        ).hasMatch(t)) {
+          return true;
+        }
+        return false;
+      }
+
+      if (isIgnoredAlbum(albumName)) {
+        try {
+          final query = '${task.track.title} ${task.track.artist}'.trim();
+          final results = await YtMusicService.search(query, limit: 3);
+          for (final res in results) {
+            if (!isIgnoredAlbum(res.album)) {
+              albumName = res.album;
+              albumBrowseId ??= res.albumBrowseId;
+              artistBrowseId ??= res.artistBrowseId;
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (isIgnoredAlbum(albumName)) {
+        albumName = '${task.track.title} - Single';
+      }
+
       final downloadedTrack = Track(
         id: newTrackId,
         title: task.track.title,
         artist: task.track.artist,
-        album: task.track.album.isNotEmpty ? task.track.album : 'YouTube Music',
+        album: albumName,
         url: audioFile.path,
         path: audioFile.path,
         lyrics: task.track.lyrics,
         duration: task.track.duration,
+        artistBrowseId: artistBrowseId,
+        albumBrowseId: albumBrowseId,
       );
 
       // If cached LRC exists on disk, copy to downloaded file .lrc

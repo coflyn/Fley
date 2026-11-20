@@ -89,6 +89,8 @@ class YtTrack {
   final String album;
   final String thumbnailUrl;
   final int durationMs;
+  final String? artistBrowseId;
+  final String? albumBrowseId;
 
   const YtTrack({
     required this.videoId,
@@ -97,6 +99,8 @@ class YtTrack {
     required this.album,
     required this.thumbnailUrl,
     required this.durationMs,
+    this.artistBrowseId,
+    this.albumBrowseId,
   });
 
   YtTrack copyWith({
@@ -106,6 +110,8 @@ class YtTrack {
     String? album,
     String? thumbnailUrl,
     int? durationMs,
+    String? artistBrowseId,
+    String? albumBrowseId,
   }) {
     return YtTrack(
       videoId: videoId ?? this.videoId,
@@ -114,6 +120,8 @@ class YtTrack {
       album: album ?? this.album,
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       durationMs: durationMs ?? this.durationMs,
+      artistBrowseId: artistBrowseId ?? this.artistBrowseId,
+      albumBrowseId: albumBrowseId ?? this.albumBrowseId,
     );
   }
 }
@@ -246,7 +254,6 @@ class YtMusicService {
   /// Search YT Music. Returns up to [limit] tracks.
   static Future<List<YtTrack>> search(String query, {int limit = 20}) async {
     final cookie = await _getCookie();
-    if (cookie.isEmpty) throw Exception('Not logged in');
 
     final client = HttpClient();
     try {
@@ -283,6 +290,8 @@ class YtMusicService {
     String title = '';
     String artist = '';
     String album = '';
+    String? artistBrowseId;
+    String? albumBrowseId;
 
     if (cols.isNotEmpty) {
       final runs = cols[0]['musicResponsiveListItemFlexColumnRenderer']
@@ -292,13 +301,65 @@ class YtMusicService {
     if (cols.length > 1) {
       final runs = cols[1]['musicResponsiveListItemFlexColumnRenderer']
           ?['text']?['runs'] as List? ?? [];
+
+      for (final r in runs) {
+        final text = (r['text'] as String? ?? '').trim();
+        final bId = r['navigationEndpoint']?['browseEndpoint']?['browseId']
+            as String? ??
+            '';
+        final pageType = r['navigationEndpoint']?['browseEndpoint']
+            ?['browseEndpointContextSupportedConfigs']
+            ?['browseEndpointContextMusicConfig']?['pageType'] as String? ??
+            '';
+        if (pageType == 'MUSIC_PAGE_TYPE_ARTIST' || bId.startsWith('UC')) {
+          if (artist.isEmpty && text.isNotEmpty) artist = text;
+          artistBrowseId ??= bId;
+        } else if (pageType == 'MUSIC_PAGE_TYPE_ALBUM' ||
+            bId.startsWith('MPREb')) {
+          if (text.isNotEmpty) album = text;
+          albumBrowseId ??= bId;
+        }
+      }
+
+      bool isIgnoredMetadata(String s) {
+        final lower = s.trim().toLowerCase();
+        if (lower.isEmpty || lower == '•') return true;
+        if (lower == 'song' ||
+            lower == 'lagu' ||
+            lower == 'video' ||
+            lower == 'single' ||
+            lower == 'audio') {
+          return true;
+        }
+        if (RegExp(
+          r'^\d+([.,]\d+)?\s*[kmb]?\s*(plays?|views?|ditonton|tayangan|x ditonton)?$',
+          caseSensitive: false,
+        ).hasMatch(lower)) {
+          return true;
+        }
+        if (RegExp(r'^\d{1,2}:\d{2}(:\d{2})?$').hasMatch(lower)) {
+          return true;
+        }
+        return false;
+      }
+
       final parts = runs
-          .where((r) => (r['text'] as String?) != ' • ')
-          .map((r) => r['text'] as String? ?? '')
-          .where((s) => s.isNotEmpty)
+          .map((r) => (r['text'] as String? ?? '').trim())
+          .where((s) => s.isNotEmpty && s != '•')
           .toList();
-      if (parts.isNotEmpty) artist = parts[0];
-      if (parts.length > 1) album = parts[1];
+
+      if (artist.isEmpty && parts.isNotEmpty && !isIgnoredMetadata(parts[0])) {
+        artist = parts[0];
+      }
+      if (album.isEmpty && parts.length > 1) {
+        for (int i = 1; i < parts.length; i++) {
+          final p = parts[i];
+          if (p != artist && !isIgnoredMetadata(p)) {
+            album = p;
+            break;
+          }
+        }
+      }
     }
 
     final thumbs = renderer['thumbnail']?['musicThumbnailRenderer']
@@ -360,6 +421,8 @@ class YtMusicService {
       album: album,
       thumbnailUrl: thumbUrl,
       durationMs: durationMs,
+      artistBrowseId: artistBrowseId,
+      albumBrowseId: albumBrowseId,
     );
   }
 
@@ -438,10 +501,33 @@ class YtMusicService {
     return results;
   }
 
-  /// Search trending community playlists from YouTube Music.
+  /// Fetch trending community playlists from YouTube Music home feed, fallback to search.
   static Future<List<YtPlaylist>> getCommunityPlaylists({int limit = 15}) async {
     final cookie = await _getCookie();
     final client = HttpClient();
+    try {
+      final homeUri = Uri.https(
+        _baseUrl,
+        '/youtubei/v1/browse',
+        {'key': _apiKey, 'prettyPrint': 'false'},
+      );
+      final homeReq = await client.postUrl(homeUri);
+      _headers(cookie).forEach((k, v) => homeReq.headers.set(k, v));
+      homeReq.write(jsonEncode({
+        'context': _context(),
+        'browseId': 'FEmusic_home',
+      }));
+      final homeRes = await homeReq.close();
+      final homeBody = await homeRes.transform(utf8.decoder).join();
+      final homeJson = jsonDecode(homeBody) as Map<String, dynamic>;
+      final homePlaylists = _extractCommunityPlaylistsFromHome(homeJson, limit);
+      if (homePlaylists.isNotEmpty) {
+        return homePlaylists;
+      }
+    } catch (e) {
+      debugPrint('YTM community playlists from home error: $e');
+    }
+
     try {
       final uri = Uri.https(
         _baseUrl,
@@ -465,6 +551,111 @@ class YtMusicService {
     } finally {
       client.close();
     }
+  }
+
+  static YtPlaylist? _parseTwoRowPlaylist(Map<String, dynamic> renderer) {
+    final nav = renderer['navigationEndpoint']?['browseEndpoint'];
+    var browseId = nav?['browseId'] as String? ?? '';
+    if (browseId.isEmpty) return null;
+    if (browseId.startsWith('VL')) {
+      browseId = browseId.substring(2);
+    }
+
+    final titleRuns = renderer['title']?['runs'] as List? ?? [];
+    final title =
+        titleRuns.map((r) => r['text'] as String? ?? '').join('').trim();
+    if (title.isEmpty) return null;
+
+    final subRuns = renderer['subtitle']?['runs'] as List? ?? [];
+    final authorParts = subRuns
+        .where((r) => (r['text'] as String?) != ' • ')
+        .map((r) => (r['text'] as String? ?? '').trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final author = authorParts.join(' • ');
+
+    final thumbs = renderer['thumbnailRenderer']?['musicThumbnailRenderer']
+            ?['thumbnail']?['thumbnails'] as List? ??
+        renderer['thumbnail']?['musicThumbnailRenderer']?['thumbnail']
+            ?['thumbnails'] as List?;
+    final rawThumbUrl = (thumbs != null && thumbs.isNotEmpty)
+        ? (thumbs.last['url'] as String? ?? '')
+        : '';
+    final thumbUrl = getHighResThumbnail(rawThumbUrl);
+
+    return YtPlaylist(
+      playlistId: browseId,
+      title: title,
+      author: author,
+      thumbnailUrl: thumbUrl,
+    );
+  }
+
+  static List<YtPlaylist> _extractCommunityPlaylistsFromHome(
+      Map<String, dynamic> json, int limit) {
+    final results = <YtPlaylist>[];
+    try {
+      final tabs = (json['contents']?['singleColumnBrowseResultsRenderer']
+              ?['tabs'] as List?) ??
+          (json['contents']?['tabbedSearchResultsRenderer']?['tabs'] as List?);
+      if (tabs == null || tabs.isEmpty) return results;
+      final contents = tabs.first['tabRenderer']?['content']
+          ?['sectionListRenderer']?['contents'] as List?;
+      if (contents == null) return results;
+
+      Map<String, dynamic>? targetShelf;
+
+      for (final section in contents) {
+        final shelf =
+            section['musicCarouselShelfRenderer'] as Map<String, dynamic>?;
+        if (shelf == null) continue;
+        final header = shelf['header']
+                ?['musicCarouselShelfBasicHeaderRenderer'] ??
+            shelf['header']?['musicHeaderRenderer'];
+        final titleRuns = header?['title']?['runs'] as List? ?? [];
+        final titleText = titleRuns
+            .map((r) => r['text'] as String? ?? '')
+            .join('')
+            .toLowerCase();
+
+        final items = shelf['contents'] as List? ?? [];
+        final hasPlaylists = items.any((it) {
+          final twoRow = it['musicTwoRowItemRenderer'];
+          if (twoRow == null) return false;
+          final bId = twoRow['navigationEndpoint']?['browseEndpoint']
+                  ?['browseId'] as String? ??
+              '';
+          return bId.contains('PL') || bId.startsWith('VL');
+        });
+
+        if (!hasPlaylists) continue;
+
+        if (titleText.contains('komunitas') ||
+            titleText.contains('community') ||
+            (titleText.contains('trending') && titleText.contains('playlist'))) {
+          targetShelf = shelf;
+          break;
+        } else {
+          targetShelf ??= shelf;
+        }
+      }
+
+      if (targetShelf != null) {
+        final items = targetShelf['contents'] as List? ?? [];
+        for (final item in items) {
+          if (results.length >= limit) break;
+          final renderer =
+              item['musicTwoRowItemRenderer'] as Map<String, dynamic>?;
+          if (renderer != null) {
+            final pl = _parseTwoRowPlaylist(renderer);
+            if (pl != null) results.add(pl);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('YTM parse community playlists from home error: $e');
+    }
+    return results;
   }
 
   static List<YtPlaylist> _parseCommunityPlaylists(
@@ -531,9 +722,113 @@ class YtMusicService {
     return results;
   }
 
-  /// Fetch tracks of a YouTube Music playlist.
-  static Future<List<YtTrack>> getPlaylistTracks(String playlistId,
-      {int limit = 50}) async {
+  static List<YtTrack> _extractAlbumTracks(
+      Map<String, dynamic> json, int limit) {
+    final results = <YtTrack>[];
+    try {
+      final List sections = [];
+      final secContents = json['contents']?['twoColumnBrowseResultsRenderer']
+          ?['secondaryContents']?['sectionListRenderer']?['contents'] as List?;
+      if (secContents != null) sections.addAll(secContents);
+
+      final singleTabs = json['contents']?['singleColumnBrowseResultsRenderer']
+          ?['tabs'] as List?;
+      if (singleTabs != null && singleTabs.isNotEmpty) {
+        final tabContents = singleTabs.first['tabRenderer']?['content']
+            ?['sectionListRenderer']?['contents'] as List?;
+        if (tabContents != null) sections.addAll(tabContents);
+      }
+
+      final twoTabs = json['contents']?['twoColumnBrowseResultsRenderer']
+          ?['tabs'] as List?;
+      if (twoTabs != null && twoTabs.isNotEmpty) {
+        final tabContents = twoTabs.first['tabRenderer']?['content']
+            ?['sectionListRenderer']?['contents'] as List?;
+        if (tabContents != null) sections.addAll(tabContents);
+      }
+
+      for (final section in sections) {
+        final items = (section['musicPlaylistShelfRenderer']?['contents']
+                as List?) ??
+            (section['musicShelfRenderer']?['contents'] as List?);
+        if (items != null && items.isNotEmpty) {
+          for (final item in items) {
+            if (results.length >= limit) break;
+            final renderer = item['musicResponsiveListItemRenderer']
+                as Map<String, dynamic>?;
+            if (renderer == null) continue;
+            final track = _parseResponsiveItem(renderer);
+            if (track != null &&
+                !results.any((t) => t.videoId == track.videoId)) {
+              results.add(track);
+            }
+          }
+          if (results.isNotEmpty) break;
+        }
+      }
+    } catch (e) {
+      debugPrint('YTM extract album tracks error: $e');
+    }
+    return results;
+  }
+
+  static List<YtTrack> _extractArtistTracks(
+      Map<String, dynamic> json, String artistName, int limit) {
+    final results = <YtTrack>[];
+    final cleanArtist = artistName.trim().toLowerCase();
+    try {
+      final List sections = [];
+      final singleTabs = json['contents']?['singleColumnBrowseResultsRenderer']
+          ?['tabs'] as List?;
+      if (singleTabs != null && singleTabs.isNotEmpty) {
+        final tabContents = singleTabs.first['tabRenderer']?['content']
+            ?['sectionListRenderer']?['contents'] as List?;
+        if (tabContents != null) sections.addAll(tabContents);
+      }
+
+      final twoTabs = json['contents']?['twoColumnBrowseResultsRenderer']
+          ?['tabs'] as List?;
+      if (twoTabs != null && twoTabs.isNotEmpty) {
+        final tabContents = twoTabs.first['tabRenderer']?['content']
+            ?['sectionListRenderer']?['contents'] as List?;
+        if (tabContents != null) sections.addAll(tabContents);
+      }
+
+      final secContents = json['contents']?['twoColumnBrowseResultsRenderer']
+          ?['secondaryContents']?['sectionListRenderer']?['contents'] as List?;
+      if (secContents != null) sections.addAll(secContents);
+
+      for (final section in sections) {
+        final shelf = section['musicShelfRenderer'] as Map<String, dynamic>?;
+        if (shelf == null) continue;
+        final items = shelf['contents'] as List?;
+        if (items == null) continue;
+
+        for (final item in items) {
+          if (results.length >= limit) break;
+          final renderer = item['musicResponsiveListItemRenderer']
+              as Map<String, dynamic>?;
+          if (renderer == null) continue;
+          final track = _parseResponsiveItem(renderer);
+          if (track != null &&
+              !results.any((t) => t.videoId == track.videoId)) {
+            final tArtist = track.artist.trim().toLowerCase();
+            if (cleanArtist.isEmpty ||
+                tArtist.contains(cleanArtist) ||
+                cleanArtist.contains(tArtist)) {
+              results.add(track);
+            }
+          }
+        }
+        if (results.isNotEmpty) break;
+      }
+    } catch (e) {
+      debugPrint('YTM extract artist tracks error: $e');
+    }
+    return results;
+  }
+
+  static Future<Map<String, dynamic>?> _fetchBrowseJson(String browseId) async {
     final cookie = await _getCookie();
     final client = HttpClient();
     try {
@@ -544,49 +839,155 @@ class YtMusicService {
       );
       final req = await client.postUrl(uri);
       _headers(cookie).forEach((k, v) => req.headers.set(k, v));
-      final browseId =
-          playlistId.startsWith('VL') ? playlistId : 'VL$playlistId';
+      final cleanBrowseId = browseId.startsWith('VL') ||
+              browseId.startsWith('MPREb') ||
+              browseId.startsWith('UC') ||
+              browseId.startsWith('FEmusic')
+          ? browseId
+          : 'VL$browseId';
       req.write(jsonEncode({
         'context': _context(),
-        'browseId': browseId,
+        'browseId': cleanBrowseId,
       }));
       final res = await req.close();
       final body = await res.transform(utf8.decoder).join();
-      final json = jsonDecode(body) as Map<String, dynamic>;
-
-      final results = <YtTrack>[];
-      final secContents = json['contents']?['twoColumnBrowseResultsRenderer']
-          ?['secondaryContents']?['sectionListRenderer']?['contents'] as List?;
-      List? items;
-      if (secContents != null && secContents.isNotEmpty) {
-        items = secContents.first['musicPlaylistShelfRenderer']?['contents']
-            as List?;
-      }
-      if (items == null) {
-        final tabs = json['contents']?['singleColumnBrowseResultsRenderer']
-            ?['tabs'] as List?;
-        final tabContents = tabs?.first['tabRenderer']?['content']
-            ?['sectionListRenderer']?['contents'] as List?;
-        items = tabContents?.first['musicPlaylistShelfRenderer']?['contents']
-            as List?;
-      }
-
-      if (items != null) {
-        for (final item in items) {
-          if (results.length >= limit) break;
-          final renderer =
-              item['musicResponsiveListItemRenderer'] as Map<String, dynamic>?;
-          if (renderer == null) continue;
-          final track = _parseResponsiveItem(renderer);
-          if (track != null) results.add(track);
-        }
-      }
-      return results;
+      return jsonDecode(body) as Map<String, dynamic>;
     } catch (e) {
-      debugPrint('YTM playlist tracks error: $e');
-      return [];
+      debugPrint('YTM fetch browse json error: $e');
+      return null;
     } finally {
       client.close();
+    }
+  }
+
+  /// Fetch tracks of a YouTube Music playlist.
+  static Future<List<YtTrack>> getPlaylistTracks(String playlistId,
+      {int limit = 50}) async {
+    final json = await _fetchBrowseJson(playlistId);
+    if (json == null) return [];
+    return _extractAlbumTracks(json, limit);
+  }
+
+  /// Fetch songs for an artist from YTM, falling back to search if needed.
+  static Future<List<YtTrack>> getArtistTracks(String artistName,
+      {String? browseId, int limit = 50}) async {
+    final cleanArtist = artistName.trim();
+    if (browseId != null && browseId.isNotEmpty) {
+      final json = await _fetchBrowseJson(browseId);
+      if (json != null) {
+        final tracks = _extractArtistTracks(json, cleanArtist, limit);
+        if (tracks.isNotEmpty) return tracks;
+      }
+    }
+    try {
+      final searchResults = await search(cleanArtist, limit: limit);
+      final cleanLower = cleanArtist.toLowerCase();
+      final filtered = searchResults.where((t) {
+        final a = t.artist.trim().toLowerCase();
+        return cleanLower.isEmpty ||
+            a.contains(cleanLower) ||
+            cleanLower.contains(a);
+      }).toList();
+      return filtered.isNotEmpty ? filtered : searchResults;
+    } catch (e) {
+      debugPrint('YTM getArtistTracks search fallback error: $e');
+      return [];
+    }
+  }
+
+  /// Search YouTube Music specifically for an album and return its MPREb browseId.
+  static Future<String?> findAlbumBrowseId(String albumName,
+      {String? artistName}) async {
+    final cleanAlbum = albumName
+        .replaceAll(RegExp(r'\s*-\s*Single$', caseSensitive: false), '')
+        .trim();
+    if (cleanAlbum.isEmpty) return null;
+    final cleanArtist = (artistName != null &&
+            artistName.isNotEmpty &&
+            artistName != '<unknown>' &&
+            artistName != 'Unknown Artist')
+        ? artistName.trim()
+        : '';
+    final query =
+        cleanArtist.isNotEmpty ? '$cleanAlbum $cleanArtist' : cleanAlbum;
+
+    final cookie = await _getCookie();
+    final client = HttpClient();
+    try {
+      final uri = Uri.https(
+        _baseUrl,
+        '/youtubei/v1/search',
+        {'key': _apiKey, 'prettyPrint': 'false'},
+      );
+      final req = await client.postUrl(uri);
+      _headers(cookie).forEach((k, v) => req.headers.set(k, v));
+      req.write(jsonEncode({
+        'context': _context(),
+        'query': query,
+        'params': 'EgWKAQIBAWoKEAoQAxAEEAkQBQ%3D%3D', // Albums filter
+      }));
+      final res = await req.close();
+      final body = await res.transform(utf8.decoder).join();
+      final match =
+          RegExp(r'\"browseId\":\s*\"(MPREb[^\"]+)\"').firstMatch(body);
+      if (match != null) {
+        return match.group(1);
+      }
+    } catch (e) {
+      debugPrint('findAlbumBrowseId error: $e');
+    } finally {
+      client.close();
+    }
+    return null;
+  }
+
+  /// Fetch songs for an album from YTM, falling back to search if needed.
+  static Future<List<YtTrack>> getAlbumTracks(String albumName,
+      {String? artistName, String? browseId, int limit = 50}) async {
+    var effectiveBrowseId = browseId;
+    if (effectiveBrowseId == null || effectiveBrowseId.isEmpty) {
+      effectiveBrowseId =
+          await findAlbumBrowseId(albumName, artistName: artistName);
+    }
+
+    if (effectiveBrowseId != null && effectiveBrowseId.isNotEmpty) {
+      final json = await _fetchBrowseJson(effectiveBrowseId);
+      if (json != null) {
+        final tracks = _extractAlbumTracks(json, limit);
+        if (tracks.isNotEmpty) return tracks;
+      }
+    }
+    final cleanArtist = (artistName != null &&
+            artistName.isNotEmpty &&
+            artistName != '<unknown>' &&
+            artistName != 'Unknown Artist')
+        ? artistName.trim()
+        : '';
+    final cleanAlbumQuery = albumName
+        .replaceAll(RegExp(r'\s*-\s*Single$', caseSensitive: false), '')
+        .trim();
+    final query = cleanArtist.isNotEmpty
+        ? '$cleanAlbumQuery $cleanArtist'
+        : cleanAlbumQuery;
+    try {
+      final searchResults = await search(query, limit: limit);
+      final cleanAlbumLower = albumName.trim().toLowerCase();
+      final cleanArtistLower = cleanArtist.toLowerCase();
+      final filtered = searchResults.where((t) {
+        final a = t.artist.trim().toLowerCase();
+        final alb = t.album.trim().toLowerCase();
+        final matchArtist = cleanArtistLower.isEmpty ||
+            a.contains(cleanArtistLower) ||
+            cleanArtistLower.contains(a);
+        final matchAlbum = cleanAlbumLower.isEmpty ||
+            alb.contains(cleanAlbumLower) ||
+            cleanAlbumLower.contains(alb);
+        return matchArtist || matchAlbum;
+      }).toList();
+      return filtered.isNotEmpty ? filtered : searchResults;
+    } catch (e) {
+      debugPrint('YTM getAlbumTracks search fallback error: $e');
+      return [];
     }
   }
 
