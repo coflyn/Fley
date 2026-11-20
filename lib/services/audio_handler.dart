@@ -89,6 +89,7 @@ class MyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> onTaskRemoved() async {
     try {
+      YtPlayerService.instance.stop();
       await stop();
     } catch (_) {}
     await super.onTaskRemoved();
@@ -96,6 +97,7 @@ class MyAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> stop() async {
+    YtPlayerService.instance.stop();
     await player.stop();
     playbackState.add(
       playbackState.value.copyWith(

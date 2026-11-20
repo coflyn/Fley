@@ -192,6 +192,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
     setState(() {
       _repeatMode = (_repeatMode + 1) % 3;
       _audioPlayer.setLoopMode(_repeatMode == 2 ? LoopMode.one : LoopMode.off);
+      YtPlayerService.instance.setLoop(_repeatMode == 2);
     });
   }
 
@@ -276,6 +277,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
       final videoId =
           track.path.isNotEmpty ? track.path : track.id.replaceFirst('ytm_', '');
       YtPlayerService.instance.loadAndPlay(videoId);
+      YtPlayerService.instance.setLoop(_repeatMode == 2);
 
       final mediaItem = MediaItem(
         id: track.id,

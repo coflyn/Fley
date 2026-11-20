@@ -99,6 +99,18 @@ extension _AudioLibraryScanLogic on _MainScreenState {
         final desktopTracks = await DesktopAudioScanner.scanAllTracks(
           filterShortAudio: _filterShortAudio,
         );
+        try {
+          final downDir = await getFleyDownloadsDirectory();
+          final downloadedTracks = await DesktopAudioScanner.scanFolders(
+            [downDir.path],
+            filterShortAudio: false,
+          );
+          for (final dt in downloadedTracks) {
+            if (!desktopTracks.any((t) => t.path == dt.path)) {
+              desktopTracks.add(dt);
+            }
+          }
+        } catch (_) {}
         _allTracks = desktopTracks
             .map((track) {
               String title = track.title;
@@ -325,6 +337,38 @@ extension _AudioLibraryScanLogic on _MainScreenState {
             mobileTracks.addAll(queryTracks);
           }
         }
+
+        try {
+          final downDir = await getFleyDownloadsDirectory();
+          final downloadedTracks = await DesktopAudioScanner.scanFolders(
+            [downDir.path],
+            filterShortAudio: false,
+          );
+          for (final track in downloadedTracks) {
+            ArtworkCacheManager.registerTrackPath(track.id, track.path);
+            String title = track.title;
+            String artist = track.artist;
+            String album = track.album;
+            if (_metadataOverrides.containsKey(track.id)) {
+              final overrides = _metadataOverrides[track.id]!;
+              title = overrides['title'] ?? title;
+              artist = overrides['artist'] ?? artist;
+              album = overrides['album'] ?? album;
+            }
+            mobileTracks.add(
+              Track(
+                id: track.id,
+                title: title,
+                artist: artist,
+                album: album,
+                url: track.url,
+                path: track.path,
+                lyrics: track.lyrics,
+                duration: track.duration,
+              ),
+            );
+          }
+        } catch (_) {}
 
         final seenFinal = <String>{};
         _allTracks = mobileTracks
@@ -627,6 +671,9 @@ extension _AudioLibraryScanLogic on _MainScreenState {
 
         if (_currentIndex + 1 < _playbackQueue.length) {
           final nextTrack = _playbackQueue[_currentIndex + 1];
+          if (nextTrack.id.startsWith('ytm_')) {
+            return;
+          }
           final nextUri = nextTrack.url.startsWith('/')
               ? Uri.file(nextTrack.url)
               : (Uri.tryParse(nextTrack.url) ?? Uri.parse(''));

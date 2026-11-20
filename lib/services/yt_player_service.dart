@@ -5,11 +5,31 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
+class _WebViewDownloadContext {
+  final File file;
+  final IOSink sink;
+  final void Function(int received, int total) onProgress;
+  final Completer<bool> completer;
+
+  _WebViewDownloadContext({
+    required this.file,
+    required this.sink,
+    required this.onProgress,
+    required this.completer,
+  });
+}
+
 /// Background/hidden WebView-based player for YouTube Music.
 /// Plays directly inside Chromium engine using the user's authenticated Google session.
 class YtPlayerService {
+  static const String userAgent =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
   static final YtPlayerService instance = YtPlayerService._();
   YtPlayerService._();
+
+  final Map<String, _WebViewDownloadContext> _activeWebViewDownloads = {};
 
   WebViewController? _controller;
   WebViewController get controller {
@@ -26,8 +46,11 @@ class YtPlayerService {
   bool isPlaying = false;
   bool isBuffering = false;
   bool _isPageLoaded = false;
+  bool _isLooping = false;
+  bool get isLooping => _isLooping;
   String? currentVideoId;
   Timer? _bufferingSafetyTimer;
+  DateTime? _lastEndedTime;
 
   VoidCallback? onStateChange;
   VoidCallback? onSongEnded;
@@ -196,8 +219,16 @@ try {
     if (window._fleyShouldPlay) {
       v.play().catch(function(e) {});
     }
+    if (window._fleyLoop) {
+      v.loop = true;
+    }
 
     var player = document.getElementById('movie_player');
+    if (player) {
+      try {
+        if (typeof player.setAutonav === 'function') player.setAutonav(false);
+      } catch(e){}
+    }
     if (player && typeof player.addEventListener === 'function' && !player._fleyHooked) {
       player._fleyHooked = true;
       player.addEventListener('onStateChange', function(st) {
@@ -267,7 +298,12 @@ try {
 
     v.addEventListener('ended', function() {
       if (isAd()) return;
+      var now = Date.now();
+      if (window._fleySuppressEndedUntil && now < window._fleySuppressEndedUntil) {
+        return;
+      }
       if (v.duration && v.currentTime && (v.duration - v.currentTime < 2.5)) {
+        window._fleySuppressEndedUntil = now + 4000;
         try { FleyBridge.postMessage(JSON.stringify({type: 'ended'})); } catch(e){}
       }
     }, true);
@@ -337,6 +373,12 @@ try {
             _bufferingSafetyTimer?.cancel();
             onStateChange?.call();
           } else if (type == 'ended') {
+            final now = DateTime.now();
+            if (_lastEndedTime != null &&
+                now.difference(_lastEndedTime!).inMilliseconds < 3500) {
+              return;
+            }
+            _lastEndedTime = now;
             isPlaying = false;
             isBuffering = false;
             _bufferingSafetyTimer?.cancel();
@@ -359,6 +401,36 @@ try {
               onStateChange?.call();
             }
             _positionStreamController.add(currentPosition);
+          } else if (type == 'dl_chunk') {
+            final id = data['id'] as String?;
+            final b64 = data['data'] as String? ?? '';
+            final received = data['received'] as int? ?? 0;
+            final total = data['total'] as int? ?? 0;
+            final ctx = _activeWebViewDownloads[id];
+            if (ctx != null && b64.isNotEmpty) {
+              final bytes = base64Decode(b64);
+              ctx.sink.add(bytes);
+              ctx.onProgress(received, total);
+            }
+          } else if (type == 'dl_done') {
+            final id = data['id'] as String?;
+            final ctx = _activeWebViewDownloads.remove(id);
+            if (ctx != null) {
+              ctx.sink.flush().then((_) => ctx.sink.close()).then((_) {
+                if (!ctx.completer.isCompleted) {
+                  ctx.completer.complete(true);
+                }
+              });
+            }
+          } else if (type == 'dl_error') {
+            final id = data['id'] as String?;
+            final ctx = _activeWebViewDownloads.remove(id);
+            if (ctx != null) {
+              ctx.sink.close();
+              if (!ctx.completer.isCompleted) {
+                ctx.completer.complete(false);
+              }
+            }
           }
         } catch (_) {}
       },
@@ -379,6 +451,7 @@ try {
   }
 
   Future<void> loadAndPlay(String videoId) async {
+    _lastEndedTime = DateTime.now();
     currentVideoId = videoId;
     currentPosition = Duration.zero;
     currentDuration = Duration.zero;
@@ -398,20 +471,24 @@ try {
         final result = await controller.runJavaScriptReturningResult('''
 (function() {
   window._fleyShouldPlay = true;
+  window._fleySuppressEndedUntil = Date.now() + 4000;
   var v = document.querySelector('video');
   if (v) {
     try { v.volume = 0; } catch(e){}
   }
   var p = document.getElementById('movie_player');
-  if (p && typeof p.loadVideoById === 'function') {
-    p.loadVideoById('$videoId');
-    setTimeout(function() {
-      var vid = document.querySelector('video');
-      if (vid && vid.volume === 0) {
-        vid.volume = 1.0;
-      }
-    }, 300);
-    return 'ok';
+  if (p) {
+    try { if (typeof p.setAutonav === 'function') p.setAutonav(false); } catch(e){}
+    if (typeof p.loadVideoById === 'function') {
+      p.loadVideoById('$videoId');
+      setTimeout(function() {
+        var vid = document.querySelector('video');
+        if (vid && vid.volume === 0) {
+          vid.volume = 1.0;
+        }
+      }, 300);
+      return 'ok';
+    }
   }
   return 'fallback';
 })();
@@ -429,6 +506,19 @@ try {
     controller.loadRequest(Uri.parse('https://music.youtube.com/watch?v=$videoId'));
   }
 
+  void setLoop(bool loop) {
+    _isLooping = loop;
+    controller.runJavaScript('''
+window._fleyLoop = $loop;
+try {
+  var v = document.querySelector('video');
+  if (v) v.loop = $loop;
+  var p = document.getElementById('movie_player');
+  if (p && typeof p.setLoop === 'function') p.setLoop($loop);
+} catch(e){}
+''').catchError((_) {});
+  }
+
   void stop() {
     isPlaying = false;
     isBuffering = false;
@@ -436,8 +526,10 @@ try {
     currentPosition = Duration.zero;
     currentDuration = Duration.zero;
     _bufferingSafetyTimer?.cancel();
+    _isPageLoaded = false;
     controller.runJavaScript('''
 window._fleyShouldPlay = false;
+window._fleyLoop = false;
 try {
   var v = document.querySelector('video');
   if (v) {
@@ -445,13 +537,15 @@ try {
     v.pause();
     v.currentTime = 0;
     v.src = '';
+    v.load();
   }
   var p = document.getElementById('movie_player');
   if (p && typeof p.stopVideo === 'function') {
     p.stopVideo();
   }
 } catch(e){}
-''');
+''').catchError((_) {});
+    controller.loadRequest(Uri.parse('about:blank')).catchError((_) {});
   }
 
   void play() {
@@ -499,6 +593,149 @@ try {
   }
 } catch(e){}
 ''');
+  }
+
+  /// Resolves direct stream URL using the authenticated in-app Chromium WebView.
+  Future<String?> resolveStreamUrl(String videoId) async {
+    try {
+      final js = '''
+(async function() {
+  try {
+    var key = (window.ytcfg && window.ytcfg.get) ? window.ytcfg.get('INNERTUBE_API_KEY') : 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-KOEVSHRUA';
+    var ctx = (window.ytcfg && window.ytcfg.get) ? window.ytcfg.get('INNERTUBE_CONTEXT') : {
+      client: { clientName: 'WEB_REMIX', clientVersion: '1.20231101.01.00', hl: 'id', gl: 'ID' }
+    };
+    var r = await fetch('/youtubei/v1/player?key=' + key, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: ctx, videoId: '$videoId' })
+    });
+    var j = await r.json();
+    var fmts = (j.streamingData && j.streamingData.adaptiveFormats) || [];
+    var best = null;
+    var bestBr = 0;
+    for (var i = 0; i < fmts.length; i++) {
+      var f = fmts[i];
+      if (f.mimeType && f.mimeType.indexOf('audio/') === 0 && f.url) {
+        if (f.bitrate > bestBr) {
+          bestBr = f.bitrate;
+          best = f.url;
+        }
+      }
+    }
+    return best || '';
+  } catch(e) {
+    return '';
+  }
+})()
+''';
+      final res = await controller.runJavaScriptReturningResult(js);
+      var url = res.toString();
+      if (url.startsWith('"') && url.endsWith('"')) {
+        url = url.substring(1, url.length - 1);
+      }
+      return url.isNotEmpty && url != 'null' ? url : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Downloads audio stream chunk-by-chunk inside the Chromium WebView session.
+  /// Bypasses IP restriction / HTTP 403 on client because fetch runs inside the browser.
+  Future<bool> downloadViaWebView(
+    String videoId,
+    String taskId,
+    File destination, {
+    required void Function(int received, int total) onProgress,
+  }) async {
+    final sink = destination.openWrite();
+    final completer = Completer<bool>();
+    _activeWebViewDownloads[taskId] = _WebViewDownloadContext(
+      file: destination,
+      sink: sink,
+      onProgress: onProgress,
+      completer: completer,
+    );
+
+    // Timeout safety (3 minutes max)
+    Timer(const Duration(minutes: 3), () {
+      if (!completer.isCompleted) {
+        final ctx = _activeWebViewDownloads.remove(taskId);
+        ctx?.sink.close();
+        completer.complete(false);
+      }
+    });
+
+    final js = '''
+(async function() {
+  try {
+    var key = (window.ytcfg && window.ytcfg.get) ? window.ytcfg.get('INNERTUBE_API_KEY') : 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-KOEVSHRUA';
+    var ctx = (window.ytcfg && window.ytcfg.get) ? window.ytcfg.get('INNERTUBE_CONTEXT') : {
+      client: { clientName: 'WEB_REMIX', clientVersion: '1.20231101.01.00', hl: 'id', gl: 'ID' }
+    };
+    var r = await fetch('/youtubei/v1/player?key=' + key, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: ctx, videoId: '$videoId' })
+    });
+    var j = await r.json();
+    var fmts = (j.streamingData && j.streamingData.adaptiveFormats) || [];
+    var url = '';
+    var bestBr = 0;
+    for (var i = 0; i < fmts.length; i++) {
+      var f = fmts[i];
+      if (f.mimeType && f.mimeType.indexOf('audio/') === 0 && f.url) {
+        if (f.bitrate > bestBr) {
+          bestBr = f.bitrate;
+          url = f.url;
+        }
+      }
+    }
+    if (!url) throw new Error('No stream URL');
+    var audioRes = await fetch(url);
+    if (!audioRes.ok) throw new Error('HTTP ' + audioRes.status);
+    var reader = audioRes.body.getReader();
+    var total = parseInt(audioRes.headers.get('content-length') || '0', 10);
+    var received = 0;
+    while(true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      var val = chunk.value;
+      received += val.length;
+      var bin = '';
+      for (var k = 0; k < val.length; k++) {
+        bin += String.fromCharCode(val[k]);
+      }
+      FleyBridge.postMessage(JSON.stringify({
+        type: 'dl_chunk',
+        id: '$taskId',
+        data: btoa(bin),
+        received: received,
+        total: total
+      }));
+    }
+    FleyBridge.postMessage(JSON.stringify({
+      type: 'dl_done',
+      id: '$taskId'
+    }));
+  } catch(e) {
+    FleyBridge.postMessage(JSON.stringify({
+      type: 'dl_error',
+      id: '$taskId',
+      error: e.toString()
+    }));
+  }
+})()
+''';
+    try {
+      await controller.runJavaScript(js);
+    } catch (e) {
+      final ctx = _activeWebViewDownloads.remove(taskId);
+      ctx?.sink.close();
+      return false;
+    }
+
+    return completer.future;
   }
 
   Widget? _cachedWidget;
