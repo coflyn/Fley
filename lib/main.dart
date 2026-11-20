@@ -102,6 +102,7 @@ void main() async {
   final playTogether = prefs.getBool('playTogether') ?? false;
   await configureAudioSession(playTogether);
   await ytmInitFromPrefs();
+  await ArtworkCacheManager.init();
 
   if (Platform.isAndroid || Platform.isIOS) {
     try {

@@ -248,6 +248,13 @@ extension _AudioPlaybackLogic on _MainScreenState {
 
     if (track.id.startsWith('ytm_')) {
       _onlineTracksMap[track.id] = track;
+      if (track.url.isNotEmpty && track.url.startsWith('http')) {
+        final videoId = track.id.replaceFirst('ytm_', '');
+        ArtworkCacheManager.saveYtmCover(
+          videoId,
+          YtMusicService.getHighResThumbnail(track.url),
+        );
+      }
       final startPosMs = initialPosition?.inMilliseconds ?? 0;
       _lastPlaybackPositionMs = startPosMs;
       _lastPlaybackTrackId = track.id;
@@ -1036,6 +1043,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
       }
     }
 
+    final videoId = (track.id.startsWith('ytm_') || track.id.startsWith('local_ytm_'))
+        ? track.id.replaceFirst('local_ytm_', '').replaceFirst('ytm_', '')
+        : (track.path.isNotEmpty && !track.path.contains('/') ? track.path : '');
+
     // Check local .lrc file right next to audio file
     if (track.path.isNotEmpty) {
       final dotIdx = track.path.lastIndexOf('.');
@@ -1054,9 +1065,30 @@ extension _AudioPlaybackLogic on _MainScreenState {
       }
     }
 
+    // Check persistent disk .lrc cache for YTM track
+    if (videoId.isNotEmpty) {
+      final diskLrc = ArtworkCacheManager.getYtmLyricsFile(videoId);
+      if (diskLrc != null) {
+        try {
+          final content = await diskLrc.readAsString();
+          if (content.trim().isNotEmpty) {
+            _parsePlainOrLrcLyrics(content);
+            setState(() => _isLyricsLoading = false);
+            return;
+          }
+        } catch (_) {}
+      }
+    }
+
     final cacheKey = 'lyrics_cache_${track.id}';
-    if (prefs.containsKey(cacheKey)) {
-      final cachedJson = prefs.getString(cacheKey) ?? '';
+    final altCacheKey = videoId.isNotEmpty
+        ? (track.id.startsWith('local_ytm_')
+            ? 'lyrics_cache_ytm_$videoId'
+            : 'lyrics_cache_local_ytm_$videoId')
+        : null;
+    final cachedJson = prefs.getString(cacheKey) ??
+        (altCacheKey != null ? prefs.getString(altCacheKey) : null);
+    if (cachedJson != null && cachedJson.isNotEmpty) {
       try {
         final data = jsonDecode(cachedJson);
         _applyFetchedLyrics(data);
@@ -1182,6 +1214,30 @@ extension _AudioPlaybackLogic on _MainScreenState {
       if (data != null &&
           (data['syncedLyrics'] != null || data['plainLyrics'] != null)) {
         await prefs.setString(cacheKey, jsonEncode(data));
+        if (videoId.isNotEmpty) {
+          await prefs.setString('lyrics_cache_ytm_$videoId', jsonEncode(data));
+          await prefs.setString('lyrics_cache_local_ytm_$videoId', jsonEncode(data));
+          final lrcText = (data['syncedLyrics'] as String?) ??
+              (data['plainLyrics'] as String?) ??
+              '';
+          if (lrcText.trim().isNotEmpty) {
+            await ArtworkCacheManager.saveYtmLyricsFile(videoId, lrcText);
+          }
+        }
+        if (track.path.isNotEmpty) {
+          final dotIdx = track.path.lastIndexOf('.');
+          if (dotIdx > 0) {
+            final lrcText = (data['syncedLyrics'] as String?) ??
+                (data['plainLyrics'] as String?) ??
+                '';
+            if (lrcText.trim().isNotEmpty) {
+              try {
+                final localFile = File('${track.path.substring(0, dotIdx)}.lrc');
+                await localFile.writeAsString(lrcText);
+              } catch (_) {}
+            }
+          }
+        }
         _applyFetchedLyrics(data);
       } else {
         _currentLyricsPlain = null;

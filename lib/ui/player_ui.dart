@@ -1031,33 +1031,92 @@ extension _PlayerUI on _MainScreenState {
     int? cacheWidthOverride,
     String? heroTag,
   }) {
-    if (track.id.startsWith('ytm_') &&
-        track.url.isNotEmpty &&
-        track.url.startsWith('http')) {
-      final highResUrl = YtMusicService.getHighResThumbnail(track.url);
-      final img = ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: Image.network(
-          highResUrl,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          filterQuality: FilterQuality.high,
-          errorBuilder: (_, _, _) => Container(
+    if (track.id.startsWith('ytm_')) {
+      final videoId = track.id.replaceFirst('ytm_', '');
+      final cachedCover = ArtworkCacheManager.getYtmCoverFile(videoId);
+
+      Widget img;
+      if (cachedCover != null) {
+        img = ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: Image.file(
+            cachedCover,
             width: size,
             height: size,
-            color: Colors.white10,
-            child: const Icon(Icons.music_note, color: Colors.white38),
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (_, _, _) => Container(
+              width: size,
+              height: size,
+              color: Colors.white10,
+              child: const Icon(Icons.music_note, color: Colors.white38),
+            ),
           ),
-        ),
-      );
+        );
+      } else if (track.url.isNotEmpty && track.url.startsWith('http')) {
+        final highResUrl = YtMusicService.getHighResThumbnail(track.url);
+        ArtworkCacheManager.saveYtmCover(videoId, highResUrl);
+        img = ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: Image.network(
+            highResUrl,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (_, _, _) {
+              final fallbackCover =
+                  ArtworkCacheManager.getYtmCoverFile(videoId);
+              if (fallbackCover != null) {
+                return Image.file(
+                  fallbackCover,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                );
+              }
+              return Container(
+                width: size,
+                height: size,
+                color: Colors.white10,
+                child: const Icon(Icons.music_note, color: Colors.white38),
+              );
+            },
+          ),
+        );
+      } else {
+        img = Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.white10,
+            borderRadius: BorderRadius.circular(radius),
+          ),
+          child: const Icon(Icons.music_note, color: Colors.white38),
+        );
+      }
+
       if (heroTag != null && heroTag.isNotEmpty) {
         return Hero(tag: heroTag, child: img);
       }
       return img;
     }
 
-    final customPath = _metadataOverrides[track.id]?['coverPath'];
+    String? customPath = _metadataOverrides[track.id]?['coverPath'];
+    if (customPath == null || customPath.isEmpty || !File(customPath).existsSync()) {
+      if (track.id.startsWith('local_ytm_')) {
+        final vId = track.id.replaceFirst('local_ytm_', '');
+        final f = ArtworkCacheManager.getYtmCoverFile(vId);
+        if (f != null) {
+          customPath = f.path;
+        } else if (track.path.isNotEmpty) {
+          final companion = File(track.path.replaceAll(RegExp(r'\.m4a$'), '.jpg'));
+          if (companion.existsSync()) {
+            customPath = companion.path;
+          }
+        }
+      }
+    }
     final artwork = CachedTrackArtwork(
       key: ValueKey("cached_artwork_${track.id}_$size"),
       trackId: track.id,
