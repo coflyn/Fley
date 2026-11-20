@@ -349,29 +349,54 @@ class _DesktopSongRowState extends State<_DesktopSongRow> {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          widget.onArtistTap != null
-                              ? InkWell(
-                                  borderRadius: BorderRadius.circular(4),
-                                  onTap: () => widget.onArtistTap!(widget.track.artist),
-                                  child: Text(
-                                    widget.track.artist,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: widget.secondaryTextColor,
+                          Row(
+                            children: [
+                              if (widget.track.id.startsWith('ytm_') ||
+                                  widget.track.id.startsWith('local_ytm_')) ...[
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  margin: const EdgeInsets.only(right: 5),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFFF0000),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.play_arrow_rounded,
+                                      color: Colors.white,
+                                      size: 8,
                                     ),
                                   ),
-                                )
-                              : Text(
-                                  widget.track.artist,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: widget.secondaryTextColor,
-                                  ),
                                 ),
+                              ],
+                              Expanded(
+                                child: widget.onArtistTap != null
+                                    ? InkWell(
+                                        borderRadius: BorderRadius.circular(4),
+                                        onTap: () => widget.onArtistTap!(widget.track.artist),
+                                        child: Text(
+                                          widget.track.artist,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: widget.secondaryTextColor,
+                                          ),
+                                        ),
+                                      )
+                                    : Text(
+                                        widget.track.artist,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: widget.secondaryTextColor,
+                                        ),
+                                      ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),

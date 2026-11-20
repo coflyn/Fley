@@ -668,10 +668,14 @@ extension _HomeUI on _MainScreenState {
         ...recentTracks.map((track) {
           return InkWell(
             onTap: () {
-              _updatePlayingFrom();
               if (track.id.startsWith('ytm_')) {
+                _updatePlayingFrom(type: 'YOUTUBE MUSIC', name: 'Recent Rotation');
+                _playTrack(0, sourceList: [track]);
+              } else if (track.id.startsWith('local_ytm_')) {
+                _updatePlayingFrom(type: 'DOWNLOADS', name: 'Recent Rotation');
                 _playTrack(0, sourceList: [track]);
               } else {
+                _updatePlayingFrom(name: 'Recent Rotation');
                 setState(() {
                   _playbackQueue = List.from(_allTracks);
                   _shuffledIndices.clear();
@@ -747,34 +751,15 @@ extension _HomeUI on _MainScreenState {
                   ),
                   Transform.translate(
                     offset: const Offset(12, 0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (track.duration > 0)
-                          Text(
-                            _formatDuration(
-                              Duration(milliseconds: track.duration),
-                            ),
-                            style: TextStyle(
-                              color: isLight ? Colors.black45 : Colors.white38,
-                              fontSize: 12,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                            ),
-                          ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: Icon(
-                            Icons.more_vert,
-                            color: isLight ? Colors.black45 : Colors.white54,
-                            size: 20,
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => _showTrackOptions(context, track),
-                        ),
-                      ],
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.more_vert,
+                        color: isLight ? Colors.black45 : Colors.white54,
+                        size: 20,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => _showTrackOptions(context, track),
                     ),
                   ),
                 ],

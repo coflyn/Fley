@@ -1371,16 +1371,41 @@ extension _TabsUI on _MainScreenState {
                       : (isAppLight ? const Color(0xFF1A1A1A) : Colors.white),
                 ),
               ),
-              subtitle: Text(
-                isMostPlayed
-                    ? '${_playCounts[track.id] ?? 0} ${AppLocalizations.of(context).playsCount} • ${track.artist}'
-                    : track.artist,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: isAppLight ? Colors.black45 : Colors.white38,
-                  fontSize: 12,
-                ),
+              subtitle: Row(
+                children: [
+                  if (track.id.startsWith('ytm_') ||
+                      track.id.startsWith('local_ytm_')) ...[
+                    Container(
+                      width: 14,
+                      height: 14,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFF0000),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 10,
+                        ),
+                      ),
+                    ),
+                  ],
+                  Expanded(
+                    child: Text(
+                      isMostPlayed
+                          ? '${_playCounts[track.id] ?? 0} ${AppLocalizations.of(context).playsCount} • ${track.artist}'
+                          : track.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isAppLight ? Colors.black45 : Colors.white38,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               trailing: Transform.translate(
                 offset: const Offset(12, 0),
@@ -2119,6 +2144,12 @@ extension _TabsUI on _MainScreenState {
         .toList();
 
     final targetIndex = queue.indexWhere((t) => t.path == yt.videoId);
+    _updatePlayingFrom(
+      type: 'YOUTUBE MUSIC',
+      name: customQueue == _ytmTrendingTracks
+          ? 'Trending Songs'
+          : (customQueue != null ? 'Online Playlist' : 'YouTube Music Search'),
+    );
     _playTrack(
       targetIndex != -1 ? targetIndex : 0,
       sourceList: queue,

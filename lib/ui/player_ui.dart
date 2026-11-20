@@ -1420,7 +1420,11 @@ extension _PlayerUI on _MainScreenState {
                                         );
                                       }
                                       String typeLabel;
-                                      if (_playingFromType == 'PLAYLIST') {
+                                      if (currentTrack.id.startsWith('ytm_')) {
+                                        typeLabel = 'YOUTUBE MUSIC';
+                                      } else if (currentTrack.id.startsWith('local_ytm_')) {
+                                        typeLabel = 'DOWNLOADS';
+                                      } else if (_playingFromType == 'PLAYLIST') {
                                         typeLabel = AppLocalizations.of(
                                           context,
                                         ).playlists;
@@ -1432,6 +1436,8 @@ extension _PlayerUI on _MainScreenState {
                                         typeLabel = AppLocalizations.of(
                                           context,
                                         ).albums;
+                                      } else if (_playingFromType == 'YOUTUBE MUSIC') {
+                                        typeLabel = 'YOUTUBE MUSIC';
                                       } else {
                                         typeLabel = AppLocalizations.of(
                                           context,
@@ -1439,7 +1445,17 @@ extension _PlayerUI on _MainScreenState {
                                       }
 
                                       String displayName = _playingFromName;
-                                      if (_playingFromName == 'All Songs' ||
+                                      if (currentTrack.id.startsWith('ytm_') &&
+                                          (_playingFromName == 'All Songs' ||
+                                              _playingFromName == 'All Tracks' ||
+                                              _playingFromType == 'LIBRARY')) {
+                                        displayName = 'Trending & Online';
+                                      } else if (currentTrack.id.startsWith('local_ytm_') &&
+                                          (_playingFromName == 'All Songs' ||
+                                              _playingFromName == 'All Tracks' ||
+                                              _playingFromType == 'LIBRARY')) {
+                                        displayName = 'Offline Songs';
+                                      } else if (_playingFromName == 'All Songs' ||
                                           _playingFromName == 'All Tracks') {
                                         displayName = AppLocalizations.of(
                                           context,

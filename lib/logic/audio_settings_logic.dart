@@ -141,9 +141,15 @@ extension _AudioSettingsLogic on _MainScreenState {
     });
   }
 
-  void _updatePlayingFrom() {
+  void _updatePlayingFrom({String? type, String? name}) {
     setState(() {
-      if (_selectedPlaylistDetail != null) {
+      if (type != null && name != null) {
+        _playingFromType = type;
+        _playingFromName = name;
+      } else if (_selectedOnlinePlaylist != null) {
+        _playingFromType = 'YOUTUBE MUSIC';
+        _playingFromName = _selectedOnlinePlaylist!.title;
+      } else if (_selectedPlaylistDetail != null) {
         _playingFromType = 'PLAYLIST';
         _playingFromName = _selectedPlaylistDetail!;
       } else if (_selectedArtistDetail != null) {
