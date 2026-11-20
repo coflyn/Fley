@@ -7,6 +7,8 @@ class Track {
   final String path;
   final List<String> lyrics;
   final int duration;
+  final String? artistBrowseId;
+  final String? albumBrowseId;
 
   Track({
     required this.id,
@@ -17,6 +19,8 @@ class Track {
     required this.path,
     required this.lyrics,
     required this.duration,
+    this.artistBrowseId,
+    this.albumBrowseId,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +33,8 @@ class Track {
       'path': path,
       'lyrics': lyrics,
       'duration': duration,
+      if (artistBrowseId != null) 'artistBrowseId': artistBrowseId,
+      if (albumBrowseId != null) 'albumBrowseId': albumBrowseId,
     };
   }
 
@@ -42,6 +48,8 @@ class Track {
       path: map['path'] ?? '',
       lyrics: List<String>.from(map['lyrics'] ?? []),
       duration: map['duration'] ?? 0,
+      artistBrowseId: map['artistBrowseId'] as String?,
+      albumBrowseId: map['albumBrowseId'] as String?,
     );
   }
 
@@ -54,6 +62,8 @@ class Track {
     String? path,
     List<String>? lyrics,
     int? duration,
+    String? artistBrowseId,
+    String? albumBrowseId,
   }) {
     return Track(
       id: id ?? this.id,
@@ -64,6 +74,8 @@ class Track {
       path: path ?? this.path,
       lyrics: lyrics ?? this.lyrics,
       duration: duration ?? this.duration,
+      artistBrowseId: artistBrowseId ?? this.artistBrowseId,
+      albumBrowseId: albumBrowseId ?? this.albumBrowseId,
     );
   }
 }

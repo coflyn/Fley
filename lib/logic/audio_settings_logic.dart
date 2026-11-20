@@ -149,6 +149,9 @@ extension _AudioSettingsLogic on _MainScreenState {
       } else if (_selectedOnlinePlaylist != null) {
         _playingFromType = 'YOUTUBE MUSIC';
         _playingFromName = _selectedOnlinePlaylist!.title;
+      } else if (_selectedOnlineDetail != null) {
+        _playingFromType = 'YOUTUBE MUSIC';
+        _playingFromName = _selectedOnlineDetail!.title;
       } else if (_selectedPlaylistDetail != null) {
         _playingFromType = 'PLAYLIST';
         _playingFromName = _selectedPlaylistDetail!;

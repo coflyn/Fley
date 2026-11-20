@@ -37,9 +37,10 @@ extension _AudioLibraryScanLogic on _MainScreenState {
       if (onlineTracksStr != null) {
         try {
           final Map<String, dynamic> decoded = jsonDecode(onlineTracksStr);
-          _onlineTracksMap = decoded.map(
+          final loaded = decoded.map(
             (k, v) => MapEntry(k, Track.fromMap(Map<String, dynamic>.from(v))),
           );
+          _onlineTracksMap.addAll(loaded);
         } catch (_) {}
       }
       final recentOnlineStr = prefs.getString('recent_online_searches');
