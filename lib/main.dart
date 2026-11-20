@@ -39,6 +39,7 @@ import 'utils/artwork_cache.dart';
 import 'utils/image_cropper_util.dart';
 import 'services/ytmusic_service.dart';
 import 'services/yt_player_service.dart';
+import 'services/download_service.dart';
 import 'screens/ytmusic_auth_screen.dart';
 import 'package:fley/l10n/app_localizations.dart';
 part 'ui/player_ui.dart';
@@ -57,6 +58,7 @@ part 'ui/playlist_edit_songs_ui.dart';
 part 'ui/playlist_manage_ui.dart';
 part 'ui/sleep_timer_ui.dart';
 part 'ui/folder_scan_ui.dart';
+part 'ui/downloads_sheet_ui.dart';
 part 'ui/modals_utility_ui.dart';
 part 'ui/equalizer_sheet_ui.dart';
 part 'services/audio_handler.dart';
@@ -691,6 +693,42 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _setupAudioStreams();
     _startBatteryMonitor();
 
+    DownloadService.instance.onTrackDownloaded = (newTrack, artBytes) {
+      if (!mounted) return;
+      ArtworkCacheManager.registerTrackPath(newTrack.id, newTrack.path);
+      if (artBytes != null) {
+        ArtworkCacheManager.setCachedArtwork(newTrack.id, artBytes);
+      }
+      setState(() {
+        _allTracks.removeWhere(
+          (t) => t.id == newTrack.id || t.path == newTrack.path,
+        );
+        _allTracks.insert(0, newTrack);
+        _cachedDetailKey = null;
+      });
+      SharedPreferences.getInstance().then((prefs) {
+        final serialized = _allTracks.map((t) => t.toMap()).toList();
+        prefs.setString('cached_tracks_list', jsonEncode(serialized));
+      });
+      showFleyToast(
+        FleyStrings.currentLang == 'id'
+            ? 'Berhasil mengunduh ${newTrack.title}'
+            : 'Successfully downloaded ${newTrack.title}',
+      );
+    };
+
+    DownloadService.instance.onTrackDeleted = (trackId) {
+      if (!mounted) return;
+      setState(() {
+        _allTracks.removeWhere((t) => t.id == trackId);
+        _cachedDetailKey = null;
+      });
+      SharedPreferences.getInstance().then((prefs) {
+        final serialized = _allTracks.map((t) => t.toMap()).toList();
+        prefs.setString('cached_tracks_list', jsonEncode(serialized));
+      });
+    };
+
     YtPlayerService.instance.onStateChange = () {
       if (mounted && _isYtmPlaying) {
         final dur = YtPlayerService.instance.currentDuration;
@@ -729,13 +767,26 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         }
       }
     };
+    DateTime? lastYtmSongEndedTime;
     YtPlayerService.instance.onSongEnded = () {
+      final now = DateTime.now();
+      if (lastYtmSongEndedTime != null &&
+          now.difference(lastYtmSongEndedTime!).inMilliseconds < 3500) {
+        return;
+      }
+      lastYtmSongEndedTime = now;
       if (mounted && _isYtmPlaying) {
         if (_repeatMode == 2) {
-          YtPlayerService.instance.seekTo(Duration.zero);
-          YtPlayerService.instance.play();
-        } else if (_repeatMode == 1) {
-          _playNext();
+          final current = _playingTrack;
+          if (current != null) {
+            final videoId = current.path.isNotEmpty
+                ? current.path
+                : current.id.replaceFirst('ytm_', '');
+            YtPlayerService.instance.loadAndPlay(videoId);
+          } else {
+            YtPlayerService.instance.seekTo(Duration.zero);
+            YtPlayerService.instance.play();
+          }
         } else {
           _playNext();
         }
@@ -818,6 +869,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.detached) {
+      YtPlayerService.instance.stop();
       _audioPlayer.stop();
       audioHandler.stop();
     }
@@ -826,6 +878,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    YtPlayerService.instance.stop();
     WidgetsBinding.instance.removeObserver(this);
     _batteryCheckTimer?.cancel();
     _searchController.dispose();
@@ -871,6 +924,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             onPlayPrevious: _playPrevious,
             onToggleFavorite: _toggleFavorite,
             onOpenSettings: _openSettings,
+            onOpenDownloads: _openDownloads,
             onRescan: () => _requestPermissionAndScan(showLoading: true),
             userPlaylists: _userPlaylists,
             playCounts: _playCounts,

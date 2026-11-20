@@ -147,6 +147,39 @@ extension _MainUIComponents on _MainScreenState {
                 ),
               ),
             ),
+            ValueListenableBuilder<List<DownloadTask>>(
+              valueListenable: DownloadService.instance.activeTasksNotifier,
+              builder: (context, tasks, _) {
+                final isDownloading = tasks.any((t) =>
+                    t.status == DownloadStatus.downloading ||
+                    t.status == DownloadStatus.pending);
+                return IconButton(
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(Icons.download_rounded, color: headerTextColor),
+                      if (isDownloading)
+                        Positioned(
+                          right: -1,
+                          top: -1,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: _activeAccentColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  tooltip: FleyStrings.currentLang == 'id'
+                      ? 'Unduhan'
+                      : 'Downloads',
+                  onPressed: _openDownloads,
+                );
+              },
+            ),
             IconButton(
               icon: Icon(Icons.settings, color: headerTextColor),
               onPressed: _openSettings,

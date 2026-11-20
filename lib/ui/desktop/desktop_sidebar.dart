@@ -482,6 +482,16 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                   textColor: secondaryTextColor,
                 ),
                 const SizedBox(height: 4),
+                if (widget.onOpenDownloads != null)
+                  _buildSidebarActionBtn(
+                    icon: Icons.download_rounded,
+                    label: FleyStrings.currentLang == 'id'
+                        ? 'Unduhan'
+                        : 'Downloads',
+                    onTap: widget.onOpenDownloads!,
+                    textColor: secondaryTextColor,
+                  ),
+                const SizedBox(height: 4),
                 _buildSidebarActionBtn(
                   icon: Icons.settings_outlined,
                   label: loc.settings,

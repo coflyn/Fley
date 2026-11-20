@@ -2,10 +2,30 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _cookieKey = 'ytm_cookie';
 const _accountNameKey = 'ytm_account_name';
+
+/// Returns or creates the dedicated downloads directory for Fley.
+Future<Directory> getFleyDownloadsDirectory() async {
+  Directory baseDir;
+  if (Platform.isAndroid) {
+    final ext = await getExternalStorageDirectory();
+    baseDir = ext ?? await getApplicationDocumentsDirectory();
+  } else if (Platform.isIOS) {
+    baseDir = await getApplicationDocumentsDirectory();
+  } else {
+    final down = await getDownloadsDirectory();
+    baseDir = down ?? await getApplicationDocumentsDirectory();
+  }
+  final downloadDir = Directory('${baseDir.path}/FleyDownloads');
+  if (!await downloadDir.exists()) {
+    await downloadDir.create(recursive: true);
+  }
+  return downloadDir;
+}
 
 /// Notifier for login state so UI can react without polling.
 final ytmLoggedInNotifier = ValueNotifier<bool>(false);
@@ -571,82 +591,145 @@ class YtMusicService {
   }
 
   /// Resolve audio stream URL for [videoId].
-  /// Tries multiple clients in order until one returns a valid stream.
+  /// Tries InnerTube first, then Invidious/Piped public instances as fallback.
   static Future<String> getStreamUrl(String videoId) async {
     final cookie = await _getCookie();
-    if (cookie.isEmpty) throw Exception('Not logged in');
 
-    // Try clients in order: ANDROID_MUSIC → TVHTML5_SIMPLY_EMBEDDED → IOS
-    final clients = [
-      _androidMusicPayload(videoId),
-      _tvEmbeddedPayload(videoId),
-      _iosPayload(videoId),
+    // 1. Try InnerTube if cookie available
+    if (cookie.isNotEmpty) {
+      final clients = [
+        _androidMusicPayload(videoId),
+        _tvEmbeddedPayload(videoId),
+        _iosPayload(videoId),
+      ];
+
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 5);
+      try {
+        for (final payload in clients) {
+          final uri = Uri.https(
+            'www.youtube.com',
+            '/youtubei/v1/player',
+            {'key': _apiKey, 'prettyPrint': 'false'},
+          );
+          final req = await client.postUrl(uri);
+          req.headers.set('Content-Type', 'application/json');
+          req.headers.set('Cookie', cookie);
+          req.headers.set('User-Agent', payload['_ua'] as String);
+          const origin = 'https://www.youtube.com';
+          final sapisidHash = _buildSapisidHash(cookie, origin);
+          if (sapisidHash != null) req.headers.set('Authorization', sapisidHash);
+          req.headers.set('X-Goog-AuthUser', '0');
+          (payload['_headers'] as Map<String, String>?)
+              ?.forEach((k, v) => req.headers.set(k, v));
+
+          final body = Map<String, dynamic>.from(payload)
+            ..remove('_ua')
+            ..remove('_headers');
+          req.write(jsonEncode(body));
+
+          final res = await req.close();
+          final responseBody = await res.transform(utf8.decoder).join();
+          final json = jsonDecode(responseBody) as Map<String, dynamic>;
+
+          final status = json['playabilityStatus']?['status'] as String? ?? '';
+          if (status == 'UNPLAYABLE' || status == 'LOGIN_REQUIRED') continue;
+
+          final allFormats = <dynamic>[
+            ...json['streamingData']?['adaptiveFormats'] as List? ?? [],
+            ...json['streamingData']?['formats'] as List? ?? [],
+          ];
+          if (allFormats.isEmpty) continue;
+
+          Map<String, dynamic>? best;
+          int bestBitrate = 0;
+          for (final f in allFormats) {
+            final mime = f['mimeType'] as String? ?? '';
+            final url = f['url'] as String?;
+            if (url == null || url.isEmpty) continue;
+            final bitrate = f['bitrate'] as int? ?? 0;
+            if (mime.startsWith('audio/') && bitrate > bestBitrate) {
+              bestBitrate = bitrate;
+              best = f as Map<String, dynamic>;
+            }
+          }
+
+          final url = best?['url'] as String?;
+          if (url != null && url.isNotEmpty) return url;
+        }
+      } catch (e) {
+        debugPrint('InnerTube stream URL error: $e');
+      } finally {
+        client.close();
+      }
+    }
+
+    // 2. High-reliability fallback: Invidious public instances
+    final invidiousHosts = [
+      'yt.chocolatemoo53.com',
+      'inv.nadeko.net',
+      'invidious.nerdvpn.de',
+      'yt.artemislena.eu',
+      'invidious.projectsegfau.lt',
     ];
 
     final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 6);
     try {
-      for (final payload in clients) {
-        final uri = Uri.https(
-          'www.youtube.com',
-          '/youtubei/v1/player',
-          {'key': _apiKey, 'prettyPrint': 'false'},
-        );
-        final req = await client.postUrl(uri);
-        req.headers.set('Content-Type', 'application/json');
-        req.headers.set('Cookie', cookie);
-        req.headers.set('User-Agent', payload['_ua'] as String);
-        // Inject SAPISIDHASH for auth
-        const origin = 'https://www.youtube.com';
-        final sapisidHash = _buildSapisidHash(cookie, origin);
-        if (sapisidHash != null) req.headers.set('Authorization', sapisidHash);
-        req.headers.set('X-Goog-AuthUser', '0');
-        (payload['_headers'] as Map<String, String>?)
-            ?.forEach((k, v) => req.headers.set(k, v));
-
-        final body = payload..remove('_ua')..remove('_headers');
-        req.write(jsonEncode(body));
-
-        final res = await req.close();
-        final responseBody = await res.transform(utf8.decoder).join();
-        final json = jsonDecode(responseBody) as Map<String, dynamic>;
-
-        final status = json['playabilityStatus']?['status'] as String? ?? '';
-        final reason = json['playabilityStatus']?['reason'] as String? ?? '';
-        debugPrint('YTM [${ (json['context']?['client']?['clientName'] ?? '?')  }] status: $status | $reason');
-
-        if (status == 'UNPLAYABLE' || status == 'LOGIN_REQUIRED') continue;
-
-        final allFormats = <dynamic>[
-          ...json['streamingData']?['adaptiveFormats'] as List? ?? [],
-          ...json['streamingData']?['formats'] as List? ?? [],
-        ];
-        debugPrint('YTM formats: ${allFormats.length}');
-        if (allFormats.isEmpty) continue;
-
-        Map<String, dynamic>? best;
-        int bestBitrate = 0;
-        for (final f in allFormats) {
-          final mime = f['mimeType'] as String? ?? '';
-          final url = f['url'] as String?;
-          if (url == null || url.isEmpty) continue;
-          final bitrate = f['bitrate'] as int? ?? 0;
-          if (mime.startsWith('audio/') && bitrate > bestBitrate) {
-            bestBitrate = bitrate;
-            best = f as Map<String, dynamic>;
+      for (final host in invidiousHosts) {
+        try {
+          final uri = Uri.https(host, '/api/v1/videos/$videoId');
+          final req = await client.getUrl(uri);
+          final res = await req.close();
+          if (res.statusCode == 200) {
+            final str = await res.transform(utf8.decoder).join();
+            final json = jsonDecode(str) as Map<String, dynamic>;
+            final adaptive = json['adaptiveFormats'] as List? ?? [];
+            Map<String, dynamic>? best;
+            int bestBitrate = 0;
+            for (final f in adaptive) {
+              final type = f['type'] as String? ?? '';
+              final url = f['url'] as String?;
+              if (url == null || url.isEmpty) continue;
+              final bitrate = int.tryParse(f['bitrate']?.toString() ?? '0') ?? 0;
+              if (type.startsWith('audio/') && bitrate > bestBitrate) {
+                bestBitrate = bitrate;
+                best = f as Map<String, dynamic>;
+              }
+            }
+            final url = best?['url'] as String?;
+            if (url != null && url.isNotEmpty) return url;
           }
-        }
-        best ??= allFormats
-            .cast<Map<String, dynamic>>()
-            .firstWhere((f) => (f['url'] as String?)?.isNotEmpty == true,
-                orElse: () => {});
-
-        final url = best['url'] as String?;
-        if (url != null && url.isNotEmpty) return url;
+        } catch (_) {}
       }
-      throw Exception('No audio stream found from any client');
+
+      // 3. Fallback: Piped instances
+      final pipedHosts = [
+        'api.piped.privacy.com.de',
+        'pipedapi.kavin.rocks',
+        'pipedapi.drgns.space',
+      ];
+      for (final host in pipedHosts) {
+        try {
+          final uri = Uri.https(host, '/streams/$videoId');
+          final req = await client.getUrl(uri);
+          final res = await req.close();
+          if (res.statusCode == 200) {
+            final str = await res.transform(utf8.decoder).join();
+            final json = jsonDecode(str) as Map<String, dynamic>;
+            final audioStreams = json['audioStreams'] as List? ?? [];
+            if (audioStreams.isNotEmpty) {
+              final url = audioStreams.first['url'] as String?;
+              if (url != null && url.isNotEmpty) return url;
+            }
+          }
+        } catch (_) {}
+      }
     } finally {
       client.close();
     }
+
+    throw Exception('No audio stream found from any client');
   }
 
   /// Fetch lyrics for [videoId] from YouTube Music InnerTube.

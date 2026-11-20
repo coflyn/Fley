@@ -64,6 +64,7 @@ class DesktopLayoutShell extends StatefulWidget {
   final VoidCallback onPlayPrevious;
   final Function(String trackId) onToggleFavorite;
   final VoidCallback onOpenSettings;
+  final VoidCallback? onOpenDownloads;
   final VoidCallback onRescan;
   final Map<String, List<String>> userPlaylists;
   final Function(String name, Track track)? onAddToPlaylist;
@@ -114,6 +115,7 @@ class DesktopLayoutShell extends StatefulWidget {
     required this.onPlayPrevious,
     required this.onToggleFavorite,
     required this.onOpenSettings,
+    this.onOpenDownloads,
     required this.onRescan,
     this.userPlaylists = const {},
     this.onAddToPlaylist,
