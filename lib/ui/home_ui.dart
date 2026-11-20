@@ -26,9 +26,7 @@ extension _HomeUI on _MainScreenState {
           _buildQuickPinsGrid(),
           const SizedBox(height: 28),
           _buildRecentRotationSection(),
-          const SizedBox(height: 28),
           _buildYtmTrendingSection(),
-          const SizedBox(height: 28),
           _buildYtmCommunityPlaylistsSection(),
           const SizedBox(height: 28),
           _buildRecentsCarouselSection(),
@@ -789,7 +787,7 @@ extension _HomeUI on _MainScreenState {
   }
 
   void _fetchYtmHomeTrending() async {
-    if (_ytmTrendingLoading || _ytmTrendingTracks.isNotEmpty) return;
+    if (_ytmTrendingLoading || _ytmTrendingTracks.isNotEmpty || _ytmTrendingFailed) return;
     if (!ytmLoggedInNotifier.value) return;
     setState(() => _ytmTrendingLoading = true);
     try {
@@ -798,10 +796,16 @@ extension _HomeUI on _MainScreenState {
         setState(() {
           _ytmTrendingTracks = results;
           _ytmTrendingLoading = false;
+          _ytmTrendingFailed = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _ytmTrendingLoading = false);
+      if (mounted) {
+        setState(() {
+          _ytmTrendingLoading = false;
+          _ytmTrendingFailed = true;
+        });
+      }
     }
   }
 
@@ -813,38 +817,32 @@ extension _HomeUI on _MainScreenState {
       valueListenable: ytmLoggedInNotifier,
       builder: (context, isLoggedIn, _) {
         if (!isLoggedIn) {
-          return _buildYtmConnectBanner(isLight, textColor);
-        }
-
-        if (_ytmTrendingTracks.isEmpty && !_ytmTrendingLoading) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _fetchYtmHomeTrending();
-          });
-        }
-
-        if (_ytmTrendingTracks.isEmpty && _ytmTrendingLoading) {
-          return SizedBox(
-            height: 180,
-            child: Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(_activeAccentColor),
-                ),
-              ),
-            ),
+          return Padding(
+            padding: const EdgeInsets.only(top: 28),
+            child: _buildYtmConnectBanner(isLight, textColor),
           );
         }
 
-        if (_ytmTrendingTracks.isEmpty) return const SizedBox.shrink();
+        if (_ytmTrendingFailed) {
+          return const SizedBox.shrink();
+        }
+
+        if (_ytmTrendingTracks.isEmpty) {
+          if (!_ytmTrendingLoading) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _fetchYtmHomeTrending();
+            });
+          }
+          return const SizedBox.shrink();
+        }
 
         const sectionTitle = 'Trending Songs for You';
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        return Padding(
+          padding: const EdgeInsets.only(top: 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Row(
               children: [
                 Container(
@@ -979,9 +977,10 @@ extension _HomeUI on _MainScreenState {
               ),
             ),
           ],
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 
   Widget _buildYtmConnectBanner(bool isLight, Color textColor) {
@@ -1077,7 +1076,7 @@ extension _HomeUI on _MainScreenState {
   }
 
   void _fetchYtmCommunityPlaylists() async {
-    if (_ytmPlaylistsLoading || _ytmPlaylists.isNotEmpty) return;
+    if (_ytmPlaylistsLoading || _ytmPlaylists.isNotEmpty || _ytmPlaylistsFailed) return;
     if (!ytmLoggedInNotifier.value) return;
     setState(() => _ytmPlaylistsLoading = true);
     try {
@@ -1086,10 +1085,16 @@ extension _HomeUI on _MainScreenState {
         setState(() {
           _ytmPlaylists = results;
           _ytmPlaylistsLoading = false;
+          _ytmPlaylistsFailed = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _ytmPlaylistsLoading = false);
+      if (mounted) {
+        setState(() {
+          _ytmPlaylistsLoading = false;
+          _ytmPlaylistsFailed = true;
+        });
+      }
     }
   }
 
@@ -1100,7 +1105,7 @@ extension _HomeUI on _MainScreenState {
     return ValueListenableBuilder<bool>(
       valueListenable: ytmLoggedInNotifier,
       builder: (context, isLoggedIn, _) {
-        if (!isLoggedIn) return const SizedBox.shrink();
+        if (!isLoggedIn || _ytmPlaylistsFailed) return const SizedBox.shrink();
 
         if (_ytmPlaylists.isEmpty && !_ytmPlaylistsLoading) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1116,9 +1121,11 @@ extension _HomeUI on _MainScreenState {
 
         const sectionTitle = 'Trending Community Playlists';
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        return Padding(
+          padding: const EdgeInsets.only(top: 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Row(
               children: [
                 Container(
@@ -1255,9 +1262,10 @@ extension _HomeUI on _MainScreenState {
               ),
             ),
           ],
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 
   void _openCommunityPlaylist(YtPlaylist pl) async {
