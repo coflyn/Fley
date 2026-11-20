@@ -32,9 +32,13 @@ extension _DownloadsUI on _MainScreenState {
                   t.path.contains('FleyDownloads');
             }).toList();
 
+            final sheetHeight = downloadedTracks.isEmpty
+                ? MediaQuery.of(context).size.height * 0.44
+                : MediaQuery.of(context).size.height * 0.55;
+
             return SafeArea(
               child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.85,
+                height: sheetHeight,
                 child: Column(
                   children: [
                     const SizedBox(height: 12),
@@ -249,6 +253,44 @@ extension _DownloadsUI on _MainScreenState {
                         },
                       ),
                     ),
+                    if (downloadedTracks.length > 5)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isLight
+                              ? Colors.black.withValues(alpha: 0.03)
+                              : Colors.white.withValues(alpha: 0.04),
+                          border: Border(
+                            top: BorderSide(
+                              color: borderColor,
+                              width: 0.5,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 16,
+                              color: _activeAccentColor,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              FleyStrings.currentLang == 'id'
+                                  ? 'Gulir ke bawah untuk lagu lainnya (${downloadedTracks.length} lagu)'
+                                  : 'Scroll down for more (${downloadedTracks.length} songs)',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: subtextColor,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -660,6 +702,7 @@ extension _DownloadsUI on _MainScreenState {
                     t.id.startsWith('local_ytm_') ||
                     t.path.contains('FleyDownloads'));
                 _cachedDetailKey = null;
+                _memoSortedTracks = null;
               });
               final prefs = await SharedPreferences.getInstance();
               final serialized = _allTracks.map((t) => t.toMap()).toList();
