@@ -4,8 +4,14 @@ part of '../main.dart';
 extension _SongInfoUI on _MainScreenState {
   void _showSongInfoModal(BuildContext context, Track track) {
     final isLight = isAppLight;
-    final format = track.path.split('.').last.toUpperCase();
-    final fileName = track.path.split('/').last;
+    final isYtm = track.id.startsWith('ytm_');
+    final videoId = track.path.isNotEmpty
+        ? track.path
+        : track.id.replaceFirst('ytm_', '');
+    final format = isYtm
+        ? 'ONLINE STREAM'
+        : track.path.split('.').last.toUpperCase();
+    final fileName = isYtm ? 'YouTube Music' : track.path.split('/').last;
 
     String formatDuration(int ms) {
       final minutes = (ms / 60000).floor();
@@ -141,7 +147,7 @@ extension _SongInfoUI on _MainScreenState {
                 const SizedBox(height: 20),
                 _buildInfoRow(
                   context,
-                  AppLocalizations.of(context).fileName,
+                  isYtm ? 'Source' : AppLocalizations.of(context).fileName,
                   fileName,
                   isLight,
                 ),
@@ -158,20 +164,21 @@ extension _SongInfoUI on _MainScreenState {
                   formatDuration(track.duration),
                   isLight,
                 ),
-                FutureBuilder<String>(
-                  future: getFileSize(),
-                  builder: (context, snapshot) {
-                    return _buildInfoRow(
-                      context,
-                      AppLocalizations.of(context).size,
-                      snapshot.data ?? AppLocalizations.of(context).loading,
-                      isLight,
-                    );
-                  },
-                ),
+                if (!isYtm)
+                  FutureBuilder<String>(
+                    future: getFileSize(),
+                    builder: (context, snapshot) {
+                      return _buildInfoRow(
+                        context,
+                        AppLocalizations.of(context).size,
+                        snapshot.data ?? AppLocalizations.of(context).loading,
+                        isLight,
+                      );
+                    },
+                  ),
                 const SizedBox(height: 8),
                 Text(
-                  AppLocalizations.of(context).filePath,
+                  isYtm ? 'Video ID' : AppLocalizations.of(context).filePath,
                   style: TextStyle(
                     color: isLight ? Colors.black38 : Colors.white38,
                     fontSize: 12,
@@ -197,7 +204,7 @@ extension _SongInfoUI on _MainScreenState {
                     children: [
                       Expanded(
                         child: Text(
-                          track.path,
+                          isYtm ? videoId : track.path,
                           style: TextStyle(
                             color: isLight ? Colors.black87 : Colors.white70,
                             fontSize: 12,
@@ -215,7 +222,9 @@ extension _SongInfoUI on _MainScreenState {
                           color: _activeAccentColor,
                         ),
                         onPressed: () {
-                          Clipboard.setData(ClipboardData(text: track.path));
+                          Clipboard.setData(
+                            ClipboardData(text: isYtm ? videoId : track.path),
+                          );
                           showFleyToast(
                             lookupAppLocalizations(
                               Locale(FleyStrings.currentLang),

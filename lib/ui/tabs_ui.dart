@@ -65,11 +65,12 @@ extension _TabsUI on _MainScreenState {
   }
 
   Widget _buildPlaylistsTab() {
-    final favorites = _allTracks
-        .where((t) => _favoriteTrackIds.contains(t.id))
+    final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};
+    final favorites = _favoriteTrackIds
+        .where((id) => trackMap.containsKey(id))
+        .map((id) => trackMap[id]!)
         .toList();
     final recentlyAdded = List<Track>.from(_allTracks);
-    final trackMap = {for (var t in _allTracks) t.id: t};
     final lastPlayed = _allPlayedTrackIdsOrdered
         .where((id) => trackMap.containsKey(id))
         .map((id) => trackMap[id]!)

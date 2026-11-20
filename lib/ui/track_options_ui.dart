@@ -39,6 +39,16 @@ extension _TrackOptionsUI on _MainScreenState {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final isFavorited = _favoriteTrackIds.contains(track.id);
+            final isYtm = track.id.startsWith('ytm_');
+            final videoId = track.path.isNotEmpty
+                ? track.path
+                : track.id.replaceFirst('ytm_', '');
+            final isDownloaded = isYtm &&
+                _allTracks.any(
+                  (t) =>
+                      t.id == 'local_ytm_$videoId' ||
+                      (videoId.isNotEmpty && t.path.contains(videoId)),
+                );
             final screenHeight = MediaQuery.sizeOf(context).height;
             return SafeArea(
               child: ConstrainedBox(
@@ -153,6 +163,29 @@ extension _TrackOptionsUI on _MainScreenState {
                       },
                     ),
                   ],
+                  if (isYtm) ...[
+                    _buildOptionItem(
+                      isDownloaded
+                          ? Icons.check_circle_rounded
+                          : Icons.download_rounded,
+                      AppLocalizations.of(context).download,
+                      () {
+                        Navigator.pop(context);
+                        if (isDownloaded) {
+                          showFleyToast(
+                            FleyStrings.currentLang == 'id'
+                                ? 'Lagu sudah ada di perpustakaan lokal'
+                                : 'Song already in local library',
+                          );
+                        } else {
+                          _downloadYtmTrack(track);
+                        }
+                      },
+                      iconColor: isDownloaded
+                          ? _activeAccentColor
+                          : (isLight ? Colors.black54 : Colors.white70),
+                    ),
+                  ],
                   _buildOptionItem(
                     Icons.playlist_add,
                     AppLocalizations.of(context).addToPlaylist,
@@ -169,7 +202,7 @@ extension _TrackOptionsUI on _MainScreenState {
                        _showFullSleepTimerDialog(context);
                     },
                   ),
-                  if (Platform.isAndroid) ...[
+                  if (!isYtm && Platform.isAndroid) ...[
                     _buildOptionItem(
                       Icons.content_cut_rounded,
                       AppLocalizations.of(context).ringtoneCutter,
@@ -234,64 +267,66 @@ extension _TrackOptionsUI on _MainScreenState {
                       },
                       iconColor: Colors.redAccent,
                     ),
-                  _buildOptionItem(
-                    Icons.album_outlined,
-                    AppLocalizations.of(context).goToAlbum,
-                    () {
-                      Navigator.pop(context);
-                      setState(() {
-                        _isPlayerOpen = false;
-                        _selectedAlbumDetail = track.album;
-                        _searchQuery = '';
-                        _searchController.clear();
-                        final albumSongs = _allTracks
-                            .where((t) => t.album == track.album)
-                            .toList();
-                        _detailColorFuture = _getDetailColor(
-                          albumSongs.isNotEmpty ? albumSongs.first : null,
-                        );
-                        _currentPageIndex = 3;
-                        _pageController.animateToPage(
-                          3,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      });
-                    },
-                  ),
-                  _buildOptionItem(
-                    Icons.person_outline,
-                    AppLocalizations.of(context).goToArtist,
-                    () {
-                      Navigator.pop(context);
-                      setState(() {
-                        _isPlayerOpen = false;
-                        _selectedArtistDetail = track.artist;
-                        _searchQuery = '';
-                        _searchController.clear();
-                        final artistSongs = _allTracks
-                            .where((t) => t.artist == track.artist)
-                            .toList();
-                        _detailColorFuture = _getDetailColor(
-                          artistSongs.isNotEmpty ? artistSongs.first : null,
-                        );
-                        _currentPageIndex = 2;
-                        _pageController.animateToPage(
-                          2,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      });
-                    },
-                  ),
-                  _buildOptionItem(
-                    Icons.edit_outlined,
-                    AppLocalizations.of(context).editMetadata,
-                    () {
-                      Navigator.pop(context);
-                      _showEditMetadataModal(context, track);
-                    },
-                  ),
+                  if (!isYtm) ...[
+                    _buildOptionItem(
+                      Icons.album_outlined,
+                      AppLocalizations.of(context).goToAlbum,
+                      () {
+                        Navigator.pop(context);
+                        setState(() {
+                          _isPlayerOpen = false;
+                          _selectedAlbumDetail = track.album;
+                          _searchQuery = '';
+                          _searchController.clear();
+                          final albumSongs = _allTracks
+                              .where((t) => t.album == track.album)
+                              .toList();
+                          _detailColorFuture = _getDetailColor(
+                            albumSongs.isNotEmpty ? albumSongs.first : null,
+                          );
+                          _currentPageIndex = 3;
+                          _pageController.animateToPage(
+                            3,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        });
+                      },
+                    ),
+                    _buildOptionItem(
+                      Icons.person_outline,
+                      AppLocalizations.of(context).goToArtist,
+                      () {
+                        Navigator.pop(context);
+                        setState(() {
+                          _isPlayerOpen = false;
+                          _selectedArtistDetail = track.artist;
+                          _searchQuery = '';
+                          _searchController.clear();
+                          final artistSongs = _allTracks
+                              .where((t) => t.artist == track.artist)
+                              .toList();
+                          _detailColorFuture = _getDetailColor(
+                            artistSongs.isNotEmpty ? artistSongs.first : null,
+                          );
+                          _currentPageIndex = 2;
+                          _pageController.animateToPage(
+                            2,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        });
+                      },
+                    ),
+                    _buildOptionItem(
+                      Icons.edit_outlined,
+                      AppLocalizations.of(context).editMetadata,
+                      () {
+                        Navigator.pop(context);
+                        _showEditMetadataModal(context, track);
+                      },
+                    ),
+                  ],
                   _buildOptionItem(
                     Icons.info_outline,
                     AppLocalizations.of(context).songInfo,
@@ -300,85 +335,87 @@ extension _TrackOptionsUI on _MainScreenState {
                       _showSongInfoModal(context, track);
                     },
                   ),
-                  _buildOptionItem(
-                    Icons.visibility_off_outlined,
-                    AppLocalizations.of(context).hideFromLibrary,
-                    () async {
-                      Navigator.pop(context);
-                      final prefs = await SharedPreferences.getInstance();
-                      _hiddenTrackIds.add(track.id);
-                      await prefs.setStringList(
-                        'hidden_track_ids',
-                        _hiddenTrackIds.toList(),
-                      );
-                      setState(() {
-                        _allTracks.removeWhere((t) => t.id == track.id);
-                        _cachedDetailKey = null;
-                      });
-                      _MainScreenState.mainScreenState!
-                          ._removeFromQueueAndPlayer(track.id);
-                      final serialized = _allTracks
-                          .map((t) => t.toMap())
-                          .toList();
-                      await prefs.setString(
-                        'cached_tracks_list',
-                        jsonEncode(serialized),
-                      );
-                      showFleyToast(
-                        lookupAppLocalizations(
-                          Locale(FleyStrings.currentLang),
-                        ).trackHidden,
-                      );
-                    },
-                  ),
-                  _buildOptionItem(
-                    Icons.delete_outline,
-                    AppLocalizations.of(context).deleteFromDevice,
-                    () async {
-                      final parentContext = this.context;
-                      Navigator.pop(context);
-                      final bool? confirm = await showConfirmationDialog(
-                        parentContext,
-                        title: AppLocalizations.of(parentContext).confirmDelete,
-                        content: AppLocalizations.of(parentContext).confirmDeleteBody,
-                        confirmText: AppLocalizations.of(parentContext).delete,
-                      );
-                      if (confirm != true) return;
+                  if (!isYtm) ...[
+                    _buildOptionItem(
+                      Icons.visibility_off_outlined,
+                      AppLocalizations.of(context).hideFromLibrary,
+                      () async {
+                        Navigator.pop(context);
+                        final prefs = await SharedPreferences.getInstance();
+                        _hiddenTrackIds.add(track.id);
+                        await prefs.setStringList(
+                          'hidden_track_ids',
+                          _hiddenTrackIds.toList(),
+                        );
+                        setState(() {
+                          _allTracks.removeWhere((t) => t.id == track.id);
+                          _cachedDetailKey = null;
+                        });
+                        _MainScreenState.mainScreenState!
+                            ._removeFromQueueAndPlayer(track.id);
+                        final serialized = _allTracks
+                            .map((t) => t.toMap())
+                            .toList();
+                        await prefs.setString(
+                          'cached_tracks_list',
+                          jsonEncode(serialized),
+                        );
+                        showFleyToast(
+                          lookupAppLocalizations(
+                            Locale(FleyStrings.currentLang),
+                          ).trackHidden,
+                        );
+                      },
+                    ),
+                    _buildOptionItem(
+                      Icons.delete_outline,
+                      AppLocalizations.of(context).deleteFromDevice,
+                      () async {
+                        final parentContext = this.context;
+                        Navigator.pop(context);
+                        final bool? confirm = await showConfirmationDialog(
+                          parentContext,
+                          title: AppLocalizations.of(parentContext).confirmDelete,
+                          content: AppLocalizations.of(parentContext).confirmDeleteBody,
+                          confirmText: AppLocalizations.of(parentContext).delete,
+                        );
+                        if (confirm != true) return;
 
-                      try {
-                        final file = File(track.path);
-                        if (track.path.isNotEmpty && await file.exists()) {
-                          await file.delete();
-                          setState(() {
-                            _allTracks.removeWhere((t) => t.id == track.id);
-                            _cachedDetailKey = null;
-                          });
-                          _MainScreenState.mainScreenState!
-                              ._removeFromQueueAndPlayer(track.id);
-                          final prefs = await SharedPreferences.getInstance();
-                          final serialized = _allTracks
-                              .map((t) => t.toMap())
-                              .toList();
-                          await prefs.setString(
-                            'cached_tracks_list',
-                            jsonEncode(serialized),
-                          );
-                          showFleyToast(
-                            lookupAppLocalizations(
-                              Locale(FleyStrings.currentLang),
-                            ).trackDeleted,
-                          );
-                        } else {
+                        try {
+                          final file = File(track.path);
+                          if (track.path.isNotEmpty && await file.exists()) {
+                            await file.delete();
+                            setState(() {
+                              _allTracks.removeWhere((t) => t.id == track.id);
+                              _cachedDetailKey = null;
+                            });
+                            _MainScreenState.mainScreenState!
+                                ._removeFromQueueAndPlayer(track.id);
+                            final prefs = await SharedPreferences.getInstance();
+                            final serialized = _allTracks
+                                .map((t) => t.toMap())
+                                .toList();
+                            await prefs.setString(
+                              'cached_tracks_list',
+                              jsonEncode(serialized),
+                            );
+                            showFleyToast(
+                              lookupAppLocalizations(
+                                Locale(FleyStrings.currentLang),
+                              ).trackDeleted,
+                            );
+                          } else {
+                            if (!parentContext.mounted) return;
+                            _showScopedStorageFallbackDialog(parentContext, track);
+                          }
+                        } catch (e) {
                           if (!parentContext.mounted) return;
                           _showScopedStorageFallbackDialog(parentContext, track);
                         }
-                      } catch (e) {
-                        if (!parentContext.mounted) return;
-                        _showScopedStorageFallbackDialog(parentContext, track);
-                      }
-                    },
-                    iconColor: Colors.redAccent,
-                  ),
+                      },
+                      iconColor: Colors.redAccent,
+                    ),
+                  ],
                             const SizedBox(height: 24),
                           ],
                         ),
@@ -565,5 +602,50 @@ extension _TrackOptionsUI on _MainScreenState {
         );
       },
     );
+  }
+
+  Future<void> _downloadYtmTrack(Track track) async {
+    final videoId = track.path.isNotEmpty
+        ? track.path
+        : track.id.replaceFirst('ytm_', '');
+
+    if (videoId.isEmpty) {
+      showFleyToast(
+        FleyStrings.currentLang == 'id'
+            ? 'ID video tidak valid'
+            : 'Invalid video ID',
+      );
+      return;
+    }
+
+    final dir = await getFleyDownloadsDirectory();
+    final safeTitle =
+        track.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+    final safeArtist = (track.artist.isNotEmpty && track.artist != '<unknown>')
+        ? track.artist.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim()
+        : '';
+    String fileBaseName =
+        safeArtist.isNotEmpty ? '$safeArtist - $safeTitle' : safeTitle;
+    if (fileBaseName.isEmpty) {
+      fileBaseName = 'ytm_$videoId';
+    }
+    final audioFile = File('${dir.path}/$fileBaseName.m4a');
+
+    if (await audioFile.exists() && (await audioFile.length()) > 0) {
+      showFleyToast(
+        FleyStrings.currentLang == 'id'
+            ? '${track.title} sudah diunduh'
+            : '${track.title} already downloaded',
+      );
+      return;
+    }
+
+    showFleyToast(
+      FleyStrings.currentLang == 'id'
+          ? 'Menambahkan ${track.title} ke unduhan...'
+          : 'Added ${track.title} to downloads...',
+    );
+
+    DownloadService.instance.downloadTrack(track);
   }
 }

@@ -84,14 +84,15 @@ extension _DetailViewsUI on _MainScreenState {
       Widget? imageWidget;
 
       if (type == 'Playlist') {
+        final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};
         if (baseName == AppLocalizations.of(context).favourites) {
-          pSongs = _allTracks
-              .where((t) => _favoriteTrackIds.contains(t.id))
+          pSongs = _favoriteTrackIds
+              .where((id) => trackMap.containsKey(id))
+              .map((id) => trackMap[id]!)
               .toList();
         } else if (baseName == AppLocalizations.of(context).recentlyAdded) {
           pSongs = List.from(_allTracks);
         } else if (baseName == AppLocalizations.of(context).lastPlayed) {
-          final trackMap = {for (var t in _allTracks) t.id: t};
           pSongs = _allPlayedTrackIdsOrdered
               .where((id) => trackMap.containsKey(id))
               .map((id) => trackMap[id]!)
@@ -108,8 +109,11 @@ extension _DetailViewsUI on _MainScreenState {
               .where((t) => (_playCounts[t.id] ?? 0) <= 1)
               .toList();
         } else if (_userPlaylists.containsKey(baseName)) {
-          final trackIds = _userPlaylists[baseName]!.toSet();
-          pSongs = _allTracks.where((t) => trackIds.contains(t.id)).toList();
+          final trackIds = _userPlaylists[baseName] ?? [];
+          pSongs = trackIds
+              .where((id) => trackMap.containsKey(id))
+              .map((id) => trackMap[id]!)
+              .toList();
         }
 
         if (_playlistCovers.containsKey(baseName)) {
