@@ -3,6 +3,49 @@ part of '../main.dart';
 
 extension _DetailViewsUI on _MainScreenState {
   Widget _getActiveDetailView() {
+    if (_selectedOnlineDetail != null) {
+      final detail = _selectedOnlineDetail!;
+      final imageWidget = detail.thumbnailUrl.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(
+                detail.type == 'Artist' || detail.type == AppLocalizations.of(context).artist ? 150 : 12,
+              ),
+              child: Image.network(
+                detail.thumbnailUrl,
+                fit: BoxFit.cover,
+                width: 300,
+                height: 300,
+                errorBuilder: (_, _, _) => Container(
+                  color: Colors.white10,
+                  child: Icon(
+                    detail.type == 'Artist' || detail.type == AppLocalizations.of(context).artist
+                        ? Icons.person_rounded
+                        : Icons.album_rounded,
+                    size: 60,
+                    color: Colors.white54,
+                  ),
+                ),
+              ),
+            )
+          : Container(
+              color: Colors.white10,
+              child: Icon(
+                detail.type == 'Artist' || detail.type == AppLocalizations.of(context).artist
+                    ? Icons.person_rounded
+                    : Icons.album_rounded,
+                size: 60,
+                color: Colors.white54,
+              ),
+            );
+      return _buildDetailView(
+        title: detail.title,
+        subtitle: detail.subtitle,
+        type: detail.type,
+        imageWidget: imageWidget,
+        tracks: _onlinePlaylistTracks,
+      );
+    }
+
     if (_selectedOnlinePlaylist != null) {
       final pl = _selectedOnlinePlaylist!;
       final imageWidget = Image.network(
@@ -223,12 +266,18 @@ extension _DetailViewsUI on _MainScreenState {
           }
         }
       } else if (type == AppLocalizations.of(context).artist) {
-        pSongs = _allTracks.where((t) => t.artist == baseName).toList();
+        final cleanBase = baseName.trim().toLowerCase();
+        pSongs = _allTracks
+            .where((t) => t.artist.trim().toLowerCase() == cleanBase)
+            .toList();
         imageWidget = pSongs.isNotEmpty
             ? _buildTrackArtwork(pSongs.first, size: 300, radius: 12)
             : const SizedBox(width: 300, height: 300);
       } else if (type == AppLocalizations.of(context).album) {
-        pSongs = _allTracks.where((t) => t.album == baseName).toList();
+        final cleanBase = baseName.trim().toLowerCase();
+        pSongs = _allTracks
+            .where((t) => t.album.trim().toLowerCase() == cleanBase)
+            .toList();
         imageWidget = pSongs.isNotEmpty
             ? _buildTrackArtwork(pSongs.first, size: 300, radius: 12)
             : const SizedBox(width: 300, height: 300);
@@ -324,6 +373,7 @@ extension _DetailViewsUI on _MainScreenState {
             _selectedArtistDetail = null;
             _selectedAlbumDetail = null;
             _selectedOnlinePlaylist = null;
+            _selectedOnlineDetail = null;
           });
         } else {
           _detailDragOffsetNotifier.value = 0.0;
@@ -373,6 +423,7 @@ extension _DetailViewsUI on _MainScreenState {
                               _selectedArtistDetail = null;
                               _selectedAlbumDetail = null;
                               _selectedOnlinePlaylist = null;
+                              _selectedOnlineDetail = null;
                             });
                           },
                         ),
@@ -1091,6 +1142,7 @@ extension _DetailViewsUI on _MainScreenState {
                                 _selectedArtistDetail = null;
                                 _selectedAlbumDetail = null;
                                 _selectedOnlinePlaylist = null;
+                                _selectedOnlineDetail = null;
                               });
                             },
                           ),
@@ -1153,6 +1205,7 @@ extension _DetailViewsUI on _MainScreenState {
             _selectedArtistDetail = null;
             _selectedAlbumDetail = null;
             _selectedOnlinePlaylist = null;
+            _selectedOnlineDetail = null;
           });
         } else {
           _detailDragOffsetNotifier.value = 0.0;

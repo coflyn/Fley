@@ -267,57 +267,82 @@ extension _TrackOptionsUI on _MainScreenState {
                       },
                       iconColor: Colors.redAccent,
                     ),
-                  if (!isYtm) ...[
-                    _buildOptionItem(
-                      Icons.album_outlined,
-                      AppLocalizations.of(context).goToAlbum,
-                      () {
-                        Navigator.pop(context);
+                  _buildOptionItem(
+                    Icons.album_outlined,
+                    AppLocalizations.of(context).goToAlbum,
+                    () {
+                      Navigator.pop(context);
+                      final albumName = track.album.trim();
+                      final isInvalidAlbum = albumName.isEmpty ||
+                          albumName.toLowerCase() == 'unknown album' ||
+                          albumName == '<unknown>' ||
+                          albumName.toLowerCase() == 'youtube music' ||
+                          RegExp(
+                            r'^\d+([.,]\d+)?[kmb]?\s*(plays?|views?|ditonton|tayangan|x ditonton)?$',
+                            caseSensitive: false,
+                          ).hasMatch(albumName);
+                      if (isInvalidAlbum) {
+                        showFleyToast('No album information available');
+                        return;
+                      }
+                      if (isYtm) {
+                        _openOnlineAlbum(
+                          track.album,
+                          track.artist,
+                          browseId: track.albumBrowseId,
+                          coverUrl: track.url,
+                        );
+                      } else {
                         setState(() {
                           _isPlayerOpen = false;
+                          _showLyrics = false;
+                          _selectedOnlineDetail = null;
+                          _selectedOnlinePlaylist = null;
+                          _selectedArtistDetail = null;
+                          _selectedPlaylistDetail = null;
                           _selectedAlbumDetail = track.album;
                           _searchQuery = '';
                           _searchController.clear();
-                          final albumSongs = _allTracks
-                              .where((t) => t.album == track.album)
-                              .toList();
-                          _detailColorFuture = _getDetailColor(
-                            albumSongs.isNotEmpty ? albumSongs.first : null,
-                          );
-                          _currentPageIndex = 3;
-                          _pageController.animateToPage(
-                            3,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
+                          _detailColorFuture = _getDetailColor(track);
                         });
-                      },
-                    ),
-                    _buildOptionItem(
-                      Icons.person_outline,
-                      AppLocalizations.of(context).goToArtist,
-                      () {
-                        Navigator.pop(context);
+                      }
+                    },
+                  ),
+                  _buildOptionItem(
+                    Icons.person_outline,
+                    AppLocalizations.of(context).goToArtist,
+                    () {
+                      Navigator.pop(context);
+                      final artistName = track.artist.trim();
+                      if (artistName.isEmpty ||
+                          artistName.toLowerCase() == 'unknown artist' ||
+                          artistName == '<unknown>') {
+                        showFleyToast('No artist information available');
+                        return;
+                      }
+                      if (isYtm) {
+                        _openOnlineArtist(
+                          track.artist,
+                          browseId: track.artistBrowseId,
+                          coverUrl: track.url,
+                        );
+                      } else {
                         setState(() {
                           _isPlayerOpen = false;
+                          _showLyrics = false;
+                          _selectedOnlineDetail = null;
+                          _selectedOnlinePlaylist = null;
+                          _selectedAlbumDetail = null;
+                          _selectedPlaylistDetail = null;
                           _selectedArtistDetail = track.artist;
                           _searchQuery = '';
                           _searchController.clear();
-                          final artistSongs = _allTracks
-                              .where((t) => t.artist == track.artist)
-                              .toList();
-                          _detailColorFuture = _getDetailColor(
-                            artistSongs.isNotEmpty ? artistSongs.first : null,
-                          );
-                          _currentPageIndex = 2;
-                          _pageController.animateToPage(
-                            2,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
+                          _detailColorFuture = _getDetailColor(track);
                         });
-                      },
-                    ),
+                      }
+                    },
+                  ),
+                  if (!isYtm)
                     _buildOptionItem(
                       Icons.edit_outlined,
                       AppLocalizations.of(context).editMetadata,
@@ -326,7 +351,6 @@ extension _TrackOptionsUI on _MainScreenState {
                         _showEditMetadataModal(context, track);
                       },
                     ),
-                  ],
                   _buildOptionItem(
                     Icons.info_outline,
                     AppLocalizations.of(context).songInfo,

@@ -596,7 +596,11 @@ extension _HomeUI on _MainScreenState {
     final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
 
-    final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};
+    final trackMap = <String, Track>{
+      for (var t in _allTracks) t.id: t,
+      ..._onlineTracksMap,
+      for (var t in _playbackQueue) t.id: t,
+    };
 
     // Candidate track for Resume Playback (only before any song is loaded/played in session)
     Track? resumeTrack;
@@ -623,7 +627,15 @@ extension _HomeUI on _MainScreenState {
         .take(4)
         .toList();
 
-    if (recentTracks.isEmpty && _allTracks.isNotEmpty) {
+    if (recentTracks.isEmpty && _allPlayedTrackIdsOrdered.isNotEmpty) {
+      recentTracks = _allPlayedTrackIdsOrdered
+          .where((id) => trackMap.containsKey(id))
+          .map((id) => trackMap[id]!)
+          .take(4)
+          .toList();
+    }
+
+    if (recentTracks.isEmpty && _allPlayedTrackIdsOrdered.isEmpty && _allTracks.isNotEmpty) {
       recentTracks = _allTracks
           .where((t) => excludedId == null || t.id != excludedId)
           .take(4)
@@ -864,6 +876,7 @@ extension _HomeUI on _MainScreenState {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
+                cacheExtent: 1500.0,
                 itemCount: _ytmTrendingTracks.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
@@ -897,19 +910,7 @@ extension _HomeUI on _MainScreenState {
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  Image.network(
-                                    yt.thumbnailUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) => Container(
-                                      color: isLight
-                                          ? Colors.black12
-                                          : Colors.white10,
-                                      child: const Icon(
-                                        Icons.music_note,
-                                        color: Colors.white38,
-                                      ),
-                                    ),
-                                  ),
+                                  _buildYtTrackThumbnail(yt, isLight),
                                   Positioned(
                                     bottom: 8,
                                     right: 8,
@@ -1147,6 +1148,7 @@ extension _HomeUI on _MainScreenState {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
+                cacheExtent: 1500.0,
                 itemCount: _ytmPlaylists.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
@@ -1181,6 +1183,7 @@ extension _HomeUI on _MainScreenState {
                                   Image.network(
                                     pl.thumbnailUrl,
                                     fit: BoxFit.cover,
+                                    gaplessPlayback: true,
                                     errorBuilder: (_, _, _) => Container(
                                       color: isLight
                                           ? Colors.black12
@@ -1253,9 +1256,38 @@ extension _HomeUI on _MainScreenState {
   );
   }
 
+  Widget _buildYtTrackThumbnail(YtTrack yt, bool isLight) {
+    final cachedCover = ArtworkCacheManager.getYtmCoverFile(yt.videoId);
+    if (cachedCover != null) {
+      return Image.file(
+        cachedCover,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, _, _) => Container(
+          color: isLight ? Colors.black12 : Colors.white10,
+          child: const Icon(Icons.music_note, color: Colors.white38),
+        ),
+      );
+    }
+
+    final highResUrl = YtMusicService.getHighResThumbnail(yt.thumbnailUrl);
+    ArtworkCacheManager.saveYtmCover(yt.videoId, highResUrl);
+
+    return Image.network(
+      highResUrl,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => Container(
+        color: isLight ? Colors.black12 : Colors.white10,
+        child: const Icon(Icons.music_note, color: Colors.white38),
+      ),
+    );
+  }
+
   void _openCommunityPlaylist(YtPlaylist pl) async {
     setState(() {
       _selectedOnlinePlaylist = pl;
+      _selectedOnlineDetail = null;
       _onlinePlaylistTracks = [];
       _onlinePlaylistLoading = true;
       _searchQuery = '';
@@ -1275,6 +1307,8 @@ extension _HomeUI on _MainScreenState {
           path: y.videoId,
           lyrics: const [],
           duration: y.durationMs,
+          artistBrowseId: y.artistBrowseId,
+          albumBrowseId: y.albumBrowseId,
         );
         _onlineTracksMap[t.id] = t;
         return t;
@@ -1283,6 +1317,140 @@ extension _HomeUI on _MainScreenState {
         setState(() {
           _onlinePlaylistTracks = tracks;
           _onlinePlaylistLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _onlinePlaylistLoading = false);
+    }
+  }
+
+  void _openOnlineArtist(String artist, {String? browseId, String? coverUrl}) async {
+    setState(() {
+      _isPlayerOpen = false;
+      _selectedOnlineDetail = OnlineDetailTarget(
+        title: artist,
+        subtitle: AppLocalizations.of(context).artist,
+        type: 'Artist',
+        thumbnailUrl: coverUrl ?? '',
+        browseId: browseId,
+      );
+      _selectedOnlinePlaylist = null;
+      _selectedArtistDetail = null;
+      _selectedAlbumDetail = null;
+      _selectedPlaylistDetail = null;
+      _onlinePlaylistTracks = [];
+      _onlinePlaylistLoading = true;
+      _searchQuery = '';
+      _searchController.clear();
+      _detailColorFuture = Future.value(const Color(0xFF161616));
+    });
+    try {
+      final ytracks = await YtMusicService.getArtistTracks(
+        artist,
+        browseId: browseId,
+        limit: 50,
+      );
+      final tracks = ytracks.map((y) {
+        final t = Track(
+          id: 'ytm_${y.videoId}',
+          title: y.title,
+          artist: y.artist.isNotEmpty ? y.artist : artist,
+          album: y.album.isNotEmpty ? y.album : artist,
+          url: y.thumbnailUrl,
+          path: y.videoId,
+          lyrics: const [],
+          duration: y.durationMs,
+          artistBrowseId: y.artistBrowseId ?? browseId,
+          albumBrowseId: y.albumBrowseId,
+        );
+        _onlineTracksMap[t.id] = t;
+        return t;
+      }).toList();
+      if (mounted && _selectedOnlineDetail?.title == artist) {
+        setState(() {
+          _onlinePlaylistTracks = tracks;
+          _onlinePlaylistLoading = false;
+          if ((_selectedOnlineDetail?.thumbnailUrl.isEmpty ?? true) &&
+              tracks.isNotEmpty &&
+              tracks.first.url.isNotEmpty) {
+            _selectedOnlineDetail = OnlineDetailTarget(
+              title: artist,
+              subtitle: _selectedOnlineDetail?.subtitle ??
+                  AppLocalizations.of(context).artist,
+              type: 'Artist',
+              thumbnailUrl: tracks.first.url,
+              browseId: browseId,
+            );
+            _detailColorFuture = _getDetailColor(tracks.first);
+          }
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _onlinePlaylistLoading = false);
+    }
+  }
+
+  void _openOnlineAlbum(String album, String artist, {String? browseId, String? coverUrl}) async {
+    setState(() {
+      _isPlayerOpen = false;
+      _selectedOnlineDetail = OnlineDetailTarget(
+        title: album,
+        subtitle: (artist.isNotEmpty && artist != '<unknown>')
+            ? artist
+            : AppLocalizations.of(context).album,
+        type: 'Album',
+        thumbnailUrl: coverUrl ?? '',
+        browseId: browseId,
+      );
+      _selectedOnlinePlaylist = null;
+      _selectedArtistDetail = null;
+      _selectedAlbumDetail = null;
+      _selectedPlaylistDetail = null;
+      _onlinePlaylistTracks = [];
+      _onlinePlaylistLoading = true;
+      _searchQuery = '';
+      _searchController.clear();
+      _detailColorFuture = Future.value(const Color(0xFF161616));
+    });
+    try {
+      final ytracks = await YtMusicService.getAlbumTracks(
+        album,
+        artistName: artist,
+        browseId: browseId,
+        limit: 50,
+      );
+      final tracks = ytracks.map((y) {
+        final t = Track(
+          id: 'ytm_${y.videoId}',
+          title: y.title,
+          artist: y.artist.isNotEmpty ? y.artist : artist,
+          album: album,
+          url: y.thumbnailUrl,
+          path: y.videoId,
+          lyrics: const [],
+          duration: y.durationMs,
+          artistBrowseId: y.artistBrowseId,
+          albumBrowseId: y.albumBrowseId ?? browseId,
+        );
+        _onlineTracksMap[t.id] = t;
+        return t;
+      }).toList();
+      if (mounted && _selectedOnlineDetail?.title == album) {
+        setState(() {
+          _onlinePlaylistTracks = tracks;
+          _onlinePlaylistLoading = false;
+          if ((_selectedOnlineDetail?.thumbnailUrl.isEmpty ?? true) &&
+              tracks.isNotEmpty &&
+              tracks.first.url.isNotEmpty) {
+            _selectedOnlineDetail = OnlineDetailTarget(
+              title: album,
+              subtitle: _selectedOnlineDetail?.subtitle ?? artist,
+              type: 'Album',
+              thumbnailUrl: tracks.first.url,
+              browseId: browseId,
+            );
+            _detailColorFuture = _getDetailColor(tracks.first);
+          }
         });
       }
     } catch (_) {

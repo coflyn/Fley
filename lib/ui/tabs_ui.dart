@@ -13,20 +13,29 @@ extension _TabsUI on _MainScreenState {
       return _buildEmptyState();
     }
 
-    return PageView(
+    return PageView.builder(
       controller: _pageController,
       physics: const NeverScrollableScrollPhysics(),
+      itemCount: 4,
       onPageChanged: (index) {
         setState(() {
           _currentPageIndex = index;
         });
       },
-      children: [
-        _KeepAliveWrapper(child: _buildSongsTab()),
-        _KeepAliveWrapper(child: _buildPlaylistsTab()),
-        _KeepAliveWrapper(child: _buildArtistsTab()),
-        _KeepAliveWrapper(child: _buildAlbumsTab()),
-      ],
+      itemBuilder: (context, index) {
+        switch (index) {
+          case 0:
+            return _KeepAliveWrapper(child: _buildSongsTab());
+          case 1:
+            return _KeepAliveWrapper(child: _buildPlaylistsTab());
+          case 2:
+            return _KeepAliveWrapper(child: _buildArtistsTab());
+          case 3:
+            return _KeepAliveWrapper(child: _buildAlbumsTab());
+          default:
+            return const SizedBox.shrink();
+        }
+      },
     );
   }
 
@@ -2139,9 +2148,15 @@ extension _TabsUI on _MainScreenState {
             path: y.videoId,
             lyrics: const [],
             duration: y.durationMs,
+            artistBrowseId: y.artistBrowseId,
+            albumBrowseId: y.albumBrowseId,
           ),
         )
         .toList();
+
+    for (final t in queue) {
+      _onlineTracksMap[t.id] = t;
+    }
 
     final targetIndex = queue.indexWhere((t) => t.path == yt.videoId);
     _updatePlayingFrom(

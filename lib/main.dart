@@ -339,6 +339,22 @@ class FleyApp extends StatelessWidget {
   }
 }
 
+class OnlineDetailTarget {
+  final String title;
+  final String subtitle;
+  final String type; // 'Artist' or 'Album'
+  final String thumbnailUrl;
+  final String? browseId;
+
+  const OnlineDetailTarget({
+    required this.title,
+    required this.subtitle,
+    required this.type,
+    required this.thumbnailUrl,
+    this.browseId,
+  });
+}
+
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -428,7 +444,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final int _albumsAnimToken = 0;
 
   List<Track> _allTracks = [];
-  Map<String, Track> _onlineTracksMap = {};
+  final Map<String, Track> _onlineTracksMap = {};
   List<YtTrack> _ytmTrendingTracks = [];
   bool _ytmTrendingLoading = false;
   bool _ytmTrendingFailed = false;
@@ -436,6 +452,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   bool _ytmPlaylistsLoading = false;
   bool _ytmPlaylistsFailed = false;
   YtPlaylist? _selectedOnlinePlaylist;
+  OnlineDetailTarget? _selectedOnlineDetail;
   List<Track> _onlinePlaylistTracks = [];
   bool _onlinePlaylistLoading = false;
   bool _isLoading = true;
@@ -503,13 +520,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         _selectedPlaylistDetail != null ||
         _selectedArtistDetail != null ||
         _selectedAlbumDetail != null ||
-        _selectedOnlinePlaylist != null;
+        _selectedOnlinePlaylist != null ||
+        _selectedOnlineDetail != null;
     if (_currentNavIndex == index && !isDetail) return;
     setState(() {
       _selectedPlaylistDetail = null;
       _selectedArtistDetail = null;
       _selectedAlbumDetail = null;
       _selectedOnlinePlaylist = null;
+      _selectedOnlineDetail = null;
       _currentNavIndex = index;
       _tabContentOpacity = 0.0;
     });
@@ -1051,7 +1070,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             _selectedPlaylistDetail != null ||
             _selectedArtistDetail != null ||
             _selectedAlbumDetail != null ||
-            _selectedOnlinePlaylist != null;
+            _selectedOnlinePlaylist != null ||
+            _selectedOnlineDetail != null;
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -1075,6 +1095,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               _selectedArtistDetail = null;
               _selectedAlbumDetail = null;
               _selectedOnlinePlaylist = null;
+              _selectedOnlineDetail = null;
             });
           } else if (_currentNavIndex != 0) {
             _switchToNavTab(0);
