@@ -384,10 +384,16 @@ extension _TrackOptionsUI on _MainScreenState {
                         try {
                           final file = File(track.path);
                           if (track.path.isNotEmpty && await file.exists()) {
-                            await file.delete();
+                            if (track.id.startsWith('local_ytm_') ||
+                                track.path.contains('FleyDownloads')) {
+                              await DownloadService.instance.deleteDownload(track);
+                            } else {
+                              await file.delete();
+                            }
                             setState(() {
                               _allTracks.removeWhere((t) => t.id == track.id);
                               _cachedDetailKey = null;
+                              _memoSortedTracks = null;
                             });
                             _MainScreenState.mainScreenState!
                                 ._removeFromQueueAndPlayer(track.id);

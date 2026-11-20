@@ -100,15 +100,12 @@ extension _AudioLibraryScanLogic on _MainScreenState {
           filterShortAudio: _filterShortAudio,
         );
         try {
-          final downDir = await getFleyDownloadsDirectory();
-          final downloadedTracks = await DesktopAudioScanner.scanFolders(
-            [downDir.path],
-            filterShortAudio: false,
-          );
+          final downloadedTracks =
+              await DownloadService.instance.getDownloadedTracks();
           for (final dt in downloadedTracks) {
-            if (!desktopTracks.any((t) => t.path == dt.path)) {
-              desktopTracks.add(dt);
-            }
+            ArtworkCacheManager.registerTrackPath(dt.id, dt.path);
+            desktopTracks.removeWhere((t) => t.path == dt.path || t.id == dt.id);
+            desktopTracks.insert(0, dt);
           }
         } catch (_) {}
         _allTracks = desktopTracks
@@ -339,34 +336,14 @@ extension _AudioLibraryScanLogic on _MainScreenState {
         }
 
         try {
-          final downDir = await getFleyDownloadsDirectory();
-          final downloadedTracks = await DesktopAudioScanner.scanFolders(
-            [downDir.path],
-            filterShortAudio: false,
-          );
+          final downloadedTracks =
+              await DownloadService.instance.getDownloadedTracks();
           for (final track in downloadedTracks) {
             ArtworkCacheManager.registerTrackPath(track.id, track.path);
-            String title = track.title;
-            String artist = track.artist;
-            String album = track.album;
-            if (_metadataOverrides.containsKey(track.id)) {
-              final overrides = _metadataOverrides[track.id]!;
-              title = overrides['title'] ?? title;
-              artist = overrides['artist'] ?? artist;
-              album = overrides['album'] ?? album;
-            }
-            mobileTracks.add(
-              Track(
-                id: track.id,
-                title: title,
-                artist: artist,
-                album: album,
-                url: track.url,
-                path: track.path,
-                lyrics: track.lyrics,
-                duration: track.duration,
-              ),
+            mobileTracks.removeWhere(
+              (t) => t.path == track.path || t.id == track.id,
             );
+            mobileTracks.insert(0, track);
           }
         } catch (_) {}
 
@@ -389,6 +366,7 @@ extension _AudioLibraryScanLogic on _MainScreenState {
         setState(() {
           _isLoading = false;
           _cachedDetailKey = null;
+          _memoSortedTracks = null;
         });
 
         if (_allTracks.isNotEmpty) {

@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/track.dart';
 import '../services/ytmusic_service.dart';
 import '../services/yt_player_service.dart';
+import '../utils/audio_duration_parser.dart';
+import '../utils/artwork_cache.dart';
 
 enum DownloadStatus {
   pending,
@@ -213,10 +215,20 @@ class DownloadService {
         duration: task.track.duration,
       );
 
+      // If cached LRC exists on disk, copy to downloaded file .lrc
+      final cachedLrc = ArtworkCacheManager.getYtmLyricsFile(videoId);
+      if (cachedLrc != null && cachedLrc.existsSync()) {
+        try {
+          final lrcDest = File('${dir.path}/$fileBaseName.lrc');
+          await cachedLrc.copy(lrcDest.path);
+        } catch (_) {}
+      }
+
       task.status = DownloadStatus.completed;
       task.progress = 1.0;
       activeTasksNotifier.value = [...activeTasksNotifier.value];
 
+      await _saveToDownloadsRegistry(downloadedTrack);
       onTrackDownloaded?.call(downloadedTrack, artBytes);
     } catch (e) {
       debugPrint('Download error: $e');
@@ -366,6 +378,105 @@ class DownloadService {
     return true;
   }
 
+  static const String _registryKey = 'fley_downloads_registry';
+
+  Future<void> _saveToDownloadsRegistry(Track track) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_registryKey) ?? '{}';
+      final Map<String, dynamic> registry = jsonDecode(raw);
+      registry[track.id] = track.toMap();
+      await prefs.setString(_registryKey, jsonEncode(registry));
+    } catch (_) {}
+  }
+
+  Future<void> _removeFromDownloadsRegistry(String trackId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_registryKey) ?? '{}';
+      final Map<String, dynamic> registry = jsonDecode(raw);
+      registry.remove(trackId);
+      await prefs.setString(_registryKey, jsonEncode(registry));
+    } catch (_) {}
+  }
+
+  Future<void> _clearDownloadsRegistry() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_registryKey);
+    } catch (_) {}
+  }
+
+  /// Retrieves all valid downloaded tracks from the persistent registry and disk.
+  Future<List<Track>> getDownloadedTracks() async {
+    final List<Track> tracks = [];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_registryKey) ?? '{}';
+      final Map<String, dynamic> registry = jsonDecode(raw);
+      final List<String> toRemove = [];
+
+      for (final entry in registry.entries) {
+        try {
+          final t = Track.fromMap(Map<String, dynamic>.from(entry.value));
+          if (File(t.path).existsSync()) {
+            tracks.add(t);
+          } else {
+            toRemove.add(entry.key);
+          }
+        } catch (_) {}
+      }
+
+      if (toRemove.isNotEmpty) {
+        for (final k in toRemove) {
+          registry.remove(k);
+        }
+        await prefs.setString(_registryKey, jsonEncode(registry));
+      }
+
+      // Check FleyDownloads directory for any audio files not yet in registry
+      final dir = await getFleyDownloadsDirectory();
+      if (await dir.exists()) {
+        final list = dir.listSync();
+        for (final item in list) {
+          if (item is File) {
+            final p = item.path;
+            final lower = p.toLowerCase();
+            if ((lower.endsWith('.m4a') || lower.endsWith('.mp3')) &&
+                !tracks.any((t) => t.path == p)) {
+              final fileName = item.uri.pathSegments.last;
+              final dotIdx = fileName.lastIndexOf('.');
+              final baseName =
+                  dotIdx != -1 ? fileName.substring(0, dotIdx) : fileName;
+              String title = baseName;
+              String artist = 'Unknown Artist';
+              if (baseName.contains(' - ')) {
+                final parts = baseName.split(' - ');
+                artist = parts.first.trim();
+                title = parts.sublist(1).join(' - ').trim();
+              }
+              final tId = 'local_ytm_${baseName.hashCode.abs()}';
+              final t = Track(
+                id: tId,
+                title: title,
+                artist: artist,
+                album: 'YouTube Music',
+                url: p,
+                path: p,
+                lyrics: const [],
+                duration: AudioDurationParser.getDurationMs(item) ?? 0,
+              );
+              tracks.add(t);
+              registry[tId] = t.toMap();
+            }
+          }
+        }
+        await prefs.setString(_registryKey, jsonEncode(registry));
+      }
+    } catch (_) {}
+    return tracks;
+  }
+
   /// Delete a downloaded track and its associated artwork from disk.
   Future<void> deleteDownload(Track track) async {
     try {
@@ -379,8 +490,15 @@ class DownloadService {
       if (await jpgFile.exists()) {
         await jpgFile.delete();
       }
+      // Also delete companion .lrc if present
+      final lrcPath = track.path.replaceAll(RegExp(r'\.m4a$'), '.lrc');
+      final lrcFile = File(lrcPath);
+      if (await lrcFile.exists()) {
+        await lrcFile.delete();
+      }
     } catch (_) {}
 
+    await _removeFromDownloadsRegistry(track.id);
     onTrackDeleted?.call(track.id);
   }
 
@@ -418,5 +536,6 @@ class DownloadService {
         }
       }
     } catch (_) {}
+    await _clearDownloadsRegistry();
   }
 }

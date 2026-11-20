@@ -708,6 +708,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         );
         _allTracks.insert(0, newTrack);
         _cachedDetailKey = null;
+        _memoSortedTracks = null;
       });
       SharedPreferences.getInstance().then((prefs) {
         final serialized = _allTracks.map((t) => t.toMap()).toList();
@@ -725,6 +726,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       setState(() {
         _allTracks.removeWhere((t) => t.id == trackId);
         _cachedDetailKey = null;
+        _memoSortedTracks = null;
       });
       SharedPreferences.getInstance().then((prefs) {
         final serialized = _allTracks.map((t) => t.toMap()).toList();
