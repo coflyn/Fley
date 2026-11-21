@@ -280,7 +280,9 @@ extension _AudioPlaybackLogic on _MainScreenState {
         }
       });
 
-      _audioPlayer.stop();
+      if (_audioPlayer.playing) {
+        _audioPlayer.stop();
+      }
       final videoId =
           track.path.isNotEmpty ? track.path : track.id.replaceFirst('ytm_', '');
       YtPlayerService.instance.loadAndPlay(videoId);

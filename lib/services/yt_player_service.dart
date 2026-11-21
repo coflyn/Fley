@@ -270,7 +270,8 @@ try {
     v.addEventListener('play', function() {
       if (isAd()) return;
       try {
-        v.volume = 1.0;
+        if (v.volume !== 1.0) v.volume = 1.0;
+        if (v.muted) v.muted = false;
         FleyBridge.postMessage(JSON.stringify({type: 'play'}));
         FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: false}));
       } catch(e){}
@@ -279,7 +280,8 @@ try {
     v.addEventListener('playing', function() {
       if (isAd()) return;
       try {
-        v.volume = 1.0;
+        if (v.volume !== 1.0) v.volume = 1.0;
+        if (v.muted) v.muted = false;
         FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: false}));
       } catch(e){}
     }, true);
@@ -302,7 +304,7 @@ try {
       if (window._fleySuppressEndedUntil && now < window._fleySuppressEndedUntil) {
         return;
       }
-      if (v.duration && v.currentTime && (v.duration - v.currentTime < 2.5)) {
+      if (v.duration && v.currentTime && (v.duration - v.currentTime < 1.5)) {
         window._fleySuppressEndedUntil = now + 4000;
         try { FleyBridge.postMessage(JSON.stringify({type: 'ended'})); } catch(e){}
       }
@@ -472,21 +474,25 @@ try {
 (function() {
   window._fleyShouldPlay = true;
   window._fleySuppressEndedUntil = Date.now() + 4000;
-  var v = document.querySelector('video');
-  if (v) {
-    try { v.volume = 0; } catch(e){}
-  }
   var p = document.getElementById('movie_player');
   if (p) {
     try { if (typeof p.setAutonav === 'function') p.setAutonav(false); } catch(e){}
     if (typeof p.loadVideoById === 'function') {
+      try {
+        if (typeof p.pauseVideo === 'function') p.pauseVideo();
+      } catch(e){}
       p.loadVideoById('$videoId');
-      setTimeout(function() {
-        var vid = document.querySelector('video');
-        if (vid && vid.volume === 0) {
-          vid.volume = 1.0;
-        }
-      }, 300);
+      try {
+        if (typeof p.unMute === 'function') p.unMute();
+        if (typeof p.setVolume === 'function') p.setVolume(100);
+      } catch(e){}
+      var vid = document.querySelector('video');
+      if (vid) {
+        try {
+          vid.muted = false;
+          if (vid.volume !== 1.0) vid.volume = 1.0;
+        } catch(e){}
+      }
       return 'ok';
     }
   }
@@ -531,17 +537,16 @@ try {
 window._fleyShouldPlay = false;
 window._fleyLoop = false;
 try {
+  var p = document.getElementById('movie_player');
+  if (p && typeof p.stopVideo === 'function') {
+    p.stopVideo();
+  }
   var v = document.querySelector('video');
   if (v) {
-    try { v.volume = 0; } catch(e){}
     v.pause();
     v.currentTime = 0;
     v.src = '';
     v.load();
-  }
-  var p = document.getElementById('movie_player');
-  if (p && typeof p.stopVideo === 'function') {
-    p.stopVideo();
   }
 } catch(e){}
 ''').catchError((_) {});
