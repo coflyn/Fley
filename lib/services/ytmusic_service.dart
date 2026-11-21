@@ -131,12 +131,14 @@ class YtPlaylist {
   final String title;
   final String author;
   final String thumbnailUrl;
+  final bool isAlbum;
 
   const YtPlaylist({
     required this.playlistId,
     required this.title,
     required this.author,
     required this.thumbnailUrl,
+    this.isAlbum = false,
   });
 }
 
@@ -170,17 +172,13 @@ class YtMusicService {
   }
 
   static Map<String, dynamic> _context() {
-    String hl = 'id';
-    String gl = 'ID';
+    String hl = 'en';
+    String gl = 'US';
     try {
       final loc = Platform.localeName;
-      final parts = loc.split('_');
-      if (parts.isNotEmpty && parts[0].isNotEmpty) hl = parts[0];
-      if (parts.length > 1 && parts[1].isNotEmpty) gl = parts[1];
-      final tz = DateTime.now().timeZoneOffset.inHours;
-      if ((gl == 'US' || gl.isEmpty) && (tz >= 7 && tz <= 9)) {
-        gl = 'ID';
-      }
+      final parts = loc.split(RegExp(r'[-_]'));
+      if (parts.isNotEmpty && parts[0].isNotEmpty) hl = parts[0].toLowerCase();
+      if (parts.length > 1 && parts[1].isNotEmpty) gl = parts[1].toUpperCase();
     } catch (_) {}
     return {
       'client': {
@@ -501,62 +499,207 @@ class YtMusicService {
     return results;
   }
 
-  /// Fetch trending community playlists from YouTube Music home feed, fallback to search.
-  static Future<List<YtPlaylist>> getCommunityPlaylists({int limit = 15}) async {
+  /// Fetch new official albums & singles releases from YouTube Music (FEmusic_new_releases).
+  static Future<List<YtPlaylist>> getNewReleases({int limit = 20}) async {
     final cookie = await _getCookie();
     final client = HttpClient();
     try {
-      final homeUri = Uri.https(
-        _baseUrl,
-        '/youtubei/v1/browse',
-        {'key': _apiKey, 'prettyPrint': 'false'},
-      );
-      final homeReq = await client.postUrl(homeUri);
-      _headers(cookie).forEach((k, v) => homeReq.headers.set(k, v));
-      homeReq.write(jsonEncode({
-        'context': _context(),
-        'browseId': 'FEmusic_home',
-      }));
-      final homeRes = await homeReq.close();
-      final homeBody = await homeRes.transform(utf8.decoder).join();
-      final homeJson = jsonDecode(homeBody) as Map<String, dynamic>;
-      final homePlaylists = _extractCommunityPlaylistsFromHome(homeJson, limit);
-      if (homePlaylists.isNotEmpty) {
-        return homePlaylists;
-      }
-    } catch (e) {
-      debugPrint('YTM community playlists from home error: $e');
-    }
-
-    try {
       final uri = Uri.https(
         _baseUrl,
-        '/youtubei/v1/search',
+        '/youtubei/v1/browse',
         {'key': _apiKey, 'prettyPrint': 'false'},
       );
       final req = await client.postUrl(uri);
       _headers(cookie).forEach((k, v) => req.headers.set(k, v));
       req.write(jsonEncode({
         'context': _context(),
-        'query': 'Trending Indonesia',
-        'params': 'EgeKAQQoAEABahIQDhAKEAUQCRADEAQQFRAQEBE%3D', // Community playlists filter
+        'browseId': 'FEmusic_new_releases',
       }));
       final res = await req.close();
       final body = await res.transform(utf8.decoder).join();
       final json = jsonDecode(body) as Map<String, dynamic>;
-      return _parseCommunityPlaylists(json, limit);
+      return _extractNewReleases(json, limit);
     } catch (e) {
-      debugPrint('YTM community playlists error: $e');
+      debugPrint('YTM getNewReleases error: $e');
       return [];
     } finally {
       client.close();
     }
   }
 
+  static List<YtPlaylist> _extractNewReleases(Map<String, dynamic> json, int limit) {
+    final results = <YtPlaylist>[];
+    try {
+      final tabs = (json['contents']?['singleColumnBrowseResultsRenderer']
+              ?['tabs'] as List?) ??
+          (json['contents']?['tabbedSearchResultsRenderer']?['tabs'] as List?);
+      if (tabs == null || tabs.isEmpty) return results;
+      final contents = tabs.first['tabRenderer']?['content']
+          ?['sectionListRenderer']?['contents'] as List?;
+      if (contents == null) return results;
+
+      for (final section in contents) {
+        final shelf =
+            section['musicCarouselShelfRenderer'] as Map<String, dynamic>?;
+        if (shelf == null) continue;
+        final items = shelf['contents'] as List? ?? [];
+        for (final item in items) {
+          if (results.length >= limit) break;
+          final renderer =
+              item['musicTwoRowItemRenderer'] as Map<String, dynamic>?;
+          if (renderer != null) {
+            final pl = _parseTwoRowPlaylist(renderer);
+            if (pl != null &&
+                pl.playlistId.isNotEmpty &&
+                !results.any((r) => r.playlistId == pl.playlistId)) {
+              results.add(pl);
+            }
+          }
+        }
+        if (results.length >= limit) break;
+      }
+    } catch (e) {
+      debugPrint('YTM parse new releases error: $e');
+    }
+    return results;
+  }
+
+  /// Fetch top charts and curated playlists from YouTube Music (FEmusic_charts & FEmusic_home).
+  static Future<List<YtPlaylist>> getCommunityPlaylists({int limit = 15}) async {
+    final cookie = await _getCookie();
+    final client = HttpClient();
+    final results = <YtPlaylist>[];
+
+    // 1. Official Charts (FEmusic_charts)
+    try {
+      final chartsUri = Uri.https(
+        _baseUrl,
+        '/youtubei/v1/browse',
+        {'key': _apiKey, 'prettyPrint': 'false'},
+      );
+      final req = await client.postUrl(chartsUri);
+      _headers(cookie).forEach((k, v) => req.headers.set(k, v));
+      req.write(jsonEncode({
+        'context': _context(),
+        'browseId': 'FEmusic_charts',
+      }));
+      final res = await req.close();
+      final body = await res.transform(utf8.decoder).join();
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      final chartsList = _extractChartsPlaylists(json, limit);
+      for (final pl in chartsList) {
+        if (!results.any((r) => r.playlistId == pl.playlistId)) {
+          results.add(pl);
+        }
+      }
+    } catch (e) {
+      debugPrint('YTM charts error: $e');
+    }
+
+    // 2. Curated editorial shelves from Home feed
+    if (results.length < limit) {
+      try {
+        final homeUri = Uri.https(
+          _baseUrl,
+          '/youtubei/v1/browse',
+          {'key': _apiKey, 'prettyPrint': 'false'},
+        );
+        final homeReq = await client.postUrl(homeUri);
+        _headers(cookie).forEach((k, v) => homeReq.headers.set(k, v));
+        homeReq.write(jsonEncode({
+          'context': _context(),
+          'browseId': 'FEmusic_home',
+        }));
+        final homeRes = await homeReq.close();
+        final homeBody = await homeRes.transform(utf8.decoder).join();
+        final homeJson = jsonDecode(homeBody) as Map<String, dynamic>;
+        final homePlaylists = _extractCommunityPlaylistsFromHome(
+          homeJson,
+          limit - results.length,
+        );
+        for (final pl in homePlaylists) {
+          if (!results.any((r) => r.playlistId == pl.playlistId)) {
+            results.add(pl);
+          }
+        }
+      } catch (e) {
+        debugPrint('YTM community playlists from home error: $e');
+      }
+    }
+
+    // 3. Fallback: Search Top Hits globally or regionally
+    if (results.isEmpty) {
+      try {
+        final uri = Uri.https(
+          _baseUrl,
+          '/youtubei/v1/search',
+          {'key': _apiKey, 'prettyPrint': 'false'},
+        );
+        final req = await client.postUrl(uri);
+        _headers(cookie).forEach((k, v) => req.headers.set(k, v));
+        final gl = _context()['client']['gl'] as String? ?? 'US';
+        final query = gl == 'ID' ? 'Top Hits Indonesia' : 'Top Hits Global';
+        req.write(jsonEncode({
+          'context': _context(),
+          'query': query,
+          'params': 'EgeKAQQoAEABahIQDhAKEAUQCRADEAQQFRAQEBE%3D',
+        }));
+        final res = await req.close();
+        final body = await res.transform(utf8.decoder).join();
+        final json = jsonDecode(body) as Map<String, dynamic>;
+        results.addAll(_parseCommunityPlaylists(json, limit));
+      } catch (e) {
+        debugPrint('YTM fallback search playlists error: $e');
+      }
+    }
+
+    client.close();
+    return results;
+  }
+
+  static List<YtPlaylist> _extractChartsPlaylists(Map<String, dynamic> json, int limit) {
+    final results = <YtPlaylist>[];
+    try {
+      final tabs = (json['contents']?['singleColumnBrowseResultsRenderer']
+              ?['tabs'] as List?) ??
+          (json['contents']?['tabbedSearchResultsRenderer']?['tabs'] as List?);
+      if (tabs == null || tabs.isEmpty) return results;
+      final contents = tabs.first['tabRenderer']?['content']
+          ?['sectionListRenderer']?['contents'] as List?;
+      if (contents == null) return results;
+
+      for (final section in contents) {
+        final shelf =
+            section['musicCarouselShelfRenderer'] as Map<String, dynamic>?;
+        if (shelf == null) continue;
+        final items = shelf['contents'] as List? ?? [];
+        for (final item in items) {
+          if (results.length >= limit) break;
+          final renderer =
+              item['musicTwoRowItemRenderer'] as Map<String, dynamic>?;
+          if (renderer != null) {
+            final pl = _parseTwoRowPlaylist(renderer);
+            if (pl != null &&
+                pl.playlistId.isNotEmpty &&
+                !results.any((r) => r.playlistId == pl.playlistId)) {
+              results.add(pl);
+            }
+          }
+        }
+        if (results.length >= limit) break;
+      }
+    } catch (_) {}
+    return results;
+  }
+
   static YtPlaylist? _parseTwoRowPlaylist(Map<String, dynamic> renderer) {
     final nav = renderer['navigationEndpoint']?['browseEndpoint'];
     var browseId = nav?['browseId'] as String? ?? '';
     if (browseId.isEmpty) return null;
+    final bool isAlbum = browseId.startsWith('MPREb') ||
+        nav?['browseEndpointContextSupportedConfigs']
+                ?['browseEndpointContextMusicConfig']?['pageType'] ==
+            'MUSIC_PAGE_TYPE_ALBUM';
     if (browseId.startsWith('VL')) {
       browseId = browseId.substring(2);
     }
@@ -570,9 +713,14 @@ class YtMusicService {
     final authorParts = subRuns
         .where((r) => (r['text'] as String?) != ' • ')
         .map((r) => (r['text'] as String? ?? '').trim())
-        .where((s) => s.isNotEmpty)
+        .where((s) =>
+            s.isNotEmpty &&
+            s.toLowerCase() != 'single' &&
+            s.toLowerCase() != 'album' &&
+            s.toLowerCase() != 'ep')
         .toList();
-    final author = authorParts.join(' • ');
+    final author =
+        authorParts.isNotEmpty ? authorParts.join(' • ') : 'Various Artists';
 
     final thumbs = renderer['thumbnailRenderer']?['musicThumbnailRenderer']
             ?['thumbnail']?['thumbnails'] as List? ??
@@ -588,6 +736,7 @@ class YtMusicService {
       title: title,
       author: author,
       thumbnailUrl: thumbUrl,
+      isAlbum: isAlbum,
     );
   }
 
