@@ -76,6 +76,7 @@ try {
   static const String _hookScript = '''
 (function() {
   window._fleyShouldPlay = true;
+  window._fleySuppressEndedUntil = Date.now() + 5000;
 
   // 1. Spoof Page Visibility API (prevents YouTube background auto-pause after 30-40s)
   try {
@@ -166,11 +167,12 @@ try {
         document.querySelector('.ad-interrupting') || 
         document.querySelector('.ytp-ad-player-overlay') ||
         document.querySelector('.ytp-ad-skip-button') ||
-        document.querySelector('.ytp-ad-skip-button-modern')) {
+        document.querySelector('.ytp-ad-skip-button-modern') ||
+        document.querySelector('.videoAdUi')) {
       return true;
     }
     var v = document.querySelector('video');
-    if (v && v.src && (v.src.indexOf('adformat') !== -1 || v.src.indexOf('ctier') !== -1)) {
+    if (v && v.src && (v.src.indexOf('adformat=') !== -1 || v.src.indexOf('/pagead/') !== -1)) {
       return true;
     }
     return false;
@@ -180,6 +182,7 @@ try {
   setInterval(function() {
     var v = document.querySelector('video');
     if (isAd() && v) {
+      window._fleySuppressEndedUntil = Date.now() + 4000;
       v.muted = true;
       v.playbackRate = 16.0;
       if (v.duration && !isNaN(v.duration) && isFinite(v.duration)) {
@@ -247,6 +250,14 @@ try {
           try {
             FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: true}));
           } catch(e){}
+        } else if (st === 0) {
+          if (isAd()) return;
+          var now = Date.now();
+          if (window._fleySuppressEndedUntil && now < window._fleySuppressEndedUntil) {
+            return;
+          }
+          window._fleySuppressEndedUntil = now + 4000;
+          try { FleyBridge.postMessage(JSON.stringify({type: 'ended'})); } catch(e){}
         }
       });
     }
@@ -377,7 +388,10 @@ try {
           } else if (type == 'ended') {
             final now = DateTime.now();
             if (_lastEndedTime != null &&
-                now.difference(_lastEndedTime!).inMilliseconds < 3500) {
+                now.difference(_lastEndedTime!).inMilliseconds < 4000) {
+              return;
+            }
+            if (currentPosition < const Duration(seconds: 3)) {
               return;
             }
             _lastEndedTime = now;
@@ -478,9 +492,6 @@ try {
   if (p) {
     try { if (typeof p.setAutonav === 'function') p.setAutonav(false); } catch(e){}
     if (typeof p.loadVideoById === 'function') {
-      try {
-        if (typeof p.pauseVideo === 'function') p.pauseVideo();
-      } catch(e){}
       p.loadVideoById('$videoId');
       try {
         if (typeof p.unMute === 'function') p.unMute();
@@ -532,25 +543,55 @@ try {
     currentPosition = Duration.zero;
     currentDuration = Duration.zero;
     _bufferingSafetyTimer?.cancel();
-    _isPageLoaded = false;
     controller.runJavaScript('''
 window._fleyShouldPlay = false;
 window._fleyLoop = false;
 try {
   var p = document.getElementById('movie_player');
-  if (p && typeof p.stopVideo === 'function') {
+  if (p && typeof p.pauseVideo === 'function') {
+    p.pauseVideo();
+  } else if (p && typeof p.stopVideo === 'function') {
     p.stopVideo();
   }
   var v = document.querySelector('video');
   if (v) {
     v.pause();
-    v.currentTime = 0;
-    v.src = '';
-    v.load();
   }
 } catch(e){}
 ''').catchError((_) {});
-    controller.loadRequest(Uri.parse('about:blank')).catchError((_) {});
+  }
+
+  String? _lastPreloadedVideoId;
+
+  /// Preloads and pre-buffers next YouTube Music track in the background for gapless playback.
+  void preloadNext(String videoId) {
+    if (videoId.isEmpty || _lastPreloadedVideoId == videoId) return;
+    _lastPreloadedVideoId = videoId;
+    final js = '''
+(function() {
+  try {
+    var key = (window.ytcfg && window.ytcfg.get) ? window.ytcfg.get('INNERTUBE_API_KEY') : 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-KOEVSHRUA';
+    var ctx = (window.ytcfg && window.ytcfg.get) ? window.ytcfg.get('INNERTUBE_CONTEXT') : {
+      client: { clientName: 'WEB_REMIX', clientVersion: '1.20231101.01.00', hl: 'en', gl: 'US' }
+    };
+    fetch('/youtubei/v1/player?key=' + key, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: ctx, videoId: '$videoId' })
+    }).then(function(r) { return r.json(); }).then(function(j) {
+      var fmts = (j.streamingData && j.streamingData.adaptiveFormats) || [];
+      for (var i = 0; i < fmts.length; i++) {
+        var f = fmts[i];
+        if (f.mimeType && f.mimeType.indexOf('audio/') === 0 && f.url) {
+          fetch(f.url, { headers: { 'Range': 'bytes=0-262143' }, mode: 'no-cors' }).catch(function(){});
+          break;
+        }
+      }
+    }).catch(function(){});
+  } catch(e){}
+})();
+''';
+    controller.runJavaScript(js).catchError((_) {});
   }
 
   void play() {

@@ -280,9 +280,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
         }
       });
 
-      if (_audioPlayer.playing) {
-        _audioPlayer.stop();
-      }
+      _audioPlayer.stop();
       final videoId =
           track.path.isNotEmpty ? track.path : track.id.replaceFirst('ytm_', '');
       YtPlayerService.instance.loadAndPlay(videoId);
@@ -412,7 +410,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
         }
 
         // Previous track
-        if (prevIndex != -1) {
+        if (prevIndex != -1 && !_playbackQueue[prevIndex].id.startsWith('ytm_')) {
           final prevTrack = _playbackQueue[prevIndex];
           final prevUri = prevTrack.url.startsWith('/')
               ? Uri.file(prevTrack.url)
@@ -452,7 +450,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
         children.add(currentSource);
 
         // Next track
-        if (nextIndex != -1) {
+        if (nextIndex != -1 && !_playbackQueue[nextIndex].id.startsWith('ytm_')) {
           final nextTrack = _playbackQueue[nextIndex];
           final nextUri = nextTrack.url.startsWith('/')
               ? Uri.file(nextTrack.url)
@@ -625,7 +623,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
       }
 
       // Now insert the new adjacent tracks
-      if (prevIndex != -1) {
+      if (prevIndex != -1 && !_playbackQueue[prevIndex].id.startsWith('ytm_')) {
         final prevTrack = _playbackQueue[prevIndex];
         final prevUri = prevTrack.url.startsWith('/')
             ? Uri.file(prevTrack.url)
@@ -660,7 +658,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
         );
       }
 
-      if (nextIndex != -1) {
+      if (nextIndex != -1 && !_playbackQueue[nextIndex].id.startsWith('ytm_')) {
         final nextTrack = _playbackQueue[nextIndex];
         final nextUri = nextTrack.url.startsWith('/')
             ? Uri.file(nextTrack.url)
@@ -699,6 +697,11 @@ extension _AudioPlaybackLogic on _MainScreenState {
   }
 
   Future<void> _slideWindowInPlace(int newQueueIndex, int direction) async {
+    final targetTrack = _playbackQueue[newQueueIndex];
+    if (targetTrack.id.startsWith('ytm_')) {
+      _playTrack(newQueueIndex, playImmediately: true);
+      return;
+    }
     _isProgrammaticLoading = true;
     try {
       final track = _playbackQueue[newQueueIndex];
@@ -782,7 +785,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
           if (concatenating.sequence.isNotEmpty) {
             await concatenating.removeAt(0);
           }
-          if (nextIndex != -1) {
+          if (nextIndex != -1 && !_playbackQueue[nextIndex].id.startsWith('ytm_')) {
             final nextTrack = _playbackQueue[nextIndex];
             final nextUri = nextTrack.url.startsWith('/')
                 ? Uri.file(nextTrack.url)
@@ -820,7 +823,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
           if (concatenating.sequence.length > 1) {
             await concatenating.removeAt(concatenating.sequence.length - 1);
           }
-          if (prevIndex != -1) {
+          if (prevIndex != -1 && !_playbackQueue[prevIndex].id.startsWith('ytm_')) {
             final prevTrack = _playbackQueue[prevIndex];
             final prevUri = prevTrack.url.startsWith('/')
                 ? Uri.file(prevTrack.url)
@@ -890,6 +893,33 @@ extension _AudioPlaybackLogic on _MainScreenState {
       }
     }
     _playTrack(nextIndex);
+  }
+
+  void _preloadNextYtmTrack() {
+    if (_playbackQueue.isEmpty) return;
+    int nextIdx = -1;
+    if (_isShuffle && _shuffledIndices.isNotEmpty) {
+      final curPos = _shuffledIndices.indexOf(_currentIndex);
+      if (curPos != -1 && curPos + 1 < _shuffledIndices.length) {
+        nextIdx = _shuffledIndices[curPos + 1];
+      } else if (_repeatMode == 1 && _shuffledIndices.isNotEmpty) {
+        nextIdx = _shuffledIndices.first;
+      }
+    } else {
+      if (_currentIndex + 1 < _playbackQueue.length) {
+        nextIdx = _currentIndex + 1;
+      } else if (_repeatMode == 1) {
+        nextIdx = 0;
+      }
+    }
+    if (nextIdx != -1 && nextIdx < _playbackQueue.length) {
+      final next = _playbackQueue[nextIdx];
+      if (next.id.startsWith('ytm_')) {
+        final videoId =
+            next.path.isNotEmpty ? next.path : next.id.replaceFirst('ytm_', '');
+        YtPlayerService.instance.preloadNext(videoId);
+      }
+    }
   }
 
   void _playPrevious() {
@@ -1431,7 +1461,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
     }
   }
 
-  void _toggleFavorite(String trackId) {
+  void _toggleFavorite(String trackId, [Track? track]) {
     setState(() {
       if (_favoriteTrackIds.contains(trackId)) {
         _favoriteTrackIds.remove(trackId);
@@ -1442,9 +1472,21 @@ extension _AudioPlaybackLogic on _MainScreenState {
           _addTrackToQueueDynamically(trackId);
         }
       }
+      final t = track ?? (_playingTrack?.id == trackId ? _playingTrack : null);
+      if (t != null && t.id.startsWith('ytm_')) {
+        _onlineTracksMap[t.id] = t;
+      }
     });
     SharedPreferences.getInstance().then((prefs) {
       prefs.setStringList('favorite_track_ids', _favoriteTrackIds.toList());
+      if (_onlineTracksMap.isNotEmpty) {
+        prefs.setString(
+          'online_tracks_cache',
+          jsonEncode(
+            _onlineTracksMap.map((k, v) => MapEntry(k, v.toMap())),
+          ),
+        );
+      }
     });
   }
 

@@ -799,7 +799,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     YtPlayerService.instance.onSongEnded = () {
       final now = DateTime.now();
       if (lastYtmSongEndedTime != null &&
-          now.difference(lastYtmSongEndedTime!).inMilliseconds < 3500) {
+          now.difference(lastYtmSongEndedTime!).inMilliseconds < 4000) {
+        return;
+      }
+      if (YtPlayerService.instance.currentPosition < const Duration(seconds: 3)) {
         return;
       }
       lastYtmSongEndedTime = now;

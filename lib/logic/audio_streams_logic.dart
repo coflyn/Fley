@@ -104,6 +104,14 @@ extension _AudioStreamsLogic on _MainScreenState {
       }
     });
 
+    YtPlayerService.instance.positionStream.listen((pos) {
+      if (!_isYtmPlaying) return;
+      final dur = YtPlayerService.instance.currentDuration;
+      if (dur > Duration.zero && dur - pos < const Duration(seconds: 12)) {
+        _preloadNextYtmTrack();
+      }
+    });
+
     _audioPlayer.positionStream.listen((pos) {
       if (_isYtmPlaying) return;
       if (pos.inSeconds < 2) {
