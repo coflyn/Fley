@@ -448,9 +448,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   List<YtTrack> _ytmTrendingTracks = [];
   bool _ytmTrendingLoading = false;
   bool _ytmTrendingFailed = false;
-  List<YtPlaylist> _ytmPlaylists = [];
-  bool _ytmPlaylistsLoading = false;
-  bool _ytmPlaylistsFailed = false;
+  List<YtPlaylist> _ytmNewReleases = [];
+  bool _ytmNewReleasesLoading = false;
+  bool _ytmNewReleasesFailed = false;
+  List<YtTrack> _recommendedTracks = [];
+  String _recommendedArtist = '';
+  bool _recommendedLoading = false;
+  bool _recommendedFailed = false;
   YtPlaylist? _selectedOnlinePlaylist;
   OnlineDetailTarget? _selectedOnlineDetail;
   List<Track> _onlinePlaylistTracks = [];
