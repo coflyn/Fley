@@ -224,7 +224,7 @@ extension _TrackOptionsUI on _MainScreenState {
                     isFavorited ? Icons.favorite : Icons.favorite_border,
                     AppLocalizations.of(context).favourites,
                     () {
-                      _toggleFavorite(track.id);
+                      _toggleFavorite(track.id, track);
                       if (isFavorited) {
                         final loc = lookupAppLocalizations(
                           Locale(FleyStrings.currentLang),
@@ -359,6 +359,41 @@ extension _TrackOptionsUI on _MainScreenState {
                       _showSongInfoModal(context, track);
                     },
                   ),
+                  if (isYtm) ...[
+                    _buildOptionItem(
+                      Icons.visibility_off_outlined,
+                      FleyStrings.currentLang == 'id'
+                          ? 'Tidak tertarik / Sembunyikan'
+                          : 'Not interested / Hide track',
+                      () async {
+                        Navigator.pop(context);
+                        final prefs = await SharedPreferences.getInstance();
+                        final vid = track.path.isNotEmpty
+                            ? track.path
+                            : track.id.replaceFirst('ytm_', '');
+                        _hiddenTrackIds.add(track.id);
+                        _hiddenTrackIds.add(vid);
+                        _hiddenTrackIds.add('ytm_$vid');
+                        await prefs.setStringList(
+                          'hidden_track_ids',
+                          _hiddenTrackIds.toList(),
+                        );
+                        setState(() {
+                          _ytmTrendingTracks.removeWhere((t) => t.videoId == vid);
+                          _recommendedTracks.removeWhere((t) => t.videoId == vid);
+                          _cachedDetailKey = null;
+                        });
+                        if (_playingTrack?.id == track.id) {
+                          _MainScreenState.mainScreenState!._playNext();
+                        }
+                        showFleyToast(
+                          FleyStrings.currentLang == 'id'
+                              ? 'Lagu disembunyikan'
+                              : 'Track hidden',
+                        );
+                      },
+                    ),
+                  ],
                   if (!isYtm) ...[
                     _buildOptionItem(
                       Icons.visibility_off_outlined,

@@ -347,7 +347,10 @@ extension _HomeUI on _MainScreenState {
             // Find sample track for thumbnail
             Track? sampleTrack;
             if (title == loc.favourites) {
-              final favs = _allTracks.where((t) => _favoriteTrackIds.contains(t.id));
+              final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};
+              final favs = _favoriteTrackIds
+                  .where((id) => trackMap.containsKey(id))
+                  .map((id) => trackMap[id]!);
               if (favs.isNotEmpty) sampleTrack = favs.first;
             } else if (title == loc.mostPlayed) {
               final sorted = List<Track>.from(_allTracks);
@@ -835,6 +838,16 @@ extension _HomeUI on _MainScreenState {
           return const SizedBox.shrink();
         }
 
+        final visibleTrending = _ytmTrendingTracks
+            .where(
+              (t) =>
+                  !_hiddenTrackIds.contains(t.videoId) &&
+                  !_hiddenTrackIds.contains('ytm_${t.videoId}'),
+            )
+            .toList();
+
+        if (visibleTrending.isEmpty) return const SizedBox.shrink();
+
         const sectionTitle = 'Trending Songs for You';
 
         return Padding(
@@ -879,13 +892,13 @@ extension _HomeUI on _MainScreenState {
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 cacheExtent: 1500.0,
-                itemCount: _ytmTrendingTracks.length,
+                itemCount: visibleTrending.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
-                  final yt = _ytmTrendingTracks[index];
+                  final yt = visibleTrending[index];
                   return GestureDetector(
                     onTap: () {
-                      _playYtmTrack(yt, customQueue: _ytmTrendingTracks);
+                      _playYtmTrack(yt, customQueue: visibleTrending);
                     },
                     child: SizedBox(
                       width: 136,
@@ -916,17 +929,35 @@ extension _HomeUI on _MainScreenState {
                                   Positioned(
                                     bottom: 8,
                                     right: 8,
-                                    child: Container(
-                                      width: 32,
-                                      height: 32,
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.7),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.play_arrow_rounded,
-                                        color: Colors.white,
-                                        size: 20,
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () {
+                                        final t = Track(
+                                          id: 'ytm_${yt.videoId}',
+                                          title: yt.title,
+                                          artist: yt.artist,
+                                          album: yt.album,
+                                          url: yt.thumbnailUrl,
+                                          path: yt.videoId,
+                                          lyrics: const [],
+                                          duration: yt.durationMs,
+                                          artistBrowseId: yt.artistBrowseId,
+                                          albumBrowseId: yt.albumBrowseId,
+                                        );
+                                        _showTrackOptions(context, t);
+                                      },
+                                      child: Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.7),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.more_vert_rounded,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1365,6 +1396,16 @@ extension _HomeUI on _MainScreenState {
 
         if (_recommendedTracks.isEmpty) return const SizedBox.shrink();
 
+        final visibleRecommended = _recommendedTracks
+            .where(
+              (t) =>
+                  !_hiddenTrackIds.contains(t.videoId) &&
+                  !_hiddenTrackIds.contains('ytm_${t.videoId}'),
+            )
+            .toList();
+
+        if (visibleRecommended.isEmpty) return const SizedBox.shrink();
+
         return Padding(
           padding: const EdgeInsets.only(top: 28),
           child: Column(
@@ -1410,13 +1451,13 @@ extension _HomeUI on _MainScreenState {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
-                  itemCount: _recommendedTracks.length,
+                  itemCount: visibleRecommended.length,
                   separatorBuilder: (_, _) => const SizedBox(width: 14),
                   itemBuilder: (context, index) {
-                    final yt = _recommendedTracks[index];
+                    final yt = visibleRecommended[index];
                     return GestureDetector(
                       onTap: () {
-                        _playYtmTrack(yt, customQueue: _recommendedTracks);
+                        _playYtmTrack(yt, customQueue: visibleRecommended);
                       },
                       child: SizedBox(
                         width: 136,
@@ -1447,19 +1488,37 @@ extension _HomeUI on _MainScreenState {
                                     Positioned(
                                       bottom: 8,
                                       right: 8,
-                                      child: Container(
-                                        width: 32,
-                                        height: 32,
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.7,
+                                      child: GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTap: () {
+                                          final t = Track(
+                                            id: 'ytm_${yt.videoId}',
+                                            title: yt.title,
+                                            artist: yt.artist,
+                                            album: yt.album,
+                                            url: yt.thumbnailUrl,
+                                            path: yt.videoId,
+                                            lyrics: const [],
+                                            duration: yt.durationMs,
+                                            artistBrowseId: yt.artistBrowseId,
+                                            albumBrowseId: yt.albumBrowseId,
+                                          );
+                                          _showTrackOptions(context, t);
+                                        },
+                                        child: Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.7,
+                                            ),
+                                            shape: BoxShape.circle,
                                           ),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.play_arrow_rounded,
-                                          color: Colors.white,
-                                          size: 20,
+                                          child: const Icon(
+                                            Icons.more_vert_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1886,7 +1945,11 @@ extension _HomeUI on _MainScreenState {
     List<Map<String, dynamic>> items = [];
 
     // System playlists
-    final favTracks = _allTracks.where((t) => _favoriteTrackIds.contains(t.id)).toList();
+    final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};
+    final favTracks = _favoriteTrackIds
+        .where((id) => trackMap.containsKey(id))
+        .map((id) => trackMap[id]!)
+        .toList();
     items.add({
       'type': 'playlist',
       'title': loc.favourites,

@@ -1681,7 +1681,7 @@ extension _PlayerUI on _MainScreenState {
                             final wasFavorited = _favoriteTrackIds.contains(
                               currentTrack.id,
                             );
-                            _toggleFavorite(currentTrack.id);
+                            _toggleFavorite(currentTrack.id, currentTrack);
                             if (wasFavorited) {
                               final loc = lookupAppLocalizations(
                                 Locale(FleyStrings.currentLang),
