@@ -5,22 +5,26 @@ extension _DetailViewsUI on _MainScreenState {
   Widget _getActiveDetailView() {
     if (_selectedOnlineDetail != null) {
       final detail = _selectedOnlineDetail!;
-      final imageWidget = detail.thumbnailUrl.isNotEmpty
+      final effectiveCover = detail.thumbnailUrl.isNotEmpty
+          ? detail.thumbnailUrl
+          : (_onlinePlaylistTracks.isNotEmpty
+              ? _onlinePlaylistTracks.first.url
+              : '');
+      final isArtist = detail.type == 'Artist' ||
+          detail.type == AppLocalizations.of(context).artist;
+      final imageWidget = effectiveCover.isNotEmpty
           ? ClipRRect(
-              borderRadius: BorderRadius.circular(
-                detail.type == 'Artist' || detail.type == AppLocalizations.of(context).artist ? 150 : 12,
-              ),
+              borderRadius: BorderRadius.circular(isArtist ? 150 : 12),
               child: Image.network(
-                detail.thumbnailUrl,
+                effectiveCover,
                 fit: BoxFit.cover,
                 width: 300,
                 height: 300,
+                gaplessPlayback: true,
                 errorBuilder: (_, _, _) => Container(
                   color: Colors.white10,
                   child: Icon(
-                    detail.type == 'Artist' || detail.type == AppLocalizations.of(context).artist
-                        ? Icons.person_rounded
-                        : Icons.album_rounded,
+                    isArtist ? Icons.person_rounded : Icons.album_rounded,
                     size: 60,
                     color: Colors.white54,
                   ),
@@ -30,9 +34,7 @@ extension _DetailViewsUI on _MainScreenState {
           : Container(
               color: Colors.white10,
               child: Icon(
-                detail.type == 'Artist' || detail.type == AppLocalizations.of(context).artist
-                    ? Icons.person_rounded
-                    : Icons.album_rounded,
+                isArtist ? Icons.person_rounded : Icons.album_rounded,
                 size: 60,
                 color: Colors.white54,
               ),

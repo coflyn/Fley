@@ -722,10 +722,92 @@ class YtMusicService {
     return results;
   }
 
+  static String? _extractHeaderThumbnail(Map<String, dynamic> json) {
+    try {
+      final twoTabs = json['contents']?['twoColumnBrowseResultsRenderer']?['tabs']
+          as List?;
+      if (twoTabs != null && twoTabs.isNotEmpty) {
+        final secContents = twoTabs.first['tabRenderer']?['content']
+            ?['sectionListRenderer']?['contents'] as List?;
+        if (secContents != null && secContents.isNotEmpty) {
+          final header = secContents.first['musicResponsiveHeaderRenderer']
+              as Map<String, dynamic>?;
+          final thumbs = header?['thumbnail']?['musicThumbnailRenderer']
+              ?['thumbnail']?['thumbnails'] as List?;
+          if (thumbs != null && thumbs.isNotEmpty) {
+            final url = thumbs.last['url'] as String? ?? '';
+            if (url.isNotEmpty) return getHighResThumbnail(url);
+          }
+        }
+      }
+
+      final rootHeader = json['header']?['musicDetailHeaderRenderer'] ??
+          json['header']?['musicResponsiveHeaderRenderer'] ??
+          json['header']?['musicImmersiveHeaderRenderer'] ??
+          json['header']?['musicVisualHeaderRenderer'];
+      if (rootHeader != null) {
+        final thumbs = rootHeader['thumbnail']?['musicThumbnailRenderer']
+            ?['thumbnail']?['thumbnails'] as List?;
+        if (thumbs != null && thumbs.isNotEmpty) {
+          final url = thumbs.last['url'] as String? ?? '';
+          if (url.isNotEmpty) return getHighResThumbnail(url);
+        }
+      }
+
+      final singleTabs = json['contents']
+          ?['singleColumnBrowseResultsRenderer']?['tabs'] as List?;
+      if (singleTabs != null && singleTabs.isNotEmpty) {
+        final secContents = singleTabs.first['tabRenderer']?['content']
+            ?['sectionListRenderer']?['contents'] as List?;
+        if (secContents != null && secContents.isNotEmpty) {
+          final header = secContents.first['musicResponsiveHeaderRenderer']
+              as Map<String, dynamic>?;
+          final thumbs = header?['thumbnail']?['musicThumbnailRenderer']
+              ?['thumbnail']?['thumbnails'] as List?;
+          if (thumbs != null && thumbs.isNotEmpty) {
+            final url = thumbs.last['url'] as String? ?? '';
+            if (url.isNotEmpty) return getHighResThumbnail(url);
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static Map<String, dynamic>? _findBottomEndpoint(Map<String, dynamic> json) {
+    try {
+      final List sections = [];
+      final singleTabs = json['contents']
+          ?['singleColumnBrowseResultsRenderer']?['tabs'] as List?;
+      if (singleTabs != null && singleTabs.isNotEmpty) {
+        final tabContents = singleTabs.first['tabRenderer']?['content']
+            ?['sectionListRenderer']?['contents'] as List?;
+        if (tabContents != null) sections.addAll(tabContents);
+      }
+      final twoTabs = json['contents']?['twoColumnBrowseResultsRenderer']
+          ?['tabs'] as List?;
+      if (twoTabs != null && twoTabs.isNotEmpty) {
+        final tabContents = twoTabs.first['tabRenderer']?['content']
+            ?['sectionListRenderer']?['contents'] as List?;
+        if (tabContents != null) sections.addAll(tabContents);
+      }
+      for (final section in sections) {
+        final shelf = section['musicShelfRenderer'] as Map<String, dynamic>?;
+        final endpoint = shelf?['bottomEndpoint']?['browseEndpoint']
+            as Map<String, dynamic>?;
+        if (endpoint != null && endpoint['browseId'] != null) {
+          return endpoint;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   static List<YtTrack> _extractAlbumTracks(
       Map<String, dynamic> json, int limit) {
     final results = <YtTrack>[];
     try {
+      final albumCover = _extractHeaderThumbnail(json);
       final List sections = [];
       final secContents = json['contents']?['twoColumnBrowseResultsRenderer']
           ?['secondaryContents']?['sectionListRenderer']?['contents'] as List?;
@@ -757,9 +839,14 @@ class YtMusicService {
             final renderer = item['musicResponsiveListItemRenderer']
                 as Map<String, dynamic>?;
             if (renderer == null) continue;
-            final track = _parseResponsiveItem(renderer);
-            if (track != null &&
-                !results.any((t) => t.videoId == track.videoId)) {
+            final parsed = _parseResponsiveItem(renderer);
+            if (parsed != null &&
+                !results.any((t) => t.videoId == parsed.videoId)) {
+              final track = (parsed.thumbnailUrl.isEmpty &&
+                      albumCover != null &&
+                      albumCover.isNotEmpty)
+                  ? parsed.copyWith(thumbnailUrl: albumCover)
+                  : parsed;
               results.add(track);
             }
           }
@@ -777,6 +864,7 @@ class YtMusicService {
     final results = <YtTrack>[];
     final cleanArtist = artistName.trim().toLowerCase();
     try {
+      final artistCover = _extractHeaderThumbnail(json);
       final List sections = [];
       final singleTabs = json['contents']?['singleColumnBrowseResultsRenderer']
           ?['tabs'] as List?;
@@ -809,13 +897,18 @@ class YtMusicService {
           final renderer = item['musicResponsiveListItemRenderer']
               as Map<String, dynamic>?;
           if (renderer == null) continue;
-          final track = _parseResponsiveItem(renderer);
-          if (track != null &&
-              !results.any((t) => t.videoId == track.videoId)) {
-            final tArtist = track.artist.trim().toLowerCase();
+          final parsed = _parseResponsiveItem(renderer);
+          if (parsed != null &&
+              !results.any((t) => t.videoId == parsed.videoId)) {
+            final tArtist = parsed.artist.trim().toLowerCase();
             if (cleanArtist.isEmpty ||
                 tArtist.contains(cleanArtist) ||
                 cleanArtist.contains(tArtist)) {
+              final track = (parsed.thumbnailUrl.isEmpty &&
+                      artistCover != null &&
+                      artistCover.isNotEmpty)
+                  ? parsed.copyWith(thumbnailUrl: artistCover)
+                  : parsed;
               results.add(track);
             }
           }
@@ -828,7 +921,8 @@ class YtMusicService {
     return results;
   }
 
-  static Future<Map<String, dynamic>?> _fetchBrowseJson(String browseId) async {
+  static Future<Map<String, dynamic>?> _fetchBrowseJson(String browseId,
+      {String? params}) async {
     final cookie = await _getCookie();
     final client = HttpClient();
     try {
@@ -842,13 +936,18 @@ class YtMusicService {
       final cleanBrowseId = browseId.startsWith('VL') ||
               browseId.startsWith('MPREb') ||
               browseId.startsWith('UC') ||
+              browseId.startsWith('OLAK5uy') ||
               browseId.startsWith('FEmusic')
           ? browseId
           : 'VL$browseId';
-      req.write(jsonEncode({
+      final payload = <String, dynamic>{
         'context': _context(),
         'browseId': cleanBrowseId,
-      }));
+      };
+      if (params != null && params.isNotEmpty) {
+        payload['params'] = params;
+      }
+      req.write(jsonEncode(payload));
       final res = await req.close();
       final body = await res.transform(utf8.decoder).join();
       return jsonDecode(body) as Map<String, dynamic>;
@@ -868,13 +967,66 @@ class YtMusicService {
     return _extractAlbumTracks(json, limit);
   }
 
+  /// Search YouTube Music specifically for an artist and return its UC browseId.
+  static Future<String?> findArtistBrowseId(String artistName) async {
+    final cleanArtist = artistName.trim();
+    if (cleanArtist.isEmpty || cleanArtist == '<unknown>') return null;
+
+    final cookie = await _getCookie();
+    final client = HttpClient();
+    try {
+      final uri = Uri.https(
+        _baseUrl,
+        '/youtubei/v1/search',
+        {'key': _apiKey, 'prettyPrint': 'false'},
+      );
+      final req = await client.postUrl(uri);
+      _headers(cookie).forEach((k, v) => req.headers.set(k, v));
+      req.write(jsonEncode({
+        'context': _context(),
+        'query': cleanArtist,
+        'params': 'EgWKAQIgAWoKEAoQAxAEEAkQBQ%3D%3D', // Artists filter
+      }));
+      final res = await req.close();
+      final body = await res.transform(utf8.decoder).join();
+      final match =
+          RegExp(r'\"browseId\":\s*\"(UC[^\"]+)\"').firstMatch(body);
+      if (match != null) {
+        return match.group(1);
+      }
+    } catch (e) {
+      debugPrint('findArtistBrowseId error: $e');
+    } finally {
+      client.close();
+    }
+    return null;
+  }
+
   /// Fetch songs for an artist from YTM, falling back to search if needed.
   static Future<List<YtTrack>> getArtistTracks(String artistName,
       {String? browseId, int limit = 50}) async {
     final cleanArtist = artistName.trim();
-    if (browseId != null && browseId.isNotEmpty) {
-      final json = await _fetchBrowseJson(browseId);
+    var effectiveBrowseId = browseId;
+    if (effectiveBrowseId == null || effectiveBrowseId.isEmpty) {
+      effectiveBrowseId = await findArtistBrowseId(cleanArtist);
+    }
+    if (effectiveBrowseId != null && effectiveBrowseId.isNotEmpty) {
+      final json = await _fetchBrowseJson(effectiveBrowseId);
       if (json != null) {
+        final bottomEndpoint = _findBottomEndpoint(json);
+        if (bottomEndpoint != null) {
+          final moreBrowseId = bottomEndpoint['browseId'] as String? ?? '';
+          final moreParams = bottomEndpoint['params'] as String?;
+          if (moreBrowseId.isNotEmpty) {
+            final moreJson =
+                await _fetchBrowseJson(moreBrowseId, params: moreParams);
+            if (moreJson != null) {
+              final moreTracks = _extractAlbumTracks(moreJson, limit);
+              if (moreTracks.isNotEmpty) return moreTracks;
+            }
+          }
+        }
+
         final tracks = _extractArtistTracks(json, cleanArtist, limit);
         if (tracks.isNotEmpty) return tracks;
       }
