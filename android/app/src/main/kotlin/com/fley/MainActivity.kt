@@ -15,6 +15,7 @@ import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import android.webkit.WebView
 
 class MainActivity : AudioServiceActivity() {
     private val CHANNEL = "com.fley.audio/equalizer"
@@ -135,15 +136,49 @@ class MainActivity : AudioServiceActivity() {
                     try {
                         if (sessionId != 0) {
                             if (equalizer == null || activeSessionId != sessionId) {
+                                if (activeSessionId != 0 && activeSessionId != sessionId) {
+                                    try {
+                                        val closeIntent = Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                                            putExtra(AudioEffect.EXTRA_AUDIO_SESSION, activeSessionId)
+                                            putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                                        }
+                                        sendBroadcast(closeIntent)
+                                    } catch (_: Exception) {}
+                                }
                                 try {
                                     equalizer?.release()
                                 } catch (e: Exception) {}
                                 equalizer = try {
-                                    Equalizer(0, sessionId)
+                                    Equalizer(1000, sessionId).apply {
+                                        setControlStatusListener { effect, controlGranted ->
+                                            if (controlGranted) {
+                                                try { effect.enabled = true } catch (_: Exception) {}
+                                            }
+                                        }
+                                    }
                                 } catch (_: Exception) {
-                                    null
+                                    try {
+                                        Equalizer(0, sessionId).apply {
+                                            setControlStatusListener { effect, controlGranted ->
+                                                if (controlGranted) {
+                                                    try { effect.enabled = true } catch (_: Exception) {}
+                                                }
+                                            }
+                                        }
+                                    } catch (_: Exception) {
+                                        null
+                                    }
                                 }
                                 activeSessionId = sessionId
+
+                                try {
+                                    val openIntent = Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                                        putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
+                                        putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                                        putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
+                                    }
+                                    sendBroadcast(openIntent)
+                                } catch (_: Exception) {}
                             }
                             
                             val bands = equalizer?.numberOfBands?.toInt() ?: 0
@@ -295,6 +330,18 @@ class MainActivity : AudioServiceActivity() {
                         result.error("RINGTONE_ERROR", e.message, null)
                     }
                 }
+                "clearWebViewCache" -> {
+                    try {
+                        runOnUiThread {
+                            try {
+                                WebView(this).clearCache(true)
+                            } catch (_: Exception) {}
+                        }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -303,6 +350,16 @@ class MainActivity : AudioServiceActivity() {
     }
 
     private fun releaseEqualizer() {
+        if (activeSessionId != 0) {
+            try {
+                val closeIntent = Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                    putExtra(AudioEffect.EXTRA_AUDIO_SESSION, activeSessionId)
+                    putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                }
+                sendBroadcast(closeIntent)
+            } catch (_: Exception) {}
+            activeSessionId = 0
+        }
         try {
             equalizer?.enabled = false
         } catch (_: Exception) {}
@@ -313,7 +370,9 @@ class MainActivity : AudioServiceActivity() {
     }
 
     override fun onDestroy() {
-        releaseEqualizer()
+        if (!isChangingConfigurations) {
+            releaseEqualizer()
+        }
         super.onDestroy()
     }
 
