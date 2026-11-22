@@ -166,6 +166,13 @@ extension _HomeUI on _MainScreenState {
                     String? targetPath;
                     if (image.path.toLowerCase().endsWith('.gif')) {
                       final appDir = await getApplicationDocumentsDirectory();
+                      final oldBanner = homeBannerPathNotifier.value;
+                      if (oldBanner != null && oldBanner.isNotEmpty) {
+                        try {
+                          final oldFile = File(oldBanner);
+                          if (await oldFile.exists()) await oldFile.delete();
+                        } catch (_) {}
+                      }
                       final gifFile = File(
                         '${appDir.path}/home_banner_${DateTime.now().millisecondsSinceEpoch}.gif',
                       );

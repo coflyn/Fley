@@ -574,6 +574,12 @@ try {
 ''').catchError((_) {});
   }
 
+  Future<void> clearCache() async {
+    try {
+      await _controller?.clearCache();
+    } catch (_) {}
+  }
+
   void stop() {
     isPlaying = false;
     isBuffering = false;

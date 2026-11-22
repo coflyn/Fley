@@ -16,6 +16,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import '../main.dart';
 import '../utils/globals.dart';
+import '../utils/artwork_cache.dart';
+import '../services/yt_player_service.dart';
 import '../utils/image_cropper_util.dart';
 import '../services/desktop_audio_scanner.dart';
 import 'package:file_selector/file_selector.dart';
@@ -412,12 +414,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (image != null) {
       if (!mounted) return;
       if (image.path.toLowerCase().endsWith('.gif')) {
+        final prefs = await SharedPreferences.getInstance();
+        final oldPath = prefs.getString(prefKey);
+        if (oldPath != null && oldPath.isNotEmpty) {
+          try {
+            final oldFile = File(oldPath);
+            if (await oldFile.exists()) await oldFile.delete();
+          } catch (_) {}
+        }
         final appDir = await getApplicationDocumentsDirectory();
         final gifFile = File(
           '${appDir.path}/${prefKey}_${DateTime.now().millisecondsSinceEpoch}.gif',
         );
         await File(image.path).copy(gifFile.path);
-        final prefs = await SharedPreferences.getInstance();
         await prefs.setString(prefKey, gifFile.path);
         onSetStatePath(gifFile.path);
         onSave(gifFile.path);
@@ -1067,10 +1076,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 icon: Icons.cleaning_services_outlined,
                 title: AppLocalizations.of(context).clearImageCache,
                 subtitle: AppLocalizations.of(context).clearCacheSubtitle,
-                onTap: () {
+                onTap: () async {
+                  final msg = AppLocalizations.of(context).imageCacheCleared;
                   PaintingBinding.instance.imageCache.clear();
                   PaintingBinding.instance.imageCache.clearLiveImages();
-                  showFleyToast(AppLocalizations.of(context).imageCacheCleared);
+                  await ArtworkCacheManager.clearDiskCache();
+                  await YtPlayerService.instance.clearCache();
+                  try {
+                    const channel = MethodChannel('com.fley.audio/equalizer');
+                    await channel.invokeMethod('clearWebViewCache');
+                  } catch (_) {}
+                  showFleyToast(msg);
                 },
               ),
               SettingsPremiumListTile(

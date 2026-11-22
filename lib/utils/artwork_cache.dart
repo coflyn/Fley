@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:id3/id3.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ArtworkCacheManager {
   static final Map<String, Uint8List?> _memoryCache = {};
@@ -17,11 +18,11 @@ class ArtworkCacheManager {
   static Directory? _ytmLyricsDir;
   static final Set<String> _pendingDownloads = {};
 
-  /// Initialize persistent disk directory for YTM cover art and lyrics.
+  /// Initialize temporary cache directory for YTM cover art and lyrics.
   static Future<void> init() async {
     if (_ytmCoversDir != null && _ytmLyricsDir != null) return;
     try {
-      final base = await getApplicationSupportDirectory();
+      final base = await getTemporaryDirectory();
       _ytmCoversDir = Directory('${base.path}/ytm_covers');
       if (!await _ytmCoversDir!.exists()) {
         await _ytmCoversDir!.create(recursive: true);
@@ -43,6 +44,106 @@ class ArtworkCacheManager {
         }
       } catch (_) {}
     }
+    // Clean up legacy storage from ApplicationSupport & ApplicationDocuments to free App Data
+    _cleanLegacyStorage();
+  }
+
+  /// Purges legacy folders and orphaned background GIFs from persistent App Data.
+  static Future<void> _cleanLegacyStorage() async {
+    try {
+      final support = await getApplicationSupportDirectory();
+      final oldSupportCovers = Directory('${support.path}/ytm_covers');
+      if (await oldSupportCovers.exists()) {
+        await oldSupportCovers.delete(recursive: true);
+      }
+      final oldSupportLyrics = Directory('${support.path}/ytm_lyrics');
+      if (await oldSupportLyrics.exists()) {
+        await oldSupportLyrics.delete(recursive: true);
+      }
+    } catch (_) {}
+
+    try {
+      final doc = await getApplicationDocumentsDirectory();
+      final oldDocCovers = Directory('${doc.path}/ytm_covers');
+      if (await oldDocCovers.exists()) {
+        await oldDocCovers.delete(recursive: true);
+      }
+      final oldDocLyrics = Directory('${doc.path}/ytm_lyrics');
+      if (await oldDocLyrics.exists()) {
+        await oldDocLyrics.delete(recursive: true);
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final activeHomeBanner = prefs.getString('homeBannerPath');
+      final activePlayerBg = prefs.getString('playerCustomBgPath');
+      final activeDetailBg = prefs.getString('detailViewCustomBgPath');
+      final activeCustomTheme = prefs.getString('customThemeBgPath');
+      final activeUserImg = prefs.getString('userProfileImage');
+
+      final activePaths = {
+        ?activeHomeBanner,
+        ?activePlayerBg,
+        ?activeDetailBg,
+        ?activeCustomTheme,
+        ?activeUserImg,
+      };
+
+      await for (final entity in doc.list()) {
+        if (entity is File) {
+          final p = entity.path;
+          final name = entity.uri.pathSegments.last;
+          if ((name.startsWith('home_banner_') ||
+                  name.startsWith('playerCustomBgPath_') ||
+                  name.startsWith('detailViewCustomBgPath_') ||
+                  name.startsWith('customThemeBgPath_')) &&
+              !activePaths.contains(p)) {
+            try {
+              await entity.delete();
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Completely clears disk thumbnail and lyrics cache.
+  static Future<void> clearDiskCache() async {
+    try {
+      if (_ytmCoversDir != null && await _ytmCoversDir!.exists()) {
+        await _ytmCoversDir!.delete(recursive: true);
+        await _ytmCoversDir!.create(recursive: true);
+      }
+      if (_ytmLyricsDir != null && await _ytmLyricsDir!.exists()) {
+        await _ytmLyricsDir!.delete(recursive: true);
+        await _ytmLyricsDir!.create(recursive: true);
+      }
+      _memoryCache.clear();
+      updateNotifier.value++;
+      await _cleanLegacyStorage();
+    } catch (_) {}
+  }
+
+  static int _coverSaveCount = 0;
+  static Future<void> _trimCoversIfNeeded() async {
+    if (_ytmCoversDir == null) return;
+    try {
+      final entities = await _ytmCoversDir!.list().where((e) => e is File).toList();
+      if (entities.length > 400) {
+        entities.sort((a, b) {
+          try {
+            return (a as File).lastModifiedSync().compareTo((b as File).lastModifiedSync());
+          } catch (_) {
+            return 0;
+          }
+        });
+        final toDelete = entities.take(150);
+        for (final f in toDelete) {
+          try {
+            await f.delete();
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
   }
 
   /// Returns cached YTM cover file on disk if it exists.
@@ -100,6 +201,9 @@ class ArtworkCacheManager {
           updateNotifier.value++;
           client.close();
           _pendingDownloads.remove(videoId);
+          if (++_coverSaveCount % 20 == 0) {
+            _trimCoversIfNeeded();
+          }
           return file;
         }
       }
