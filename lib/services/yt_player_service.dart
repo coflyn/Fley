@@ -238,14 +238,27 @@ try {
         if (isAd()) return;
         if (st === 1) {
           try {
+            var v = document.querySelector('video');
+            if (v) {
+              v.muted = false;
+              if (v.volume !== 1.0) v.volume = 1.0;
+            }
+            if (typeof player.unMute === 'function') player.unMute();
+            if (typeof player.setVolume === 'function') player.setVolume(100);
             FleyBridge.postMessage(JSON.stringify({type: 'play'}));
             FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: false}));
           } catch(e){}
         } else if (st === 2) {
-          try {
-            FleyBridge.postMessage(JSON.stringify({type: 'pause'}));
-            FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: false}));
-          } catch(e){}
+          if (!window._fleyShouldPlay) {
+            try {
+              FleyBridge.postMessage(JSON.stringify({type: 'pause'}));
+              FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: false}));
+            } catch(e){}
+          } else {
+            try {
+              FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: true}));
+            } catch(e){}
+          }
         } else if (st === 3) {
           try {
             FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: true}));
@@ -256,8 +269,11 @@ try {
           if (window._fleySuppressEndedUntil && now < window._fleySuppressEndedUntil) {
             return;
           }
-          window._fleySuppressEndedUntil = now + 4000;
-          try { FleyBridge.postMessage(JSON.stringify({type: 'ended'})); } catch(e){}
+          var v = document.querySelector('video');
+          if (v && v.duration && v.currentTime && (v.duration - v.currentTime < 2.5)) {
+            window._fleySuppressEndedUntil = now + 4000;
+            try { FleyBridge.postMessage(JSON.stringify({type: 'ended'})); } catch(e){}
+          }
         }
       });
     }
@@ -315,7 +331,7 @@ try {
       if (window._fleySuppressEndedUntil && now < window._fleySuppressEndedUntil) {
         return;
       }
-      if (v.duration && v.currentTime && (v.duration - v.currentTime < 1.5)) {
+      if (v.duration && v.currentTime && (v.duration - v.currentTime < 2.5)) {
         window._fleySuppressEndedUntil = now + 4000;
         try { FleyBridge.postMessage(JSON.stringify({type: 'ended'})); } catch(e){}
       }
@@ -381,10 +397,12 @@ try {
             }
             onStateChange?.call();
           } else if (type == 'pause') {
-            isPlaying = false;
-            isBuffering = false;
-            _bufferingSafetyTimer?.cancel();
-            onStateChange?.call();
+            if (isPlaying) {
+              isPlaying = false;
+              isBuffering = false;
+              _bufferingSafetyTimer?.cancel();
+              onStateChange?.call();
+            }
           } else if (type == 'ended') {
             final now = DateTime.now();
             if (_lastEndedTime != null &&
@@ -392,6 +410,11 @@ try {
               return;
             }
             if (currentPosition < const Duration(seconds: 3)) {
+              return;
+            }
+            if (currentDuration > Duration.zero &&
+                currentPosition <
+                    currentDuration - const Duration(seconds: 3)) {
               return;
             }
             _lastEndedTime = now;
@@ -491,22 +514,21 @@ try {
 (function() {
   window._fleyShouldPlay = true;
   window._fleySuppressEndedUntil = Date.now() + 4000;
+  var vid = document.querySelector('video');
+  if (vid) {
+    try {
+      vid.pause();
+      vid.muted = true;
+      vid.currentTime = 0;
+    } catch(e){}
+  }
   var p = document.getElementById('movie_player');
   if (p) {
     try { if (typeof p.setAutonav === 'function') p.setAutonav(false); } catch(e){}
+    try { if (typeof p.pauseVideo === 'function') p.pauseVideo(); } catch(e){}
+    try { if (typeof p.mute === 'function') p.mute(); } catch(e){}
     if (typeof p.loadVideoById === 'function') {
       p.loadVideoById({videoId: '$videoId', startSeconds: $startSec});
-      try {
-        if (typeof p.unMute === 'function') p.unMute();
-        if (typeof p.setVolume === 'function') p.setVolume(100);
-      } catch(e){}
-      var vid = document.querySelector('video');
-      if (vid) {
-        try {
-          vid.muted = false;
-          if (vid.volume !== 1.0) vid.volume = 1.0;
-        } catch(e){}
-      }
       return 'ok';
     }
   }

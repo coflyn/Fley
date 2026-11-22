@@ -138,11 +138,10 @@ class MainActivity : AudioServiceActivity() {
                                 try {
                                     equalizer?.release()
                                 } catch (e: Exception) {}
-                                // Priority 1000 prevents Launcher/SystemUI from stealing effect control
                                 equalizer = try {
-                                    Equalizer(1000, sessionId)
-                                } catch (_: Exception) {
                                     Equalizer(0, sessionId)
+                                } catch (_: Exception) {
+                                    null
                                 }
                                 activeSessionId = sessionId
                             }

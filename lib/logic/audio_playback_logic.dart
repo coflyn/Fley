@@ -339,26 +339,27 @@ extension _AudioPlaybackLogic on _MainScreenState {
       final currentUri = track.url.startsWith('/')
           ? Uri.file(track.url)
           : (Uri.tryParse(track.url) ?? Uri.parse(''));
-      final currentCover = await _getCoverUriForTrack(
-        track,
-        fetchNativeIfMissing: true,
-      );
-      if (requestId != _playRequestId) return;
 
-      if (currentCover == null) {
-        Future.microtask(() async {
-          final fullCover = await _getCoverUriForTrack(
-            track,
-            fetchNativeIfMissing: true,
-          );
-          if (fullCover != null && requestId == _playRequestId) {
-            final cur = audioHandler.mediaItem.value;
-            if (cur != null && cur.id == track.id) {
-              audioHandler.updateMediaItem(cur.copyWith(artUri: fullCover));
-            }
-          }
-        });
+      Uri? currentCover;
+      final customPath = _metadataOverrides[track.id]?['coverPath'];
+      if (customPath != null && File(customPath).existsSync()) {
+        currentCover = Uri.file(customPath);
       }
+
+      Future.microtask(() async {
+        final fullCover = await _getCoverUriForTrack(
+          track,
+          fetchNativeIfMissing: true,
+        );
+        if (fullCover != null && requestId == _playRequestId) {
+          final cur = audioHandler.mediaItem.value;
+          if (cur != null && cur.id == track.id) {
+            audioHandler.updateMediaItem(cur.copyWith(artUri: fullCover));
+          }
+        }
+      });
+
+      if (requestId != _playRequestId) return;
 
       final currentMediaItem = MediaItem(
         id: track.id,

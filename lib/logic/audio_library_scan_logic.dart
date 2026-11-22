@@ -545,52 +545,49 @@ extension _AudioLibraryScanLogic on _MainScreenState {
       ImageProvider? imageProvider;
 
       if (customPath != null) {
-        imageProvider = ResizeImage(FileImage(File(customPath)), width: 600);
+        imageProvider = ResizeImage(FileImage(File(customPath)), width: 48, height: 48);
       } else if (cachedBytes != null && cachedBytes.isNotEmpty) {
-        imageProvider = MemoryImage(cachedBytes);
+        imageProvider = ResizeImage(MemoryImage(cachedBytes), width: 48, height: 48);
       } else if (track.id.startsWith('ytm_') && track.url.isNotEmpty) {
-        imageProvider = ResizeImage(NetworkImage(track.url), width: 100);
+        imageProvider = ResizeImage(NetworkImage(track.url), width: 48, height: 48);
       } else {
         final idInt = int.tryParse(track.id);
         if (idInt != null) {
           final artwork = await _audioQuery.queryArtwork(
             idInt,
             ArtworkType.AUDIO,
-            size: 200,
+            size: 50,
           );
           if (artwork != null) {
-            imageProvider = MemoryImage(artwork);
+            imageProvider = ResizeImage(MemoryImage(artwork), width: 48, height: 48);
           }
         }
       }
 
       if (imageProvider != null) {
-        final palette = await PaletteGenerator.fromImageProvider(imageProvider);
+        final palette = await PaletteGenerator.fromImageProvider(
+          imageProvider,
+          maximumColorCount: 8,
+        );
         if (mounted) {
-          setState(() {
-            _dominantColor =
-                palette.dominantColor?.color ??
-                palette.vibrantColor?.color ??
-                palette.mutedColor?.color;
-            _dominantColorNotifier.value = _dominantColor != null
-                ? _ensureLuminance(_dominantColor!)
-                : null;
-          });
+          _dominantColor =
+              palette.dominantColor?.color ??
+              palette.vibrantColor?.color ??
+              palette.mutedColor?.color;
+          _dominantColorNotifier.value = _dominantColor != null
+              ? _ensureLuminance(_dominantColor!)
+              : null;
         }
       } else {
         if (mounted) {
-          setState(() {
-            _dominantColor = null;
-            _dominantColorNotifier.value = null;
-          });
+          _dominantColor = null;
+          _dominantColorNotifier.value = null;
         }
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _dominantColor = null;
-          _dominantColorNotifier.value = null;
-        });
+        _dominantColor = null;
+        _dominantColorNotifier.value = null;
       }
     }
   }
