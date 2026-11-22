@@ -525,4 +525,306 @@ extension _PlaylistManageUI on _MainScreenState {
       },
     );
   }
+
+  void _showImportPlaylistModal(BuildContext context) {
+    final urlController = TextEditingController();
+    final isLight = isAppLight;
+    bool isLoading = false;
+    String statusMessage = '';
+    double progressValue = 0.0;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor:
+          isLight ? const Color(0xFFF0F0F3) : const Color(0xFF1E1E22),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: bottomPadding + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isLight ? Colors.black12 : Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: _activeAccentColor.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.cloud_download_rounded,
+                          color: _activeAccentColor,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Import Playlist',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: isLight
+                                    ? const Color(0xFF1A1A1A)
+                                    : Colors.white,
+                                fontFamily:
+                                    getFontFamily(activeFontNotifier.value),
+                              ),
+                            ),
+                            Text(
+                              'Spotify / Apple Music / YouTube Music',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    isLight ? Colors.black45 : Colors.white54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  if (!isLoading) ...[
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isLight
+                            ? Colors.black.withValues(alpha: 0.04)
+                            : Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isLight
+                              ? Colors.black.withValues(alpha: 0.08)
+                              : Colors.white.withValues(alpha: 0.1),
+                        ),
+                      ),
+                      child: TextField(
+                        controller: urlController,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color:
+                              isLight ? const Color(0xFF1A1A1A) : Colors.white,
+                        ),
+                        decoration: InputDecoration(
+                          hintText:
+                              'Paste Spotify, Apple Music, or YouTube link...',
+                          hintStyle: TextStyle(
+                            fontSize: 13,
+                            color: isLight ? Colors.black38 : Colors.white38,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: const Icon(
+                              Icons.content_paste_rounded,
+                              size: 18,
+                            ),
+                            tooltip: 'Paste from clipboard',
+                            onPressed: () async {
+                              final data = await Clipboard.getData(
+                                Clipboard.kTextPlain,
+                              );
+                              if (data?.text != null &&
+                                  data!.text!.isNotEmpty) {
+                                urlController.text = data.text!.trim();
+                                setModalState(() {});
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(
+                              AppLocalizations.of(context).cancel,
+                              style: TextStyle(
+                                color:
+                                    isLight ? Colors.black54 : Colors.white60,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _activeAccentColor,
+                              foregroundColor:
+                                  _activeAccentColor.computeLuminance() > 0.4
+                                      ? Colors.black
+                                      : Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: () async {
+                              final url = urlController.text.trim();
+                              if (url.isEmpty ||
+                                  !PlaylistImportService.isSupportedUrl(url)) {
+                                showFleyToast(
+                                  'Invalid link. Please enter a Spotify, Apple Music, or YouTube link.',
+                                );
+                                return;
+                              }
+
+                              setModalState(() {
+                                isLoading = true;
+                                statusMessage = 'Processing playlist...';
+                                progressValue = 0.1;
+                              });
+
+                              try {
+                                final result =
+                                    await PlaylistImportService.importPlaylist(
+                                  url,
+                                  onProgress: (msg, prog) {
+                                    setModalState(() {
+                                      statusMessage = msg;
+                                      progressValue = prog;
+                                    });
+                                  },
+                                );
+
+                                if (result == null || result.tracks.isEmpty) {
+                                  setModalState(() => isLoading = false);
+                                  showFleyToast(
+                                    'Failed to import. Make sure playlist is public.',
+                                  );
+                                  return;
+                                }
+
+                                var playlistName = result.title.trim();
+                                if (playlistName.isEmpty) {
+                                  playlistName = 'Imported Playlist';
+                                }
+                                if (_userPlaylists.containsKey(playlistName)) {
+                                  playlistName = '$playlistName (Imported)';
+                                }
+
+                                for (final t in result.tracks) {
+                                  _onlineTracksMap[t.id] = t;
+                                }
+
+                                setState(() {
+                                  _userPlaylists[playlistName] =
+                                      result.tracks.map((t) => t.id).toList();
+                                  if (result.coverUrl != null &&
+                                      result.coverUrl!.isNotEmpty) {
+                                    _playlistCovers[playlistName] =
+                                        result.coverUrl!;
+                                    _savePlaylistCovers();
+                                  }
+                                  _cachedDetailKey = null;
+                                  _saveUserPlaylists();
+                                });
+
+                                SharedPreferences.getInstance().then((prefs) {
+                                  prefs.setString(
+                                    'online_tracks_cache',
+                                    jsonEncode(
+                                      _onlineTracksMap.map(
+                                        (k, v) => MapEntry(k, v.toMap()),
+                                      ),
+                                    ),
+                                  );
+                                });
+
+                                if (!context.mounted) return;
+                                Navigator.pop(context);
+                                showFleyToast(
+                                  'Imported "$playlistName" (${result.tracks.length} songs)',
+                                );
+                              } catch (e) {
+                                setModalState(() => isLoading = false);
+                                showFleyToast('Error: $e');
+                              }
+                            },
+                            child: const Text(
+                              'Import',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Column(
+                        children: [
+                          LinearProgressIndicator(
+                            value: progressValue > 0 ? progressValue : null,
+                            backgroundColor:
+                                (isLight ? Colors.black : Colors.white)
+                                    .withValues(alpha: 0.1),
+                            color: _activeAccentColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            statusMessage,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isLight ? Colors.black54 : Colors.white70,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }

@@ -95,7 +95,7 @@ extension _TabsUI on _MainScreenState {
 
     final children = [
       ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         leading: Container(
           width: 56,
           height: 56,
@@ -114,6 +114,40 @@ extension _TabsUI on _MainScreenState {
           ),
         ),
         onTap: () => _showCreatePlaylistModal(context),
+      ),
+      ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        leading: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: (isAppLight ? Colors.black : Colors.white)
+                .withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            Icons.cloud_download_rounded,
+            color: isAppLight ? Colors.black87 : Colors.white,
+          ),
+        ),
+        title: Text(
+          FleyStrings.currentLang == 'id'
+              ? 'Import Playlist'
+              : 'Import Playlist',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: isAppLight ? const Color(0xFF1A1A1A) : Colors.white,
+          ),
+        ),
+        subtitle: Text(
+          'Spotify / Apple Music / YouTube Music',
+          style: TextStyle(
+            fontSize: 12,
+            color: isAppLight ? Colors.black45 : Colors.white54,
+          ),
+        ),
+        onTap: () => _showImportPlaylistModal(context),
       ),
       _buildPlaylistCard(
         AppLocalizations.of(context).favourites,
@@ -158,8 +192,9 @@ extension _TabsUI on _MainScreenState {
           ),
         ),
       ..._userPlaylists.entries.map((entry) {
-        final songs = _allTracks
-            .where((t) => entry.value.contains(t.id))
+        final songs = entry.value
+            .where((id) => trackMap.containsKey(id))
+            .map((id) => trackMap[id]!)
             .toList();
         return _buildPlaylistCard(
           entry.key,

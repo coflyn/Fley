@@ -1116,6 +1116,37 @@ class YtMusicService {
     return _extractAlbumTracks(json, limit);
   }
 
+  /// Fetch full playlist details (title, coverUrl, tracks) for importing.
+  static Future<Map<String, dynamic>?> getPlaylistFullDetails(String playlistId,
+      {int limit = 100}) async {
+    final effectiveBrowseId =
+        playlistId.startsWith('VL') ? playlistId : 'VL$playlistId';
+    final json = await _fetchBrowseJson(effectiveBrowseId);
+    if (json == null) return null;
+
+    final rootHeader = json['header']?['musicDetailHeaderRenderer'] ??
+        json['header']?['musicResponsiveHeaderRenderer'] ??
+        json['header']?['musicImmersiveHeaderRenderer'] ??
+        json['header']?['musicVisualHeaderRenderer'];
+
+    String title = 'YouTube Music Playlist';
+    if (rootHeader != null) {
+      final runs = rootHeader['title']?['runs'] as List?;
+      if (runs != null && runs.isNotEmpty) {
+        title = runs.first['text'] as String? ?? title;
+      }
+    }
+
+    final coverUrl = _extractHeaderThumbnail(json);
+    final ytTracks = _extractAlbumTracks(json, limit);
+
+    return {
+      'title': title,
+      'coverUrl': coverUrl ?? '',
+      'tracks': ytTracks,
+    };
+  }
+
   /// Search YouTube Music specifically for an artist and return its UC browseId.
   static Future<String?> findArtistBrowseId(String artistName) async {
     final cleanArtist = artistName.trim();
