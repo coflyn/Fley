@@ -1069,7 +1069,9 @@ extension _HomeUI on _MainScreenState {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Hubungkan akun untuk streaming jutaan lagu online di Home.',
+                  FleyStrings.currentLang == 'id'
+                      ? 'Hubungkan akun untuk streaming jutaan lagu online di Home.'
+                      : 'Connect your account to stream millions of songs online on Home.',
                   style: TextStyle(
                     fontSize: 12,
                     color: isLight ? Colors.black54 : Colors.white54,
@@ -1098,9 +1100,9 @@ extension _HomeUI on _MainScreenState {
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
-            child: const Text(
-              'Connect',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            child: Text(
+              FleyStrings.currentLang == 'id' ? 'Hubungkan' : 'Connect',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
         ],

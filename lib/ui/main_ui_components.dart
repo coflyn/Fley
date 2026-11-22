@@ -80,8 +80,11 @@ extension _MainUIComponents on _MainScreenState {
               child: ValueListenableBuilder<String?>(
                 valueListenable: userProfileImageNotifier,
                 builder: (context, imagePath, child) {
-                  final hasImage =
-                      imagePath != null && File(imagePath).existsSync();
+                  final isNet = imagePath != null &&
+                      (imagePath.startsWith('http://') ||
+                          imagePath.startsWith('https://'));
+                  final hasImage = isNet ||
+                      (imagePath != null && File(imagePath).existsSync());
 
                   return Container(
                     width: 34,
@@ -96,12 +99,25 @@ extension _MainUIComponents on _MainScreenState {
                     ),
                     child: ClipOval(
                       child: hasImage
-                          ? Image.file(
-                              File(imagePath),
-                              width: 34,
-                              height: 34,
-                              fit: BoxFit.cover,
-                            )
+                          ? (isNet
+                              ? Image.network(
+                                  imagePath!,
+                                  width: 34,
+                                  height: 34,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                    Icons.person_rounded,
+                                    size: 18,
+                                    color: _activeAccentColor,
+                                  ),
+                                )
+                              : Image.file(
+                                  File(imagePath!),
+                                  width: 34,
+                                  height: 34,
+                                  fit: BoxFit.cover,
+                                  gaplessPlayback: true,
+                                ))
                           : Icon(
                               Icons.person_rounded,
                               size: 18,

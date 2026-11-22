@@ -103,12 +103,21 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                           valueListenable: userProfileImageNotifier,
                           builder: (context, imagePath, _) {
                             final hasImage = _isSafeImage(imagePath);
+                            final validPath = imagePath;
+                            final isNet = hasImage &&
+                                validPath != null &&
+                                (validPath.startsWith('http://') ||
+                                    validPath.startsWith('https://'));
                             return CircleAvatar(
                               radius: 14,
                               backgroundColor: widget.activeAccentColor
                                   .withValues(alpha: 0.2),
-                              backgroundImage:
-                                  hasImage ? FileImage(File(imagePath!)) : null,
+                              backgroundImage: hasImage && validPath != null
+                                  ? (isNet
+                                      ? NetworkImage(validPath)
+                                      : FileImage(File(validPath))
+                                          as ImageProvider)
+                                  : null,
                               child: !hasImage
                                   ? Icon(
                                       Icons.person_rounded,

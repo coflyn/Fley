@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -8,7 +9,9 @@ import '../utils/globals.dart';
 /// WebView login screen for YouTube Music.
 /// On Android uses AndroidWebViewCookieManager to read HttpOnly cookies.
 class YtMusicAuthScreen extends StatefulWidget {
-  const YtMusicAuthScreen({super.key});
+  final bool switchAccount;
+
+  const YtMusicAuthScreen({super.key, this.switchAccount = false});
 
   @override
   State<YtMusicAuthScreen> createState() => _YtMusicAuthScreenState();
@@ -34,12 +37,23 @@ class _YtMusicAuthScreenState extends State<YtMusicAuthScreen> {
           }
         },
         onNavigationRequest: (_) => NavigationDecision.navigate,
-      ))
-      ..loadRequest(Uri.parse(
-        'https://accounts.google.com/ServiceLogin'
-        '?service=youtube'
-        '&continue=https://music.youtube.com/',
       ));
+
+    _initAndLoad();
+  }
+
+  Future<void> _initAndLoad() async {
+    if (!ytmLoggedInNotifier.value || widget.switchAccount) {
+      try {
+        await WebViewCookieManager().clearCookies();
+        await _controller.clearCache();
+        await _controller.clearLocalStorage();
+      } catch (_) {}
+    }
+    final url = widget.switchAccount
+        ? 'https://accounts.google.com/Logout?continue=https://accounts.google.com/ServiceLogin?service=youtube%26continue=https://music.youtube.com/'
+        : 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/';
+    _controller.loadRequest(Uri.parse(url));
   }
 
   Future<void> _harvestCookieAndFinish() async {
@@ -88,18 +102,72 @@ class _YtMusicAuthScreenState extends State<YtMusicAuthScreen> {
 
     debugPrint('YTM cookie names: ${seen.toList()}');
 
-    if (parts.isEmpty) {
+    // Ensure actual login token exists before declaring login successful
+    final hasAuth = seen.contains('SAPISID') ||
+        seen.contains('__Secure-3PAPISID') ||
+        seen.contains('SID');
+    if (!hasAuth || parts.isEmpty) {
       _done = false;
       return;
     }
 
     _done = true;
     final cookieString = parts.join('; ');
-    final title = await _controller.getTitle() ?? '';
-    await ytmSaveCookie(cookieString, accountName: title.isNotEmpty ? title : null);
+
+    String? accountName;
+    String? accountAvatar;
+    try {
+      final jsRes = await _controller.runJavaScriptReturningResult('''
+        (function() {
+          var avatar = '';
+          var img = document.querySelector('ytmusic-settings-button img') ||
+                    document.querySelector('button#avatar-btn img') ||
+                    document.querySelector('#avatar-btn img') ||
+                    document.querySelector('img#img');
+          if (img && img.src) avatar = img.src;
+
+          var name = '';
+          var nameEl = document.querySelector('#account-name') ||
+                       document.querySelector('yt-formatted-string.ytd-channel-name') ||
+                       document.querySelector('.ytmusic-settings-button #text');
+          if (nameEl && nameEl.textContent) name = nameEl.textContent.trim();
+          return JSON.stringify({avatar: avatar, name: name});
+        })()
+      ''');
+      final clean = jsRes.toString().replaceAll(RegExp(r'^"|"$'), '').replaceAll(r'\"', '"');
+      final data = jsonDecode(clean) as Map<String, dynamic>;
+      if (data['name'] is String && (data['name'] as String).isNotEmpty) {
+        accountName = data['name'] as String;
+      }
+      if (data['avatar'] is String && (data['avatar'] as String).isNotEmpty) {
+        accountAvatar = data['avatar'] as String;
+      }
+    } catch (e) {
+      debugPrint('Error extracting YTM profile info in webview: $e');
+    }
+
+    if (accountName == null || accountName.isEmpty) {
+      final title = await _controller.getTitle() ?? '';
+      if (title.isNotEmpty && !title.toLowerCase().contains('youtube')) {
+        accountName = title;
+      }
+    }
+
+    await ytmSaveCookie(
+      cookieString,
+      accountName: accountName != null && accountName.isNotEmpty ? accountName : null,
+      accountAvatar: accountAvatar != null && accountAvatar.isNotEmpty ? accountAvatar : null,
+    );
+
+    // Also trigger background API fetch to ensure full high-res profile details are synced
+    YtMusicService.fetchAccountProfile().ignore();
 
     if (mounted) {
-      showFleyToast('YouTube Music connected!');
+      showFleyToast(
+        FleyStrings.currentLang == 'id'
+            ? 'YouTube Music terhubung!'
+            : 'YouTube Music connected!',
+      );
       Navigator.pop(context, true);
     }
   }
@@ -130,6 +198,32 @@ class _YtMusicAuthScreenState extends State<YtMusicAuthScreen> {
           onPressed: () => Navigator.pop(context, false),
         ),
         actions: [
+          IconButton(
+            icon: Icon(Icons.switch_account_rounded, color: textColor),
+            tooltip: FleyStrings.currentLang == 'id'
+                ? 'Ganti Akun'
+                : 'Switch Account',
+            onPressed: () async {
+              setState(() {
+                _loading = true;
+                _done = false;
+              });
+              try {
+                await WebViewCookieManager().clearCookies();
+                await _controller.clearCache();
+                await _controller.clearLocalStorage();
+              } catch (_) {}
+              _controller.loadRequest(Uri.parse(
+                'https://accounts.google.com/Logout'
+                '?continue=https://accounts.google.com/ServiceLogin?service=youtube%26continue=https://music.youtube.com/',
+              ));
+              showFleyToast(
+                FleyStrings.currentLang == 'id'
+                    ? 'Silakan login dengan akun lain'
+                    : 'Please sign in with another account',
+              );
+            },
+          ),
           if (_loading)
             const Padding(
               padding: EdgeInsets.only(right: 16),

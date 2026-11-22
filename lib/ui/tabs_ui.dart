@@ -1283,6 +1283,7 @@ extension _TabsUI on _MainScreenState {
     List<Track>? fullQueueList,
     String? playlistContext,
     void Function(Track track)? onTrackTap,
+    bool showTrackNumbers = false,
   }) {
     if (list.isEmpty && header == null) {
       return Center(
@@ -1299,9 +1300,9 @@ extension _TabsUI on _MainScreenState {
       controller: controller,
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 12,
+        left: header != null ? 0 : 16,
+        right: header != null ? 0 : 16,
+        top: header != null ? 0 : 12,
         bottom: _bottomListPadding,
       ),
       itemCount: list.length +
@@ -1346,7 +1347,11 @@ extension _TabsUI on _MainScreenState {
           delay: Duration(milliseconds: staggerIndex * 35),
           child: Container(
             key: ValueKey("list_item_${track.id}"),
-            margin: const EdgeInsets.only(bottom: 4),
+            margin: EdgeInsets.only(
+              left: header != null ? 16 : 0,
+              right: header != null ? 16 : 0,
+              bottom: 4,
+            ),
             decoration: BoxDecoration(
               color: isMultiSelected
                   ? _activeAccentColor.withValues(alpha: 0.15)
@@ -1366,7 +1371,7 @@ extension _TabsUI on _MainScreenState {
                   ? const VisualDensity(vertical: -2)
                   : VisualDensity.standard,
               contentPadding: EdgeInsets.only(
-                left: 8,
+                left: showTrackNumbers ? 6 : 8,
                 right: 0,
                 top: _libraryDensity == 'compact' ? 0 : 4,
                 bottom: _libraryDensity == 'compact' ? 0 : 4,
@@ -1398,34 +1403,59 @@ extension _TabsUI on _MainScreenState {
                   _playTrack(trackIndex, sourceList: list);
                 }
               },
-              leading: Stack(
-                clipBehavior: Clip.none,
+              leading: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildTrackArtwork(
-                    track,
-                    size: _libraryDensity == 'compact' ? 36 : 44,
-                    radius: _libraryDensity == 'compact' ? 4 : 6,
-                  ),
-                  if (isMultiSelected)
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: _activeAccentColor.withValues(alpha: 0.88),
-                          borderRadius: BorderRadius.circular(
-                            _libraryDensity == 'compact' ? 4 : 6,
-                          ),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.check_rounded,
-                            color: _activeAccentColor.computeLuminance() > 0.4
-                                ? Colors.black
-                                : Colors.white,
-                            size: _libraryDensity == 'compact' ? 18 : 22,
+                  if (showTrackNumbers) ...[
+                    SizedBox(
+                      width: 24,
+                      child: Center(
+                        child: Text(
+                          '${trackIndex + 1}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected
+                                ? _activeAccentColor
+                                : (isAppLight
+                                    ? Colors.black45
+                                    : Colors.white38),
                           ),
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                  ],
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      _buildTrackArtwork(
+                        track,
+                        size: _libraryDensity == 'compact' ? 36 : 44,
+                        radius: _libraryDensity == 'compact' ? 4 : 6,
+                      ),
+                      if (isMultiSelected)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _activeAccentColor.withValues(alpha: 0.88),
+                              borderRadius: BorderRadius.circular(
+                                _libraryDensity == 'compact' ? 4 : 6,
+                              ),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                Icons.check_rounded,
+                                color: _activeAccentColor.computeLuminance() > 0.4
+                                    ? Colors.black
+                                    : Colors.white,
+                                size: _libraryDensity == 'compact' ? 18 : 22,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
               title: Text(

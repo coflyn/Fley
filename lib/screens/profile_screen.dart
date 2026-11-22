@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/globals.dart';
 import '../utils/image_cropper_util.dart';
@@ -36,16 +37,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null && mounted) {
-        final croppedPath = await ImageCropperUtil.cropImage(
-          context: context,
-          sourcePath: image.path,
-          squareOnly: true,
-        );
-        if (croppedPath != null && mounted) {
+        final isGif = image.path.toLowerCase().endsWith('.gif');
+        String? finalPath;
+
+        if (isGif) {
+          // Bypass cropper to preserve animated GIF frames
+          final appDir = await getApplicationDocumentsDirectory();
+          final ext = image.path.split('.').last;
+          final target = File(
+            '${appDir.path}/profile_avatar_${DateTime.now().millisecondsSinceEpoch}.$ext',
+          );
+          await File(image.path).copy(target.path);
+          finalPath = target.path;
+        } else {
+          finalPath = await ImageCropperUtil.cropImage(
+            context: context,
+            sourcePath: image.path,
+            squareOnly: true,
+          );
+        }
+
+        if (finalPath != null && mounted) {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userProfileImage', croppedPath);
-          userProfileImageNotifier.value = croppedPath;
-          showFleyToast('Profile photo updated');
+          await prefs.setString('userProfileImage', finalPath);
+          userProfileImageNotifier.value = finalPath;
+          showFleyToast(isGif ? 'Profile GIF updated' : 'Profile photo updated');
         }
       }
     } catch (e) {
@@ -58,6 +74,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.remove('userProfileImage');
     userProfileImageNotifier.value = null;
     showFleyToast('Profile photo removed');
+  }
+
+  Future<void> _syncProfileFromYtm() async {
+    if (!ytmLoggedInNotifier.value) {
+      showFleyToast('Connect to YouTube Music first');
+      return;
+    }
+    showFleyToast('Syncing profile from YouTube Music...');
+    await YtMusicService.fetchAccountProfile();
+
+    final ytmName = ytmAccountNameNotifier.value;
+    final ytmAvatar = ytmAccountAvatarNotifier.value;
+
+    final prefs = await SharedPreferences.getInstance();
+    bool updated = false;
+
+    if (ytmName != null &&
+        ytmName.isNotEmpty &&
+        !ytmName.toLowerCase().contains('youtube')) {
+      await prefs.setString('userProfileName', ytmName);
+      userProfileNameNotifier.value = ytmName;
+      updated = true;
+    }
+
+    if (ytmAvatar != null && ytmAvatar.isNotEmpty) {
+      final highResAvatar = YtMusicService.getHighResThumbnail(ytmAvatar);
+      await prefs.setString('userProfileImage', highResAvatar);
+      userProfileImageNotifier.value = highResAvatar;
+      updated = true;
+    }
+
+    if (updated) {
+      showFleyToast('Profile synced from YouTube Music!');
+    } else {
+      showFleyToast('No YouTube Music profile data found');
+    }
+  }
+
+  Widget _buildAvatarImage(String? imagePath, double size) {
+    if (imagePath == null || imagePath.isEmpty) {
+      return Icon(
+        Icons.person_rounded,
+        size: size * 0.5,
+        color: widget.activeAccentColor,
+      );
+    }
+
+    final isNet =
+        imagePath.startsWith('http://') || imagePath.startsWith('https://');
+    if (isNet) {
+      return Image.network(
+        imagePath,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Icon(
+          Icons.person_rounded,
+          size: size * 0.5,
+          color: widget.activeAccentColor,
+        ),
+      );
+    }
+
+    final file = File(imagePath);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => Icon(
+          Icons.person_rounded,
+          size: size * 0.5,
+          color: widget.activeAccentColor,
+        ),
+      );
+    }
+
+    return Icon(
+      Icons.person_rounded,
+      size: size * 0.5,
+      color: widget.activeAccentColor,
+    );
   }
 
   void _showPhotoOptionsModal() {
@@ -93,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: widget.activeAccentColor,
                   ),
                   title: Text(
-                    AppLocalizations.of(context).chooseFromGallery,
+                    '${AppLocalizations.of(context).chooseFromGallery} (Photo / GIF)',
                     style: TextStyle(
                       color: textColor,
                       fontFamily: getFontFamily(),
@@ -104,6 +204,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _pickProfilePhoto();
                   },
                 ),
+                if (ytmLoggedInNotifier.value)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.sync_rounded,
+                      color: Color(0xFFFF0000),
+                    ),
+                    title: Text(
+                      'Sync from YouTube Music',
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: getFontFamily(),
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Use your Google/YouTube Music name & avatar',
+                      style: TextStyle(
+                        color: isLight ? Colors.black54 : Colors.white54,
+                        fontSize: 12,
+                        fontFamily: getFontFamily(),
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _syncProfileFromYtm();
+                    },
+                  ),
                 if (userProfileImageNotifier.value != null)
                   ListTile(
                     leading: const Icon(
@@ -277,9 +404,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: ValueListenableBuilder<String?>(
                       valueListenable: userProfileImageNotifier,
                       builder: (context, imagePath, child) {
-                        final hasImage =
-                            imagePath != null && File(imagePath).existsSync();
-
                         return Container(
                           width: 104,
                           height: 104,
@@ -287,30 +411,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             shape: BoxShape.circle,
                             color: widget.activeAccentColor.withValues(alpha: 0.15),
                             border: Border.all(
-                              color: widget.activeAccentColor.withValues(alpha: 0.4),
+                              color: widget.activeAccentColor.withValues(alpha: 0.5),
                               width: 2.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: widget.activeAccentColor.withValues(alpha: 0.2),
+                                color: widget.activeAccentColor.withValues(alpha: 0.25),
                                 blurRadius: 18,
                                 offset: const Offset(0, 4),
                               ),
                             ],
                           ),
                           child: ClipOval(
-                            child: hasImage
-                                ? Image.file(
-                                    File(imagePath),
-                                    width: 104,
-                                    height: 104,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Icon(
-                                    Icons.person_rounded,
-                                    size: 52,
-                                    color: widget.activeAccentColor,
-                                  ),
+                            child: _buildAvatarImage(imagePath, 104),
                           ),
                         );
                       },
@@ -566,21 +679,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF0000).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.all(9),
-                          child: SvgPicture.string(
-                            '''<svg viewBox="0 0 24 24" width="26" height="26">
-                              <circle cx="12" cy="12" r="11.5" fill="#FF0000"/>
-                              <circle cx="12" cy="12" r="6.8" fill="none" stroke="#FFFFFF" stroke-width="1.8"/>
-                              <polygon points="10,8.5 15.5,12 10,15.5" fill="#FFFFFF"/>
-                            </svg>''',
-                          ),
+                        leading: ValueListenableBuilder<String?>(
+                          valueListenable: ytmAccountAvatarNotifier,
+                          builder: (context, ytmAvatar, _) {
+                            final hasYtmAvatar = isLoggedIn &&
+                                ytmAvatar != null &&
+                                ytmAvatar.isNotEmpty;
+                            return Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF0000).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: hasYtmAvatar
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: Image.network(
+                                            ytmAvatar!,
+                                            width: 44,
+                                            height: 44,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Padding(
+                                              padding: const EdgeInsets.all(9),
+                                              child: SvgPicture.string(
+                                                '''<svg viewBox="0 0 24 24" width="26" height="26">
+                                                  <circle cx="12" cy="12" r="11.5" fill="#FF0000"/>
+                                                  <circle cx="12" cy="12" r="6.8" fill="none" stroke="#FFFFFF" stroke-width="1.8"/>
+                                                  <polygon points="10,8.5 15.5,12 10,15.5" fill="#FFFFFF"/>
+                                                </svg>''',
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : Padding(
+                                          padding: const EdgeInsets.all(9),
+                                          child: SvgPicture.string(
+                                            '''<svg viewBox="0 0 24 24" width="26" height="26">
+                                              <circle cx="12" cy="12" r="11.5" fill="#FF0000"/>
+                                              <circle cx="12" cy="12" r="6.8" fill="none" stroke="#FFFFFF" stroke-width="1.8"/>
+                                              <polygon points="10,8.5 15.5,12 10,15.5" fill="#FFFFFF"/>
+                                            </svg>''',
+                                          ),
+                                        ),
+                                ),
+                                if (hasYtmAvatar)
+                                  Positioned(
+                                    bottom: -2,
+                                    right: -2,
+                                    child: Container(
+                                      width: 16,
+                                      height: 16,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFFF0000),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.play_arrow_rounded,
+                                          size: 11,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
                         ),
                         title: Text(
                           'YouTube Music',
@@ -628,41 +796,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         trailing: isLoggedIn
-                            ? Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(10),
-                                  onTap: () async {
-                                    await ytmLogout();
-                                    showFleyToast('YouTube Music disconnected');
-                                  },
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    child: Text(
-                                      'Disconnect',
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.redAccent,
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: widget.activeAccentColor.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: _syncProfileFromYtm,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.sync_rounded,
+                                              size: 14,
+                                              color: widget.activeAccentColor,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Sync',
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: widget.activeAccentColor,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.redAccent.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: () async {
+                                        await ytmLogout();
+                                        showFleyToast(
+                                          FleyStrings.currentLang == 'id'
+                                              ? 'YouTube Music terputus'
+                                              : 'YouTube Music disconnected',
+                                        );
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        child: Text(
+                                          'Disconnect',
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.redAccent,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               )
                             : Icon(Icons.chevron_right_rounded, color: subTextColor),
-                        onTap: isLoggedIn
-                            ? null
-                            : () async {
-                                await Navigator.push<bool>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const YtMusicAuthScreen(),
-                                  ),
-                                );
-                              },
+                        onTap: () async {
+                          await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => YtMusicAuthScreen(
+                                switchAccount: isLoggedIn,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     );
                   },

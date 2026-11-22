@@ -636,6 +636,9 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
                           valueListenable: userProfileImageNotifier,
                           builder: (context, imagePath, _) {
                             final hasImage = _isSafeImage(imagePath);
+                            final isNet = hasImage &&
+                                (imagePath!.startsWith('http://') ||
+                                    imagePath.startsWith('https://'));
                             return Container(
                               width: 100,
                               height: 100,
@@ -649,12 +652,25 @@ extension _DesktopProfileSettingsUI on _DesktopLayoutShellState {
                               ),
                               child: ClipOval(
                                 child: hasImage
-                                    ? Image.file(
-                                        File(imagePath!),
-                                        width: 100,
-                                        height: 100,
-                                        fit: BoxFit.cover,
-                                      )
+                                    ? (isNet
+                                        ? Image.network(
+                                            imagePath!,
+                                            width: 100,
+                                            height: 100,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Icon(
+                                              Icons.person_rounded,
+                                              size: 52,
+                                              color: widget.activeAccentColor,
+                                            ),
+                                          )
+                                        : Image.file(
+                                            File(imagePath!),
+                                            width: 100,
+                                            height: 100,
+                                            fit: BoxFit.cover,
+                                            gaplessPlayback: true,
+                                          ))
                                     : Icon(
                                         Icons.person_rounded,
                                         size: 52,

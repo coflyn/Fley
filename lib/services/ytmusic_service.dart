@@ -4,9 +4,11 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 const _cookieKey = 'ytm_cookie';
 const _accountNameKey = 'ytm_account_name';
+const _accountAvatarKey = 'ytm_account_avatar';
 
 /// Returns or creates the dedicated downloads directory for Fley.
 Future<Directory> getFleyDownloadsDirectory() async {
@@ -30,28 +32,40 @@ Future<Directory> getFleyDownloadsDirectory() async {
 /// Notifier for login state so UI can react without polling.
 final ytmLoggedInNotifier = ValueNotifier<bool>(false);
 final ytmAccountNameNotifier = ValueNotifier<String?>('');
+final ytmAccountAvatarNotifier = ValueNotifier<String?>('');
 
 Future<void> ytmInitFromPrefs() async {
   final prefs = await SharedPreferences.getInstance();
   final cookie = prefs.getString(_cookieKey) ?? '';
   ytmLoggedInNotifier.value = cookie.isNotEmpty;
   ytmAccountNameNotifier.value = prefs.getString(_accountNameKey);
+  ytmAccountAvatarNotifier.value = prefs.getString(_accountAvatarKey);
 }
 
-Future<void> ytmSaveCookie(String cookie, {String? accountName}) async {
+Future<void> ytmSaveCookie(String cookie,
+    {String? accountName, String? accountAvatar}) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString(_cookieKey, cookie);
   if (accountName != null) await prefs.setString(_accountNameKey, accountName);
+  if (accountAvatar != null) {
+    await prefs.setString(_accountAvatarKey, accountAvatar);
+  }
   ytmLoggedInNotifier.value = cookie.isNotEmpty;
   ytmAccountNameNotifier.value = accountName;
+  ytmAccountAvatarNotifier.value = accountAvatar;
 }
 
 Future<void> ytmLogout() async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.remove(_cookieKey);
   await prefs.remove(_accountNameKey);
+  await prefs.remove(_accountAvatarKey);
   ytmLoggedInNotifier.value = false;
   ytmAccountNameNotifier.value = null;
+  ytmAccountAvatarNotifier.value = null;
+  try {
+    await WebViewCookieManager().clearCookies();
+  } catch (_) {}
 }
 
 Future<String> _getCookie() async {
@@ -1619,4 +1633,76 @@ class YtMusicService {
         'contentCheckOk': true,
         'racyCheckOk': true,
       };
+
+  /// Fetches Google/YouTube Music account profile name and avatar.
+  static Future<Map<String, String>?> fetchAccountProfile() async {
+    final cookie = await _getCookie();
+    if (cookie.isEmpty) return null;
+    final client = HttpClient();
+    try {
+      final uri = Uri.https(
+        _baseUrl,
+        '/youtubei/v1/account/account_menu',
+        {'key': _apiKey, 'prettyPrint': 'false'},
+      );
+      final req = await client.postUrl(uri);
+      _headers(cookie).forEach((k, v) => req.headers.set(k, v));
+      final payload = <String, dynamic>{'context': _context()};
+      req.write(jsonEncode(payload));
+      final res = await req.close();
+      final body = await res.transform(utf8.decoder).join();
+      final json = jsonDecode(body);
+
+      String? name;
+      String? avatar;
+
+      void searchJson(dynamic obj) {
+        if (obj is Map) {
+          if (obj.containsKey('accountName') && obj['accountName'] is Map) {
+            final t = obj['accountName']['simpleText'] ??
+                obj['accountName']['runs']?[0]?['text'];
+            if (t != null && t.toString().trim().isNotEmpty) {
+              name ??= t.toString().trim();
+            }
+          }
+          if (obj.containsKey('accountPhoto') && obj['accountPhoto'] is Map) {
+            final thumbs = obj['accountPhoto']['thumbnails'];
+            if (thumbs is List && thumbs.isNotEmpty) {
+              final last = thumbs.last;
+              if (last is Map && last['url'] != null) {
+                avatar ??= last['url'].toString();
+              }
+            }
+          }
+          for (final v in obj.values) {
+            searchJson(v);
+          }
+        } else if (obj is List) {
+          for (final item in obj) {
+            searchJson(item);
+          }
+        }
+      }
+
+      searchJson(json);
+
+      if (name != null || avatar != null) {
+        final prefs = await SharedPreferences.getInstance();
+        if (name != null && name!.isNotEmpty) {
+          await prefs.setString(_accountNameKey, name!);
+          ytmAccountNameNotifier.value = name;
+        }
+        if (avatar != null && avatar!.isNotEmpty) {
+          await prefs.setString(_accountAvatarKey, avatar!);
+          ytmAccountAvatarNotifier.value = avatar;
+        }
+        return {'name': name ?? '', 'avatar': avatar ?? ''};
+      }
+    } catch (e) {
+      debugPrint('YTM fetchAccountProfile error: $e');
+    } finally {
+      client.close();
+    }
+    return null;
+  }
 }

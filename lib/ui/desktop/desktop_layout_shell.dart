@@ -274,6 +274,7 @@ class _DesktopLayoutShellState extends State<DesktopLayoutShell> {
 
   bool _isSafeImage(String? path) {
     if (path == null || path.isEmpty) return false;
+    if (path.startsWith('http://') || path.startsWith('https://')) return true;
     try {
       return File(path).existsSync();
     } catch (_) {
