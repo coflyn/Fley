@@ -1133,860 +1133,1789 @@ extension _PlayerUI on _MainScreenState {
     return artwork;
   }
 
-  Widget _buildFullScreenPlayer(Track currentTrack) {
-    return Material(
-      color: Colors.transparent,
-      child: GestureDetector(
-        onVerticalDragStart: (details) {
-          _isDraggingPlayerNotifier.value = true;
-        },
-        onVerticalDragUpdate: (details) {
-          if (details.primaryDelta != null) {
-            final newVal =
-                _playerDragOffsetNotifier.value +
-                details.primaryDelta! / MediaQuery.of(context).size.height;
-            _playerDragOffsetNotifier.value = newVal < 0 ? 0.0 : newVal;
-          }
-        },
-        onVerticalDragEnd: (details) {
-          final offset = _playerDragOffsetNotifier.value;
-          _isDraggingPlayerNotifier.value = false;
-          if (offset > 0.15 || (details.primaryVelocity ?? 0) > 300) {
-            setState(() {
-              _isPlayerOpen = false;
-              _showLyrics = false;
-            });
-          } else {
-            _playerDragOffsetNotifier.value = 0.0;
-          }
-        },
-        onVerticalDragCancel: () {
-          _isDraggingPlayerNotifier.value = false;
-          _playerDragOffsetNotifier.value = 0.0;
-        },
-        child: Stack(
-          children: [
-            ValueListenableBuilder<String>(
-              valueListenable: playerBackgroundStyleNotifier,
-              builder: (context, style, child) {
-                if (style == 'amoled') {
-                  return Positioned.fill(
-                    child: Container(color: const Color(0xFF000000)),
-                  );
-                } else if (style == 'blur') {
-                  return Stack(
-                    children: [
-                      Positioned.fill(
-                        child: Container(color: const Color(0xFF0A0A0A)),
+  Widget _buildPlayerBackground(Track currentTrack) {
+    return ValueListenableBuilder<String>(
+      valueListenable: playerBackgroundStyleNotifier,
+      builder: (context, style, child) {
+        if (style == 'amoled') {
+          return Positioned.fill(
+            child: Container(color: const Color(0xFF000000)),
+          );
+        } else if (style == 'blur') {
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: Container(color: const Color(0xFF0A0A0A)),
+              ),
+              Positioned.fill(
+                child: ClipRect(
+                  child: ImageFiltered(
+                    imageFilter: ImageFilter.blur(
+                      sigmaX: 45.0,
+                      sigmaY: 45.0,
+                    ),
+                    child: Opacity(
+                      opacity: 0.55,
+                      child: Transform.scale(
+                        scale: 2.2,
+                        child: _buildTrackArtwork(
+                          currentTrack,
+                          size: 400,
+                          radius: 0,
+                        ),
                       ),
-                      Positioned.fill(
-                        child: ClipRect(
-                          child: ImageFiltered(
-                            imageFilter: ImageFilter.blur(
-                              sigmaX: 45.0,
-                              sigmaY: 45.0,
-                            ),
-                            child: Opacity(
-                              opacity: 0.55,
-                              child: Transform.scale(
-                                scale: 2.2,
-                                child: _buildTrackArtwork(
-                                  currentTrack,
-                                  size: 400,
-                                  radius: 0,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.35),
+                        Colors.black.withValues(alpha: 0.75),
+                        Colors.black.withValues(alpha: 0.95),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        } else if (style == 'custom') {
+          return ValueListenableBuilder<String?>(
+            valueListenable: playerCustomBgPathNotifier,
+            builder: (context, customPath, child) {
+              return ValueListenableBuilder<double>(
+                valueListenable: playerCustomBgBlurNotifier,
+                builder: (context, blurVal, child) {
+                  return ValueListenableBuilder<double>(
+                    valueListenable: playerCustomBgDimNotifier,
+                    builder: (context, dimVal, child) {
+                      return AnimatedBuilder(
+                        animation: Listenable.merge([
+                          playerCustomBgScaleNotifier,
+                          playerCustomBgOffsetXNotifier,
+                          playerCustomBgOffsetYNotifier,
+                        ]),
+                        builder: (context, child) {
+                          return Stack(
+                            children: [
+                              Positioned.fill(
+                                child: Container(
+                                  color: const Color(0xFF0A0A0A),
                                 ),
                               ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.black.withValues(alpha: 0.35),
-                                Colors.black.withValues(alpha: 0.75),
-                                Colors.black.withValues(alpha: 0.95),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                } else if (style == 'custom') {
-                  return ValueListenableBuilder<String?>(
-                    valueListenable: playerCustomBgPathNotifier,
-                    builder: (context, customPath, child) {
-                      return ValueListenableBuilder<double>(
-                        valueListenable: playerCustomBgBlurNotifier,
-                        builder: (context, blurVal, child) {
-                          return ValueListenableBuilder<double>(
-                            valueListenable: playerCustomBgDimNotifier,
-                            builder: (context, dimVal, child) {
-                              return AnimatedBuilder(
-                                animation: Listenable.merge([
-                                  playerCustomBgScaleNotifier,
-                                  playerCustomBgOffsetXNotifier,
-                                  playerCustomBgOffsetYNotifier,
-                                ]),
-                                builder: (context, child) {
-                                  return Stack(
-                                    children: [
-                                      Positioned.fill(
-                                        child: Container(
-                                          color: const Color(0xFF0A0A0A),
+                              if (customPath != null &&
+                                  File(customPath).existsSync())
+                                Positioned.fill(
+                                  child: ClipRect(
+                                    child: ImageFiltered(
+                                      imageFilter: ImageFilter.blur(
+                                        sigmaX: blurVal,
+                                        sigmaY: blurVal,
+                                      ),
+                                      child: Transform.scale(
+                                        scale:
+                                            playerCustomBgScaleNotifier
+                                                .value,
+                                        alignment: Alignment(
+                                          playerCustomBgOffsetXNotifier
+                                              .value,
+                                          playerCustomBgOffsetYNotifier
+                                              .value,
+                                        ),
+                                        child: Image.file(
+                                          File(customPath),
+                                          fit: BoxFit.cover,
                                         ),
                                       ),
-                                      if (customPath != null &&
-                                          File(customPath).existsSync())
-                                        Positioned.fill(
-                                          child: ClipRect(
-                                            child: ImageFiltered(
-                                              imageFilter: ImageFilter.blur(
-                                                sigmaX: blurVal,
-                                                sigmaY: blurVal,
-                                              ),
-                                              child: Transform.scale(
-                                                scale:
-                                                    playerCustomBgScaleNotifier
-                                                        .value,
-                                                alignment: Alignment(
-                                                  playerCustomBgOffsetXNotifier
-                                                      .value,
-                                                  playerCustomBgOffsetYNotifier
-                                                      .value,
-                                                ),
-                                                child: Image.file(
-                                                  File(customPath),
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
+                                    ),
+                                  ),
+                                ),
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.black.withValues(
+                                          alpha: dimVal * 0.5,
                                         ),
-                                      Positioned.fill(
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              begin: Alignment.topCenter,
-                                              end: Alignment.bottomCenter,
-                                              colors: [
-                                                Colors.black.withValues(
-                                                  alpha: dimVal * 0.5,
-                                                ),
-                                                Colors.black.withValues(
-                                                  alpha: dimVal * 1.2 > 1.0
-                                                      ? 1.0
-                                                      : dimVal * 1.2,
-                                                ),
-                                                Colors.black.withValues(
-                                                  alpha: dimVal * 1.8 > 1.0
-                                                      ? 1.0
-                                                      : dimVal * 1.8,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                                        Colors.black.withValues(
+                                          alpha: dimVal * 1.2 > 1.0
+                                              ? 1.0
+                                              : dimVal * 1.2,
                                         ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
+                                        Colors.black.withValues(
+                                          alpha: dimVal * 1.8 > 1.0
+                                              ? 1.0
+                                              : dimVal * 1.8,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           );
                         },
                       );
                     },
                   );
-                } else {
-                  return Positioned.fill(
-                    child: TweenAnimationBuilder<Color?>(
-                      tween: ColorTween(
-                        begin: const Color(0xFF1E1E1E),
-                        end: _dominantColor ?? const Color(0xFF1E1E1E),
-                      ),
-                      duration: const Duration(milliseconds: 800),
-                      builder: (context, Color? color, child) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                color ?? const Color(0xFF1E1E1E),
-                                color != null
-                                    ? Color.lerp(color, Colors.black, 0.85)!
-                                    : const Color(0xFF0A0A0A),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                },
+              );
+            },
+          );
+        } else {
+          return Positioned.fill(
+            child: TweenAnimationBuilder<Color?>(
+              tween: ColorTween(
+                begin: const Color(0xFF1E1E1E),
+                end: _dominantColor ?? const Color(0xFF1E1E1E),
+              ),
+              duration: const Duration(milliseconds: 800),
+              builder: (context, Color? color, child) {
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        color ?? const Color(0xFF1E1E1E),
+                        color != null
+                            ? Color.lerp(color, Colors.black, 0.85)!
+                            : const Color(0xFF0A0A0A),
+                      ],
                     ),
-                  );
-                }
+                  ),
+                );
               },
             ),
+          );
+        }
+      },
+    );
+  }
 
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 8),
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down,
-                            color: Colors.white54,
-                            size: 28,
-                          ),
-                          onPressed: () => setState(() {
-                            _isPlayerOpen = false;
-                            _showLyrics = false;
-                          }),
-                        ),
-                        Expanded(
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            child: _showLyrics
-                                ? Column(
-                                    key: const ValueKey('lyrics_header'),
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        AppLocalizations.of(
-                                          context,
-                                        ).lyrics.toUpperCase(),
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 10,
-                                          color: Colors.white38,
-                                          letterSpacing: 1.5,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        currentTrack.title,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.white,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  )
-                                : ValueListenableBuilder<int>(
-                                    key: const ValueKey('player_header'),
-                                    valueListenable: _sleepTimerNotifier,
-                                    builder: (context, remaining, child) {
-                                      if (remaining > 0) {
-                                        final mins = (remaining / 60)
-                                            .floor()
-                                            .toString()
-                                            .padLeft(2, '0');
-                                        final secs = (remaining % 60)
-                                            .toString()
-                                            .padLeft(2, '0');
-                                        return Text(
-                                          '${AppLocalizations.of(context).stopsIn.toUpperCase()} $mins:$secs',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 13,
-                                            color: _activeAccentColor,
-                                            letterSpacing: 1.5,
-                                          ),
-                                        );
-                                      }
-                                      String typeLabel;
-                                      if (currentTrack.id.startsWith('ytm_')) {
-                                        typeLabel = 'YOUTUBE MUSIC';
-                                      } else if (currentTrack.id.startsWith('local_ytm_')) {
-                                        typeLabel = 'DOWNLOADS';
-                                      } else if (_playingFromType == 'PLAYLIST') {
-                                        typeLabel = AppLocalizations.of(
-                                          context,
-                                        ).playlists;
-                                      } else if (_playingFromType == 'ARTIST') {
-                                        typeLabel = AppLocalizations.of(
-                                          context,
-                                        ).artists;
-                                      } else if (_playingFromType == 'ALBUM') {
-                                        typeLabel = AppLocalizations.of(
-                                          context,
-                                        ).albums;
-                                      } else if (_playingFromType == 'YOUTUBE MUSIC') {
-                                        typeLabel = 'YOUTUBE MUSIC';
-                                      } else {
-                                        typeLabel = AppLocalizations.of(
-                                          context,
-                                        ).library;
-                                      }
-
-                                      String displayName = _playingFromName;
-                                      if (currentTrack.id.startsWith('ytm_') &&
-                                          (_playingFromName == 'All Songs' ||
-                                              _playingFromName == 'All Tracks' ||
-                                              _playingFromType == 'LIBRARY')) {
-                                        displayName = 'Trending & Online';
-                                      } else if (currentTrack.id.startsWith('local_ytm_') &&
-                                          (_playingFromName == 'All Songs' ||
-                                              _playingFromName == 'All Tracks' ||
-                                              _playingFromType == 'LIBRARY')) {
-                                        displayName = 'Offline Songs';
-                                      } else if (_playingFromName == 'All Songs' ||
-                                          _playingFromName == 'All Tracks') {
-                                        displayName = AppLocalizations.of(
-                                          context,
-                                        ).allSongs;
-                                      } else if (_playingFromName ==
-                                              'Favourites' ||
-                                          _playingFromName ==
-                                              'Favorite Songs') {
-                                        displayName = AppLocalizations.of(
-                                          context,
-                                        ).favourites;
-                                      } else if (_playingFromName ==
-                                          'Recently Added') {
-                                        displayName = AppLocalizations.of(
-                                          context,
-                                        ).recentlyAdded;
-                                      } else if (_playingFromName ==
-                                          'Most Played') {
-                                        displayName = AppLocalizations.of(
-                                          context,
-                                        ).mostPlayed;
-                                      } else if (_playingFromName ==
-                                          'Forgotten Gems') {
-                                        displayName = AppLocalizations.of(
-                                          context,
-                                        ).forgottenGems;
-                                      } else if (_playingFromName ==
-                                          'Last Played') {
-                                        displayName = AppLocalizations.of(
-                                          context,
-                                        ).lastPlayed;
-                                      }
-
-                                      return Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            '${AppLocalizations.of(context).playingFrom.toUpperCase()} ${typeLabel.toUpperCase()}',
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 10,
-                                              color: Colors.white38,
-                                              letterSpacing: 1.5,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            displayName,
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                              color: Colors.white,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: _showLyrics
-                              ? IconButton(
-                                  key: const ValueKey('edit_lyrics_btn'),
-                                  icon: const Icon(
-                                    Icons.edit_note_rounded,
-                                    color: Colors.white70,
-                                    size: 26,
-                                  ),
-                                  tooltip: 'Edit Lyrics',
-                                  onPressed: () =>
-                                      _showManualLyricsEditor(currentTrack),
-                                )
-                              : IconButton(
-                                  key: const ValueKey('more_vert_btn'),
-                                  icon: const Icon(
-                                    Icons.more_vert,
-                                    color: Colors.white54,
-                                  ),
-                                  onPressed: () => _showTrackOptions(
-                                    context,
-                                    currentTrack,
-                                    isFromPlayer: true,
-                                  ),
-                                ),
-                        ),
-                      ],
-                    ),
-
-                    Expanded(
-                      child: Stack(
+  Widget _buildPlayerTopHeader(Track currentTrack, {bool enableDrag = false}) {
+    final headerContent = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 8),
+        Container(
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: const Icon(
+                Icons.keyboard_arrow_down,
+                color: Colors.white54,
+                size: 28,
+              ),
+              onPressed: () => setState(() {
+                _isPlayerOpen = false;
+                _showLyrics = false;
+              }),
+            ),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _showLyrics
+                    ? Column(
+                        key: const ValueKey('lyrics_header'),
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          AnimatedOpacity(
-                            opacity: _showLyrics ? 0.0 : 1.0,
-                            duration: const Duration(milliseconds: 350),
-                            curve: Curves.easeInOut,
-                            child: IgnorePointer(
-                              ignoring: _showLyrics,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _showLyrics = true;
-                                    _lastActiveLyricsIndex = -1;
-                                    _lyricsUserScrolling = false;
-                                    _lyricsOpenedTime = DateTime.now();
-                                  });
-                                  _loadLyricsForTrack(currentTrack);
-                                },
-                                child: AnimatedScale(
-                                  scale: _isPlayerOpen ? 1.0 : 0.35,
-                                  duration: const Duration(milliseconds: 380),
-                                  curve: Curves.easeOutQuint,
-                                  alignment: const Alignment(-0.85, 0.95),
-                                  child: Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12.0,
-                                      ),
-                                      child: AspectRatio(
-                                        aspectRatio: 1.0,
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(
-                                              24,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(
-                                                  alpha: 0.45,
-                                                ),
-                                                blurRadius: 35,
-                                                offset: const Offset(0, 12),
-                                              ),
-                                            ],
-                                          ),
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              24,
-                                            ),
-                                            child: _buildTrackArtwork(
-                                              currentTrack,
-                                              size:
-                                                  MediaQuery.of(
-                                                    context,
-                                                  ).size.width *
-                                                  0.85,
-                                              radius: 24,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                          Text(
+                            AppLocalizations.of(
+                              context,
+                            ).lyrics.toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
+                              color: Colors.white38,
+                              letterSpacing: 1.5,
                             ),
                           ),
-
-                          AnimatedOpacity(
-                            opacity: _showLyrics ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 350),
-                            curve: Curves.easeInOut,
-                            child: IgnorePointer(
-                              ignoring: !_showLyrics,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12.0,
-                                ),
-                                child: _buildLyricsContent(currentTrack),
-                              ),
+                          const SizedBox(height: 2),
+                          Text(
+                            currentTrack.title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.white,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
-                      ),
-                    ),
+                      )
+                    : ValueListenableBuilder<int>(
+                        key: const ValueKey('player_header'),
+                        valueListenable: _sleepTimerNotifier,
+                        builder: (context, remaining, child) {
+                          if (remaining > 0) {
+                            final mins = (remaining / 60)
+                                .floor()
+                                .toString()
+                                .padLeft(2, '0');
+                            final secs = (remaining % 60)
+                                .toString()
+                                .padLeft(2, '0');
+                            return Text(
+                              '${AppLocalizations.of(context).stopsIn.toUpperCase()} $mins:$secs',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: _activeAccentColor,
+                                letterSpacing: 1.5,
+                              ),
+                            );
+                          }
+                          String typeLabel;
+                          if (currentTrack.id.startsWith('ytm_')) {
+                            typeLabel = 'YOUTUBE MUSIC';
+                          } else if (currentTrack.id.startsWith('local_ytm_')) {
+                            typeLabel = 'DOWNLOADS';
+                          } else if (_playingFromType == 'PLAYLIST') {
+                            typeLabel = AppLocalizations.of(
+                              context,
+                            ).playlists;
+                          } else if (_playingFromType == 'ARTIST') {
+                            typeLabel = AppLocalizations.of(
+                              context,
+                            ).artists;
+                          } else if (_playingFromType == 'ALBUM') {
+                            typeLabel = AppLocalizations.of(context).albums;
+                          } else if (_playingFromType == 'RADIO') {
+                            typeLabel = 'RADIO';
+                          } else {
+                            typeLabel = AppLocalizations.of(
+                              context,
+                            ).library;
+                          }
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          String displayName = _playingFromName;
+                          if (currentTrack.id.startsWith('ytm_') &&
+                              (_playingFromName == 'All Songs' ||
+                                  _playingFromName == 'All Tracks' ||
+                                  _playingFromType == 'LIBRARY')) {
+                            displayName = 'Trending & Online';
+                          } else if (currentTrack.id.startsWith('local_ytm_') &&
+                              (_playingFromName == 'All Songs' ||
+                                  _playingFromName == 'All Tracks' ||
+                                  _playingFromType == 'LIBRARY')) {
+                            displayName = 'Offline Songs';
+                          } else if (_playingFromName == 'All Songs' ||
+                              _playingFromName == 'All Tracks') {
+                            displayName = AppLocalizations.of(
+                              context,
+                            ).allSongs;
+                          } else if (_playingFromName ==
+                                  'Favourites' ||
+                              _playingFromName ==
+                                  'Favorite Songs') {
+                            displayName = AppLocalizations.of(
+                              context,
+                            ).favourites;
+                          } else if (_playingFromName ==
+                              'Recently Added') {
+                            displayName = AppLocalizations.of(
+                              context,
+                            ).recentlyAdded;
+                          } else if (_playingFromName ==
+                              'Most Played') {
+                            displayName = AppLocalizations.of(
+                              context,
+                            ).mostPlayed;
+                          } else if (_playingFromName ==
+                              'Forgotten Gems') {
+                            displayName = AppLocalizations.of(
+                              context,
+                            ).forgottenGems;
+                          } else if (_playingFromName ==
+                              'Last Played') {
+                            displayName = AppLocalizations.of(
+                              context,
+                            ).lastPlayed;
+                          }
+
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                currentTrack.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                '${AppLocalizations.of(context).playingFrom.toUpperCase()} ${typeLabel.toUpperCase()}',
+                                textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                  color: Colors.white38,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                displayName,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                   color: Colors.white,
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                currentTrack.artist,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                ),
                               ),
                             ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            _favoriteTrackIds.contains(currentTrack.id)
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: _favoriteTrackIds.contains(currentTrack.id)
-                                ? _activeAccentColor
-                                : Colors.white60,
-                            size: 26,
-                          ),
-                          onPressed: () {
-                            final wasFavorited = _favoriteTrackIds.contains(
-                              currentTrack.id,
-                            );
-                            _toggleFavorite(currentTrack.id, currentTrack);
-                            if (wasFavorited) {
-                              final loc = lookupAppLocalizations(
-                                Locale(FleyStrings.currentLang),
-                              );
-                              if (_playingFromName == loc.favourites) {
-                                _removeFromQueueAndPlayer(currentTrack.id);
-                              }
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-
-                    StreamBuilder<Duration>(
-                      stream: _currentPlaybackPositionStream,
-                      builder: (context, snapshot) {
-                        final duration = _currentPlaybackDuration ?? Duration.zero;
-                        final currentPosition = snapshot.data ?? _currentPlaybackPosition;
-
-                        return StatefulBuilder(
-                          builder: (context, setLocalState) {
-                            final displayValue =
-                                _dragValue ??
-                                (duration.inMilliseconds > 0
-                                    ? (currentPosition.inMilliseconds /
-                                              duration.inMilliseconds)
-                                          .clamp(0.0, 1.0)
-                                    : 0.0);
-
-                            final displayPosition = Duration(
-                              milliseconds:
-                                  (displayValue * duration.inMilliseconds)
-                                      .toInt(),
-                            );
-
-                            return Column(
-                              children: [
-                                SliderTheme(
-                                  data: SliderTheme.of(context).copyWith(
-                                    trackShape: const CustomTrackShape(),
-                                    trackHeight: 2.5,
-                                    thumbShape: const RoundSliderThumbShape(
-                                      enabledThumbRadius: 3,
-                                    ),
-                                    activeTrackColor: Colors.white70,
-                                    inactiveTrackColor: Colors.white.withValues(
-                                      alpha: 0.1,
-                                    ),
-                                    overlayColor: Colors.transparent,
-                                    thumbColor: Colors.white,
-                                  ),
-                                  child: Slider(
-                                    value: displayValue,
-                                    onChangeStart: (val) {
-                                      setLocalState(() {
-                                        _dragValue = val;
-                                      });
-                                    },
-                                    onChanged: (val) {
-                                      setLocalState(() {
-                                        _dragValue = val;
-                                      });
-                                    },
-                                    onChangeEnd: (val) {
-                                      final newPosition = Duration(
-                                        milliseconds:
-                                            (val * duration.inMilliseconds)
-                                                .toInt(),
-                                      );
-                                      _smoothSeek(newPosition);
-                                      _dragValue = null;
-                                    },
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4.0,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        _formatDuration(displayPosition),
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.3,
-                                          ),
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                      Text(
-                                        '-${_formatDuration(duration - displayPosition)}',
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.3,
-                                          ),
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 8),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.fast_rewind,
-                            color: Colors.white,
-                            size: 30,
-                          ),
-                          onPressed: () {
-                            _playPrevious();
-                          },
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            if (_isBuffering) {
-                              return;
-                            }
-                            if (_isPlaying) {
-                              _pauseWithFade();
-                            } else {
-                              _playWithFade();
-                            }
-                          },
-                          child: Container(
-                            width: 64,
-                            height: 64,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: _isBuffering
-                                ? const Center(
-                                    child: SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  )
-                                : Icon(
-                                    _isPlaying ? Icons.pause : Icons.play_arrow,
-                                    color: Colors.black,
-                                    size: 32,
-                                  ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.fast_forward,
-                            color: Colors.white,
-                            size: 30,
-                          ),
-                          onPressed: () {
-                            _playNext();
-                          },
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.lyrics_outlined,
-                                color: _showLyrics
-                                    ? _activeAccentColor
-                                    : Colors.white54,
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _showLyrics = !_showLyrics;
-                                  if (_showLyrics) {
-                                    _lastActiveLyricsIndex = -1;
-                                    _lyricsUserScrolling = false;
-                                    _lyricsOpenedTime = DateTime.now();
-                                  }
-                                });
-                                if (_showLyrics) {
-                                  _loadLyricsForTrack(currentTrack);
-                                }
-                              },
-                            ),
-                            if (_showLyrics)
-                              Positioned(
-                                bottom: 10,
-                                child: Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    color: _activeAccentColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.shuffle,
-                                color: _isShuffle
-                                    ? _activeAccentColor
-                                    : Colors.white54,
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _isShuffle = !_isShuffle;
-                                  if (_isShuffle) {
-                                    _shuffledIndices = List.generate(
-                                      _playbackQueue.length,
-                                      (i) => i,
-                                    );
-                                    _shuffledIndices.shuffle();
-                                    _shuffledIndices.remove(_currentIndex);
-                                    _shuffledIndices.insert(0, _currentIndex);
-                                  }
-                                });
-                                _refreshAudioSourceWindow();
-                              },
-                            ),
-                            if (_isShuffle)
-                              Positioned(
-                                bottom: 10,
-                                child: Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    color: _activeAccentColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                _repeatMode == 2
-                                    ? Icons.repeat_one
-                                    : Icons.repeat,
-                                color: _repeatMode != 0
-                                    ? _activeAccentColor
-                                    : Colors.white54,
-                                size: 20,
-                              ),
-                              onPressed: _toggleRepeatMode,
-                            ),
-                            if (_repeatMode != 0)
-                              Positioned(
-                                bottom: 10,
-                                child: Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    color: _activeAccentColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.playlist_play,
-                            color: Colors.white54,
-                            size: 20,
-                          ),
-                          onPressed: () => _showQueueBottomSheet(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                ),
+                          );
+                        },
+                      ),
               ),
+            ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: _showLyrics
+                  ? IconButton(
+                      key: const ValueKey('edit_lyrics_btn'),
+                      icon: const Icon(
+                        Icons.edit_note_rounded,
+                        color: Colors.white70,
+                        size: 26,
+                      ),
+                      tooltip: 'Edit Lyrics',
+                      onPressed: () =>
+                          _showManualLyricsEditor(currentTrack),
+                    )
+                  : IconButton(
+                      key: const ValueKey('more_vert_btn'),
+                      icon: const Icon(
+                        Icons.more_vert,
+                        color: Colors.white54,
+                      ),
+                      onPressed: () => _showTrackOptions(
+                        context,
+                        currentTrack,
+                        isFromPlayer: true,
+                      ),
+                    ),
             ),
           ],
         ),
+      ],
+    );
+
+    if (!enableDrag) return headerContent;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragStart: (_) {
+        _isDraggingPlayerNotifier.value = true;
+      },
+      onVerticalDragUpdate: (details) {
+        if (details.primaryDelta != null && details.primaryDelta! > 0) {
+          final newVal = _playerDragOffsetNotifier.value +
+              details.primaryDelta! / MediaQuery.of(context).size.height;
+          _playerDragOffsetNotifier.value = newVal.clamp(0.0, 1.0);
+        }
+      },
+      onVerticalDragEnd: (details) {
+        final offset = _playerDragOffsetNotifier.value;
+        _isDraggingPlayerNotifier.value = false;
+        if (offset > 0.15 || (details.primaryVelocity ?? 0) > 300) {
+          setState(() {
+            _isPlayerOpen = false;
+            _showLyrics = false;
+          });
+        } else {
+          _playerDragOffsetNotifier.value = 0.0;
+        }
+      },
+      onVerticalDragCancel: () {
+        _isDraggingPlayerNotifier.value = false;
+        _playerDragOffsetNotifier.value = 0.0;
+      },
+      child: headerContent,
+    );
+  }
+
+  Widget _buildArtworkOrLyricsArea(Track currentTrack) {
+    return Stack(
+      children: [
+        AnimatedOpacity(
+          opacity: _showLyrics ? 0.0 : 1.0,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut,
+          child: IgnorePointer(
+            ignoring: _showLyrics,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _showLyrics = true;
+                  _lastActiveLyricsIndex = -1;
+                  _lyricsUserScrolling = false;
+                  _lyricsOpenedTime = DateTime.now();
+                });
+                _loadLyricsForTrack(currentTrack);
+              },
+              child: AnimatedScale(
+                scale: _isPlayerOpen ? 1.0 : 0.35,
+                duration: const Duration(milliseconds: 380),
+                curve: Curves.easeOutQuint,
+                alignment: const Alignment(-0.85, 0.95),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12.0,
+                    ),
+                    child: AspectRatio(
+                      aspectRatio: 1.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              blurRadius: 35,
+                              offset: const Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: _buildTrackArtwork(
+                            currentTrack,
+                            size: MediaQuery.of(context).size.width * 0.85,
+                            radius: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        AnimatedOpacity(
+          opacity: _showLyrics ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut,
+          child: IgnorePointer(
+            ignoring: !_showLyrics,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: _buildLyricsContent(currentTrack),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTrackTitleAndFavorite(Track currentTrack) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                currentTrack.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                currentTrack.artist,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.white.withValues(alpha: 0.4),
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          icon: Icon(
+            _favoriteTrackIds.contains(currentTrack.id)
+                ? Icons.favorite
+                : Icons.favorite_border,
+            color: _favoriteTrackIds.contains(currentTrack.id)
+                ? _activeAccentColor
+                : Colors.white60,
+            size: 26,
+          ),
+          onPressed: () {
+            final wasFavorited = _favoriteTrackIds.contains(
+              currentTrack.id,
+            );
+            _toggleFavorite(currentTrack.id, currentTrack);
+            if (wasFavorited) {
+              final loc = lookupAppLocalizations(
+                Locale(FleyStrings.currentLang),
+              );
+              if (_playingFromName == loc.favourites) {
+                _removeFromQueueAndPlayer(currentTrack.id);
+              }
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlayerProgressBar() {
+    return StreamBuilder<Duration>(
+      stream: _currentPlaybackPositionStream,
+      builder: (context, snapshot) {
+        final duration = _currentPlaybackDuration ?? Duration.zero;
+        final currentPosition = snapshot.data ?? _currentPlaybackPosition;
+
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            final displayValue =
+                _dragValue ??
+                (duration.inMilliseconds > 0
+                    ? (currentPosition.inMilliseconds /
+                              duration.inMilliseconds)
+                          .clamp(0.0, 1.0)
+                    : 0.0);
+
+            final displayPosition = Duration(
+              milliseconds:
+                  (displayValue * duration.inMilliseconds).toInt(),
+            );
+
+            return Column(
+              children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackShape: const CustomTrackShape(),
+                    trackHeight: 2.5,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 3,
+                    ),
+                    activeTrackColor: Colors.white70,
+                    inactiveTrackColor: Colors.white.withValues(
+                      alpha: 0.1,
+                    ),
+                    overlayColor: Colors.transparent,
+                    thumbColor: Colors.white,
+                  ),
+                  child: Slider(
+                    value: displayValue,
+                    onChanged: (val) {
+                      setLocalState(() {
+                        _dragValue = val;
+                      });
+                    },
+                    onChangeEnd: (val) {
+                      final newPosition = Duration(
+                        milliseconds:
+                            (val * duration.inMilliseconds).toInt(),
+                      );
+                      _smoothSeek(newPosition);
+                      _dragValue = null;
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _formatDuration(displayPosition),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          fontSize: 11,
+                        ),
+                      ),
+                      Text(
+                        '-${_formatDuration(duration - displayPosition)}',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPlayerMainControls() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        IconButton(
+          icon: const Icon(
+            Icons.fast_rewind,
+            color: Colors.white,
+            size: 30,
+          ),
+          onPressed: () {
+            _playPrevious();
+          },
+        ),
+        GestureDetector(
+          onTap: () {
+            if (_isBuffering) {
+              return;
+            }
+            if (_isPlaying) {
+              _pauseWithFade();
+            } else {
+              _playWithFade();
+            }
+          },
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: _isBuffering
+                ? const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.black,
+                      ),
+                    ),
+                  )
+                : Icon(
+                    _isPlaying ? Icons.pause : Icons.play_arrow,
+                    color: Colors.black,
+                    size: 32,
+                  ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(
+            Icons.fast_forward,
+            color: Colors.white,
+            size: 30,
+          ),
+          onPressed: () {
+            _playNext();
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlayerSecondaryActions(Track currentTrack) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              icon: Icon(
+                Icons.lyrics_outlined,
+                color: _showLyrics ? _activeAccentColor : Colors.white54,
+                size: 20,
+              ),
+              onPressed: () {
+                setState(() {
+                  _showLyrics = !_showLyrics;
+                  if (_showLyrics) {
+                    _lastActiveLyricsIndex = -1;
+                    _lyricsUserScrolling = false;
+                    _lyricsOpenedTime = DateTime.now();
+                  }
+                });
+                if (_showLyrics) {
+                  _loadLyricsForTrack(currentTrack);
+                }
+              },
+            ),
+            if (_showLyrics)
+              Positioned(
+                bottom: 10,
+                child: Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _activeAccentColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              icon: Icon(
+                Icons.shuffle,
+                color: _isShuffle ? _activeAccentColor : Colors.white54,
+                size: 20,
+              ),
+              onPressed: () {
+                setState(() {
+                  _isShuffle = !_isShuffle;
+                  if (_isShuffle) {
+                    _shuffledIndices = List.generate(
+                      _playbackQueue.length,
+                      (i) => i,
+                    );
+                    _shuffledIndices.shuffle();
+                    _shuffledIndices.remove(_currentIndex);
+                    _shuffledIndices.insert(0, _currentIndex);
+                  }
+                });
+                _refreshAudioSourceWindow();
+              },
+            ),
+            if (_isShuffle)
+              Positioned(
+                bottom: 10,
+                child: Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _activeAccentColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              icon: Icon(
+                _repeatMode == 2 ? Icons.repeat_one : Icons.repeat,
+                color: _repeatMode != 0 ? _activeAccentColor : Colors.white54,
+                size: 20,
+              ),
+              onPressed: _toggleRepeatMode,
+            ),
+            if (_repeatMode != 0)
+              Positioned(
+                bottom: 10,
+                child: Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _activeAccentColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        IconButton(
+          icon: const Icon(
+            Icons.playlist_play,
+            color: Colors.white54,
+            size: 20,
+          ),
+          onPressed: () => _showQueueBottomSheet(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMainPlayerColumn(
+    Track currentTrack, {
+    required bool isOnlineTrack,
+    required double safeHeight,
+  }) {
+    return Column(
+      children: [
+        _buildPlayerTopHeader(currentTrack, enableDrag: isOnlineTrack),
+        Expanded(
+          child: _buildArtworkOrLyricsArea(currentTrack),
+        ),
+        _buildTrackTitleAndFavorite(currentTrack),
+        const SizedBox(height: 18),
+        _buildPlayerProgressBar(),
+        const SizedBox(height: 8),
+        _buildPlayerMainControls(),
+        const SizedBox(height: 16),
+        _buildPlayerSecondaryActions(currentTrack),
+        GestureDetector(
+          onTap: () {
+            if (_playerScrollController.hasClients) {
+              _playerScrollController.animateTo(
+                safeHeight * 0.75,
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeOutCubic,
+              );
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: Colors.white30,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  isOnlineTrack
+                      ? (FleyStrings.currentLang == 'id'
+                          ? 'Kredit & Populer'
+                          : 'Credits & Popular')
+                      : (FleyStrings.currentLang == 'id'
+                          ? 'Info & Lagu Terkait'
+                          : 'Info & Related Songs'),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white38,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _fetchArtistExploreTracks(Track track) async {
+    final artistKey = track.artist.trim();
+    if (artistKey.isEmpty ||
+        artistKey == '<unknown>' ||
+        _loadingArtistExplore[artistKey] == true) {
+      return;
+    }
+    _loadingArtistExplore[artistKey] = true;
+    try {
+      final ytracks = await YtMusicService.getArtistTracks(
+        track.artist,
+        browseId: track.artistBrowseId,
+        limit: 10,
+      );
+      final converted = ytracks.map((y) {
+        final t = Track(
+          id: 'ytm_${y.videoId}',
+          title: y.title,
+          artist: y.artist.isNotEmpty ? y.artist : track.artist,
+          album: y.album.isNotEmpty ? y.album : track.artist,
+          url: y.thumbnailUrl,
+          path: y.videoId,
+          lyrics: const [],
+          duration: y.durationMs,
+          artistBrowseId: y.artistBrowseId ?? track.artistBrowseId,
+          albumBrowseId: y.albumBrowseId,
+        );
+        _onlineTracksMap[t.id] = t;
+        return t;
+      }).toList();
+      if (mounted) {
+        setState(() {
+          _cachedArtistExploreTracks[artistKey] = converted;
+          _loadingArtistExplore[artistKey] = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadingArtistExplore[artistKey] = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildCreditsCard(Track currentTrack) {
+    final isId = FleyStrings.currentLang == 'id';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+          isId ? 'Kredit' : 'Credits',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: _activeAccentColor.withValues(alpha: 0.2),
+                backgroundImage: currentTrack.url.startsWith('http')
+                    ? NetworkImage(currentTrack.url)
+                    : null,
+                child: !currentTrack.url.startsWith('http')
+                    ? Text(
+                        currentTrack.artist.isNotEmpty
+                            ? currentTrack.artist[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          color: _activeAccentColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      currentTrack.artist,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isId ? 'Artis Utama' : 'Main Artist',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton(
+                onPressed: () => _openOnlineArtist(
+                  currentTrack.artist,
+                  browseId: currentTrack.artistBrowseId,
+                  coverUrl: currentTrack.url,
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: Text(
+                  isId ? 'Lihat Artis' : 'View Artist',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (currentTrack.album.isNotEmpty &&
+              currentTrack.album != currentTrack.artist &&
+              currentTrack.album != currentTrack.title) ...[
+            const SizedBox(height: 12),
+            Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentTrack.album,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isId ? 'Rilis / Album' : 'Release / Album',
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPopularByArtistSection(Track currentTrack) {
+    final isId = FleyStrings.currentLang == 'id';
+    final artistKey = currentTrack.artist.trim();
+    final popularTracks = _cachedArtistExploreTracks[artistKey] ?? [];
+    final isLoading = _loadingArtistExplore[artistKey] == true;
+
+    if (!isLoading && popularTracks.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isId
+              ? 'Populer dari ${currentTrack.artist}'
+              : 'Popular by ${currentTrack.artist}',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 10),
+        if (isLoading)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _activeAccentColor,
+                ),
+              ),
+            ),
+          )
+        else
+          Column(
+            children: popularTracks.take(4).map((track) {
+              final isCurrent = track.id == currentTrack.id;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: isCurrent
+                      ? _activeAccentColor.withValues(alpha: 0.15)
+                      : Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isCurrent
+                        ? _activeAccentColor.withValues(alpha: 0.4)
+                        : Colors.white.withValues(alpha: 0.05),
+                  ),
+                ),
+                child: ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 2,
+                  ),
+                  leading: _buildTrackArtwork(track, size: 44, radius: 8),
+                  title: Text(
+                    track.title,
+                    style: TextStyle(
+                      color: isCurrent ? _activeAccentColor : Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    track.duration > 0
+                        ? '${track.artist} • ${_formatDuration(Duration(milliseconds: track.duration))}'
+                        : track.artist,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.more_vert,
+                      color: Colors.white54,
+                      size: 20,
+                    ),
+                    onPressed: () => _showTrackOptions(
+                      context,
+                      track,
+                      isFromPlayer: true,
+                    ),
+                  ),
+                  onTap: () {
+                    final idx = popularTracks.indexOf(track);
+                    _playingFromType = 'ARTIST';
+                    _playingFromName = currentTrack.artist;
+                    _playTrack(
+                      idx != -1 ? idx : 0,
+                      sourceList: popularTracks,
+                    );
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLocalArtistAndAlbumCard(Track currentTrack) {
+    final isId = FleyStrings.currentLang == 'id';
+    final artistClean = currentTrack.artist.trim();
+    final hasArtist = artistClean.isNotEmpty &&
+        artistClean != '<unknown>' &&
+        artistClean.toLowerCase() != 'unknown artist';
+    final artistSongs = hasArtist
+        ? _allTracks
+            .where((t) =>
+                t.artist.trim().toLowerCase() == artistClean.toLowerCase())
+            .toList()
+        : <Track>[];
+    final int songCount = artistSongs.length;
+
+    final albumClean = currentTrack.album.trim();
+    final hasAlbum = albumClean.isNotEmpty &&
+        albumClean != '<unknown>' &&
+        albumClean.toLowerCase() != 'unknown album' &&
+        albumClean.toLowerCase() != artistClean.toLowerCase();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isId ? 'Artis & Album' : 'Artist & Album',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: _activeAccentColor.withValues(alpha: 0.2),
+                child: Text(
+                  hasArtist ? artistClean[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    color: _activeAccentColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasArtist
+                          ? currentTrack.artist
+                          : (isId ? 'Artis Tidak Diketahui' : 'Unknown Artist'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      songCount > 0
+                          ? '$songCount ${isId ? 'lagu di perangkat' : 'songs on device'}'
+                          : (isId ? 'Artis Lokal' : 'Local Artist'),
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasArtist)
+                OutlinedButton(
+                  onPressed: () {
+                    setState(() {
+                      _isPlayerOpen = false;
+                      _showLyrics = false;
+                      _selectedOnlineDetail = null;
+                      _selectedOnlinePlaylist = null;
+                      _selectedAlbumDetail = null;
+                      _selectedPlaylistDetail = null;
+                      _selectedArtistDetail = currentTrack.artist;
+                      _searchQuery = '';
+                      _searchController.clear();
+                      _detailColorFuture = _getDetailColor(currentTrack);
+                    });
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: Text(
+                    isId ? 'Lihat Artis' : 'View Artist',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (hasAlbum) ...[
+            const SizedBox(height: 12),
+            Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentTrack.album,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isId ? 'Album Lokal' : 'Local Album',
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: () {
+                    setState(() {
+                      _isPlayerOpen = false;
+                      _showLyrics = false;
+                      _selectedOnlineDetail = null;
+                      _selectedOnlinePlaylist = null;
+                      _selectedArtistDetail = null;
+                      _selectedPlaylistDetail = null;
+                      _selectedAlbumDetail = currentTrack.album;
+                      _searchQuery = '';
+                      _searchController.clear();
+                      _detailColorFuture = _getDetailColor(currentTrack);
+                    });
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: Text(
+                    isId ? 'Lihat Album' : 'View Album',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocalMoreFromArtistSection(Track currentTrack) {
+    final isId = FleyStrings.currentLang == 'id';
+    final artistClean = currentTrack.artist.trim().toLowerCase();
+    if (artistClean.isEmpty ||
+        artistClean == '<unknown>' ||
+        artistClean == 'unknown artist') {
+      return const SizedBox.shrink();
+    }
+
+    final moreSongs = _allTracks
+        .where((t) =>
+            t.artist.trim().toLowerCase() == artistClean &&
+            t.id != currentTrack.id)
+        .take(4)
+        .toList();
+
+    if (moreSongs.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final fullArtistList = _allTracks
+        .where((t) => t.artist.trim().toLowerCase() == artistClean)
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isId
+              ? 'Lainnya dari ${currentTrack.artist}'
+              : 'More by ${currentTrack.artist}',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 10),
+        Column(
+          children: moreSongs.map((track) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.05),
+                ),
+              ),
+              child: ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 2,
+                ),
+                leading: _buildTrackArtwork(track, size: 44, radius: 8),
+                title: Text(
+                  track.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  track.duration > 0
+                      ? '${track.artist} • ${_formatDuration(Duration(milliseconds: track.duration))}'
+                      : track.artist,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: IconButton(
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
+                  onPressed: () => _showTrackOptions(
+                    context,
+                    track,
+                    isFromPlayer: true,
+                  ),
+                ),
+                onTap: () {
+                  final idx = fullArtistList.indexOf(track);
+                  _playingFromType = 'ARTIST';
+                  _playingFromName = currentTrack.artist;
+                  _playTrack(
+                    idx != -1 ? idx : 0,
+                    sourceList: fullArtistList,
+                  );
+                },
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocalAudioFileSpecsCard(Track currentTrack) {
+    final isId = FleyStrings.currentLang == 'id';
+
+    String ext = '';
+    if (currentTrack.path.contains('.')) {
+      ext = currentTrack.path.split('.').last.toUpperCase();
+    }
+    if (ext.isEmpty || ext.length > 5) ext = 'AUDIO';
+
+    String fileSizeStr = '';
+    String folderName = '';
+    try {
+      final file = File(currentTrack.path);
+      if (file.existsSync()) {
+        final bytes = file.lengthSync();
+        if (bytes >= 1024 * 1024) {
+          fileSizeStr = '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+        } else {
+          fileSizeStr = '${(bytes / 1024).toStringAsFixed(0)} KB';
+        }
+        folderName = file.parent.path.split(Platform.pathSeparator).last;
+      }
+    } catch (_) {}
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isId ? 'Info Berkas & Audio' : 'Audio & File Specs',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: _activeAccentColor.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _activeAccentColor.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Text(
+                  ext,
+                  style: TextStyle(
+                    color: _activeAccentColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              if (fileSizeStr.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  child: Text(
+                    fileSizeStr,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              if (currentTrack.duration > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  child: Text(
+                    _formatDuration(
+                      Duration(milliseconds: currentTrack.duration),
+                    ),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (folderName.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(
+                  Icons.folder_open_rounded,
+                  size: 16,
+                  color: Colors.white38,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    folderName,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _showSongInfoModal(context, currentTrack),
+                  icon: const Icon(Icons.info_outline_rounded, size: 16),
+                  label: Text(isId ? 'Info Lengkap' : 'Full Info'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      _showEditMetadataModal(context, currentTrack),
+                  icon: const Icon(Icons.edit_note_rounded, size: 16),
+                  label: Text(isId ? 'Edit Tag' : 'Edit Tags'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFullScreenPlayer(Track currentTrack) {
+    final bool isOnlineTrack = currentTrack.id.startsWith('ytm_');
+    if (isOnlineTrack) {
+      final artistKey = currentTrack.artist.trim();
+      if (artistKey.isNotEmpty &&
+          artistKey != '<unknown>' &&
+          !_cachedArtistExploreTracks.containsKey(artistKey) &&
+          _loadingArtistExplore[artistKey] != true) {
+        _fetchArtistExploreTracks(currentTrack);
+      }
+    }
+
+    final mediaQuery = MediaQuery.of(context);
+    final double safeHeight = max(
+      mediaQuery.size.height -
+          mediaQuery.padding.top -
+          mediaQuery.padding.bottom,
+      520.0,
+    );
+    final backgroundWidget = _buildPlayerBackground(currentTrack);
+
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
+        children: [
+          backgroundWidget,
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Listener(
+                onPointerDown: (event) {
+                  _playerDismissStartY = event.position.dy;
+                  _isPlayerPullDismissing = false;
+                },
+                onPointerMove: (event) {
+                  final dy = event.position.dy - _playerDismissStartY;
+                  final isAtTop = !_playerScrollController.hasClients ||
+                      _playerScrollController.position.pixels <= 0.0;
+
+                  if (isAtTop && dy > 0) {
+                    _isPlayerPullDismissing = true;
+                    _isDraggingPlayerNotifier.value = true;
+                    final newVal =
+                        (dy / mediaQuery.size.height).clamp(0.0, 1.0);
+                    _playerDragOffsetNotifier.value = newVal;
+                  } else if (!isAtTop) {
+                    _playerDismissStartY = event.position.dy;
+                    if (_isPlayerPullDismissing) {
+                      _isPlayerPullDismissing = false;
+                      _isDraggingPlayerNotifier.value = false;
+                      _playerDragOffsetNotifier.value = 0.0;
+                    }
+                  }
+                },
+                onPointerUp: (event) {
+                  if (_isPlayerPullDismissing) {
+                    _isPlayerPullDismissing = false;
+                    _isDraggingPlayerNotifier.value = false;
+                    if (_playerDragOffsetNotifier.value > 0.12) {
+                      _playerDragOffsetNotifier.value = 0.0;
+                      setState(() {
+                        _isPlayerOpen = false;
+                        _showLyrics = false;
+                      });
+                    } else {
+                      _playerDragOffsetNotifier.value = 0.0;
+                    }
+                  }
+                },
+                onPointerCancel: (event) {
+                  if (_isPlayerPullDismissing) {
+                    _isPlayerPullDismissing = false;
+                    _isDraggingPlayerNotifier.value = false;
+                    _playerDragOffsetNotifier.value = 0.0;
+                  }
+                },
+                child: SingleChildScrollView(
+                  controller: _playerScrollController,
+                  physics: const ClampingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: safeHeight,
+                        child: _buildMainPlayerColumn(
+                          currentTrack,
+                          isOnlineTrack: isOnlineTrack,
+                          safeHeight: safeHeight,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      if (isOnlineTrack) ...[
+                        _buildCreditsCard(currentTrack),
+                        const SizedBox(height: 24),
+                        _buildPopularByArtistSection(currentTrack),
+                      ] else ...[
+                        _buildLocalArtistAndAlbumCard(currentTrack),
+                        const SizedBox(height: 24),
+                        _buildLocalMoreFromArtistSection(currentTrack),
+                        const SizedBox(height: 24),
+                        _buildLocalAudioFileSpecsCard(currentTrack),
+                      ],
+                      SizedBox(height: 48 + mediaQuery.padding.bottom),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

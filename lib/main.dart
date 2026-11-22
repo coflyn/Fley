@@ -392,6 +392,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final OnAudioQuery _audioQuery = OnAudioQuery();
   final ScrollController _lyricsScrollController = ScrollController();
   final ScrollController _detailScrollController = ScrollController();
+  final ScrollController _playerScrollController = ScrollController();
+  double _playerDismissStartY = 0.0;
+  bool _isPlayerPullDismissing = false;
+  final Map<String, List<Track>> _cachedArtistExploreTracks = {};
+  final Map<String, bool> _loadingArtistExplore = {};
   final ValueNotifier<int> _sleepTimerNotifier = ValueNotifier<int>(0);
   Timer? _sleepTimer;
   bool _sleepAtEndOfTrack = false;
@@ -917,6 +922,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _lyricsResumeTimer?.cancel();
     _lyricsScrollController.dispose();
     _detailScrollController.dispose();
+    _playerScrollController.dispose();
     _pageController.dispose();
     _rootNavPageController.dispose();
     super.dispose();

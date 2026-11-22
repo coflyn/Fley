@@ -231,6 +231,9 @@ extension _AudioPlaybackLogic on _MainScreenState {
     setState(() {
       _currentIndex = index;
       _playingTrack = track;
+      if (_playerScrollController.hasClients) {
+        _playerScrollController.jumpTo(0);
+      }
       _lastIncrementedTrackId = null;
       _hasResetPosition = false;
       _isNaturalFadingOut = false;
