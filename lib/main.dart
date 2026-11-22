@@ -135,6 +135,8 @@ void main() async {
   final savedFont = prefs.getString('activeFont') ?? 'Plus Jakarta Sans';
   activeFontNotifier.value = savedFont;
   themeModeNotifier.value = prefs.getString('themeMode') ?? 'dark';
+  playlistAddSongPositionNotifier.value =
+      prefs.getString('playlist_add_song_position') ?? 'top';
   customThemeBgNotifier.value = prefs.getString('customThemeBg') ?? 'dynamic';
   languageNotifier.value = prefs.getString('language') ?? 'en';
   fontScaleNotifier.value = prefs.getDouble('fontScale') ?? 1.0;
@@ -520,8 +522,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _currentPageIndex = 0;
   int _currentNavIndex = 0;
 
-  double _tabContentOpacity = 1.0;
-
   void _switchToNavTab(int index) {
     if (_currentNavIndex == 1 && index != 1) {
       _searchFocusNode.unfocus();
@@ -540,18 +540,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       _selectedOnlinePlaylist = null;
       _selectedOnlineDetail = null;
       _currentNavIndex = index;
-      _tabContentOpacity = 0.0;
     });
     if (_rootNavPageController.hasClients) {
       _rootNavPageController.jumpToPage(index);
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() {
-          _tabContentOpacity = 1.0;
-        });
-      }
-    });
   }
 
   List<String> _lastPlayedTrackIds = [];
@@ -1224,29 +1216,24 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     Expanded(
                       child: Stack(
                         children: [
-                          AnimatedOpacity(
-                            opacity: _tabContentOpacity,
-                            duration: const Duration(milliseconds: 160),
-                            curve: Curves.easeOut,
-                            child: PageView(
-                              controller: _rootNavPageController,
-                              physics: (isDetailView || _isPlayerOpen)
-                                  ? const NeverScrollableScrollPhysics()
-                                  : const ClampingScrollPhysics(),
-                              onPageChanged: (index) {
-                                if (_currentNavIndex == 1 && index != 1) {
-                                  _searchFocusNode.unfocus();
-                                }
-                                setState(() {
-                                  _currentNavIndex = index;
-                                });
-                              },
-                              children: [
-                                _KeepAliveWrapper(child: _buildHomeScreen()),
-                                _KeepAliveWrapper(child: _buildSearchTab()),
-                                _KeepAliveWrapper(child: _buildLibraryTab()),
-                              ],
-                            ),
+                          PageView(
+                            controller: _rootNavPageController,
+                            physics: (isDetailView || _isPlayerOpen)
+                                ? const NeverScrollableScrollPhysics()
+                                : const ClampingScrollPhysics(),
+                            onPageChanged: (index) {
+                              if (_currentNavIndex == 1 && index != 1) {
+                                _searchFocusNode.unfocus();
+                              }
+                              setState(() {
+                                _currentNavIndex = index;
+                              });
+                            },
+                            children: [
+                              _KeepAliveWrapper(child: _buildHomeScreen()),
+                              _KeepAliveWrapper(child: _buildSearchTab()),
+                              _KeepAliveWrapper(child: _buildLibraryTab()),
+                            ],
                           ),
                           if (_isLoading && !_showSplash)
                             Positioned.fill(

@@ -80,11 +80,22 @@ extension _PlaylistManageUI on _MainScreenState {
                         int addedCount = 0;
                         int skippedCount = 0;
                         setState(() {
+                          final addToTop =
+                              playlistAddSongPositionNotifier.value == 'top';
+                          int insertIndex = 0;
                           for (final track in tracksToAdd) {
                             if (!_userPlaylists[playlistName]!.contains(
                               track.id,
                             )) {
-                              _userPlaylists[playlistName]!.add(track.id);
+                              if (addToTop) {
+                                _userPlaylists[playlistName]!.insert(
+                                  insertIndex,
+                                  track.id,
+                                );
+                                insertIndex++;
+                              } else {
+                                _userPlaylists[playlistName]!.add(track.id);
+                              }
                               addedCount++;
                               if (_MainScreenState
                                       .mainScreenState!

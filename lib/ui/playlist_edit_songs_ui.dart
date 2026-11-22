@@ -6,6 +6,7 @@ extension _PlaylistEditSongsUI on _MainScreenState {
     BuildContext context, {
     required List<Track> candidateTracks,
     String? predefinedTargetPlaylist,
+    bool isFavouritesTarget = false,
   }) {
     Set<String> selectedTrackIds = {};
 
@@ -68,10 +69,72 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                                               selectedTrackIds.contains(t.id),
                                         )
                                         .toList();
-                                    if (predefinedTargetPlaylist != null) {
+                                    if (isFavouritesTarget) {
                                       setState(() {
-                                        _userPlaylists[predefinedTargetPlaylist]!
-                                            .addAll(selectedTrackIds);
+                                        final addToTop =
+                                            playlistAddSongPositionNotifier
+                                                    .value ==
+                                                'top';
+                                        final newIds = selectedTrackIds
+                                            .where(
+                                              (id) => !_favoriteTrackIds
+                                                  .contains(id),
+                                            )
+                                            .toList();
+                                        if (addToTop) {
+                                          final currentList =
+                                              _favoriteTrackIds.toList();
+                                          _favoriteTrackIds.clear();
+                                          _favoriteTrackIds.addAll(newIds);
+                                          _favoriteTrackIds.addAll(currentList);
+                                        } else {
+                                          _favoriteTrackIds.addAll(newIds);
+                                        }
+                                        _cachedDetailKey = null;
+                                      });
+                                      SharedPreferences.getInstance().then(
+                                        (prefs) {
+                                          prefs.setStringList(
+                                            'favorite_track_ids',
+                                            _favoriteTrackIds.toList(),
+                                          );
+                                        },
+                                      );
+                                      showFleyToast(
+                                        AppLocalizations.of(context)
+                                            .toastAddedSongsToSimple
+                                            .replaceFirst(
+                                              '{}',
+                                              '${selectedTrackIds.length}',
+                                            )
+                                            .replaceFirst(
+                                              '{}',
+                                              AppLocalizations.of(context)
+                                                  .favourites,
+                                            ),
+                                      );
+                                    } else if (predefinedTargetPlaylist != null) {
+                                      setState(() {
+                                        final addToTop =
+                                            playlistAddSongPositionNotifier
+                                                    .value ==
+                                                'top';
+                                        final newIds = selectedTrackIds
+                                            .where(
+                                              (id) => !_userPlaylists[
+                                                      predefinedTargetPlaylist]!
+                                                  .contains(id),
+                                            )
+                                            .toList();
+                                        if (addToTop) {
+                                          _userPlaylists[
+                                                  predefinedTargetPlaylist]!
+                                              .insertAll(0, newIds);
+                                        } else {
+                                          _userPlaylists[
+                                                  predefinedTargetPlaylist]!
+                                              .addAll(newIds);
+                                        }
                                         _cachedDetailKey = null;
                                         _saveUserPlaylists();
                                       });
@@ -95,7 +158,8 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                                     }
                                   },
                             child: Text(
-                              predefinedTargetPlaylist != null
+                              (predefinedTargetPlaylist != null ||
+                                      isFavouritesTarget)
                                   ? AppLocalizations.of(context).save
                                   : AppLocalizations.of(context).next,
                               style: TextStyle(
@@ -475,15 +539,38 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                                 ),
                               ),
                             )
-                          : ListView.builder(
-                              controller: scrollController,
+                          : ReorderableListView.builder(
+                              scrollController: scrollController,
+                              buildDefaultDragHandles: false,
                               itemCount: playlistSongs.length,
+                              onReorder: (oldIndex, newIndex) {
+                                if (oldIndex < newIndex) {
+                                  newIndex -= 1;
+                                }
+                                setModalState(() {
+                                  final item = playlistSongs.removeAt(oldIndex);
+                                  playlistSongs.insert(newIndex, item);
+                                  final id = _userPlaylists[playlistName]!
+                                      .removeAt(oldIndex);
+                                  _userPlaylists[playlistName]!
+                                      .insert(newIndex, id);
+                                  _cachedDetailKey = null;
+                                  _saveUserPlaylists();
+                                });
+                                setState(() {
+                                  _detailSortBy = 'default';
+                                });
+                                SharedPreferences.getInstance().then((prefs) {
+                                  prefs.setString('detailSortBy', 'default');
+                                });
+                              },
                               itemBuilder: (context, index) {
                                 final track = playlistSongs[index];
                                 final isSelected = selectedForDeletion.contains(
                                   track.id,
                                 );
                                 return ListTile(
+                                  key: ValueKey('edit_pl_${track.id}_$index'),
                                   onTap: () {
                                     setModalState(() {
                                       if (isSelected) {
@@ -521,18 +608,83 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                                       fontFamily: getFontFamily(_activeFont),
                                     ),
                                   ),
-                                  trailing: Checkbox(
-                                    value: isSelected,
-                                    activeColor: Colors.redAccent,
-                                    onChanged: (val) {
-                                      setModalState(() {
-                                        if (isSelected) {
-                                          selectedForDeletion.remove(track.id);
-                                        } else {
-                                          selectedForDeletion.add(track.id);
-                                        }
-                                      });
-                                    },
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (index > 0)
+                                        Tooltip(
+                                          message: FleyStrings.currentLang == 'id'
+                                              ? 'Pindahkan ke paling awal'
+                                              : 'Move to top',
+                                          child: IconButton(
+                                            icon: const Icon(
+                                              Icons.vertical_align_top_rounded,
+                                              size: 20,
+                                            ),
+                                            color: isLight
+                                                ? Colors.black45
+                                                : Colors.white60,
+                                            onPressed: () {
+                                              setModalState(() {
+                                                final item = playlistSongs
+                                                    .removeAt(index);
+                                                playlistSongs.insert(0, item);
+                                                final id =
+                                                    _userPlaylists[playlistName]!
+                                                        .removeAt(index);
+                                                _userPlaylists[playlistName]!
+                                                    .insert(0, id);
+                                                _cachedDetailKey = null;
+                                                _saveUserPlaylists();
+                                              });
+                                              setState(() {
+                                                _detailSortBy = 'default';
+                                              });
+                                              SharedPreferences.getInstance()
+                                                  .then((prefs) {
+                                                prefs.setString(
+                                                  'detailSortBy',
+                                                  'default',
+                                                );
+                                              });
+                                              showFleyToast(
+                                                FleyStrings.currentLang == 'id'
+                                                    ? 'Lagu dipindahkan ke paling awal'
+                                                    : 'Song moved to top',
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      Checkbox(
+                                        value: isSelected,
+                                        activeColor: Colors.redAccent,
+                                        onChanged: (val) {
+                                          setModalState(() {
+                                            if (isSelected) {
+                                              selectedForDeletion
+                                                  .remove(track.id);
+                                            } else {
+                                              selectedForDeletion.add(track.id);
+                                            }
+                                          });
+                                        },
+                                      ),
+                                      ReorderableDragStartListener(
+                                        index: index,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                          ),
+                                          child: Icon(
+                                            Icons.drag_handle_rounded,
+                                            color: isLight
+                                                ? Colors.black38
+                                                : Colors.white38,
+                                            size: 22,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 );
                               },

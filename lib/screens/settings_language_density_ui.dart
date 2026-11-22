@@ -430,4 +430,140 @@ extension SettingsLanguageDensityModals on _SettingsScreenState {
       },
     );
   }
+
+  void _showPlaylistAddPositionDialog() {
+    final isLight = _selectedThemeMode == 'light';
+    final isId = FleyStrings.currentLang == 'id';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isLight
+          ? const Color(0xFFF0F0F3)
+          : const Color(0xFF161616),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isLight ? Colors.black12 : Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Text(
+                  isId
+                      ? 'Posisi Lagu Baru di Playlist'
+                      : 'New Song Position in Playlist',
+                  style: TextStyle(
+                    color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Divider(
+                color: isLight ? Colors.black12 : Colors.white10,
+                height: 1,
+              ),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 4,
+                ),
+                leading: Icon(
+                  Icons.vertical_align_top_rounded,
+                  color: playlistAddSongPositionNotifier.value == 'top'
+                      ? _activeAccentColor
+                      : (isLight ? Colors.black54 : Colors.white54),
+                ),
+                title: Text(
+                  isId ? 'Paling Awal (Atas)' : 'Top (First)',
+                  style: TextStyle(
+                    color: playlistAddSongPositionNotifier.value == 'top'
+                        ? _activeAccentColor
+                        : (isLight ? const Color(0xFF1A1A1A) : Colors.white),
+                    fontWeight: playlistAddSongPositionNotifier.value == 'top'
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+                subtitle: Text(
+                  isId
+                      ? 'Lagu baru ditaruh di urutan paling atas'
+                      : 'New songs are placed at the beginning',
+                  style: TextStyle(
+                    color: isLight ? Colors.black54 : Colors.white54,
+                    fontSize: 12,
+                  ),
+                ),
+                trailing: playlistAddSongPositionNotifier.value == 'top'
+                    ? Icon(Icons.check, color: _activeAccentColor)
+                    : null,
+                onTap: () async {
+                  playlistAddSongPositionNotifier.value = 'top';
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('playlist_add_song_position', 'top');
+                  if (mounted) Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 4,
+                ),
+                leading: Icon(
+                  Icons.vertical_align_bottom_rounded,
+                  color: playlistAddSongPositionNotifier.value == 'bottom'
+                      ? _activeAccentColor
+                      : (isLight ? Colors.black54 : Colors.white54),
+                ),
+                title: Text(
+                  isId ? 'Paling Akhir (Bawah)' : 'Bottom (Last)',
+                  style: TextStyle(
+                    color: playlistAddSongPositionNotifier.value == 'bottom'
+                        ? _activeAccentColor
+                        : (isLight ? const Color(0xFF1A1A1A) : Colors.white),
+                    fontWeight:
+                        playlistAddSongPositionNotifier.value == 'bottom'
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                  ),
+                ),
+                subtitle: Text(
+                  isId
+                      ? 'Lagu baru ditambahkan di urutan paling bawah'
+                      : 'New songs are placed at the end',
+                  style: TextStyle(
+                    color: isLight ? Colors.black54 : Colors.white54,
+                    fontSize: 12,
+                  ),
+                ),
+                trailing: playlistAddSongPositionNotifier.value == 'bottom'
+                    ? Icon(Icons.check, color: _activeAccentColor)
+                    : null,
+                onTap: () async {
+                  playlistAddSongPositionNotifier.value = 'bottom';
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('playlist_add_song_position', 'bottom');
+                  if (mounted) Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }

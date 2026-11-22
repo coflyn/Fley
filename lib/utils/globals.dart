@@ -60,6 +60,8 @@ final ValueNotifier<String> playerBackgroundStyleNotifier =
     ValueNotifier<String>('gradient');
 final ValueNotifier<String> detailViewBackgroundStyleNotifier =
     ValueNotifier<String>('gradient');
+final ValueNotifier<String> playlistAddSongPositionNotifier =
+    ValueNotifier<String>('top');
 final ValueNotifier<String?> homeBannerPathNotifier =
     ValueNotifier<String?>(null);
 final ValueNotifier<bool> showHomeBannerNotifier = ValueNotifier<bool>(true);

@@ -1032,6 +1032,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _songsFuture = null;
                 },
               ),
+              ValueListenableBuilder<String>(
+                valueListenable: playlistAddSongPositionNotifier,
+                builder: (context, position, child) {
+                  final isId = FleyStrings.currentLang == 'id';
+                  return SettingsPremiumListTile(
+                    isLight: _selectedThemeMode == 'light',
+                    activeAccentColor: _activeAccentColor,
+                    icon: Icons.playlist_add_rounded,
+                    title: isId
+                        ? 'Posisi Lagu Baru di Playlist'
+                        : 'New Song Position in Playlist',
+                    subtitle: position == 'top'
+                        ? (isId ? 'Paling Awal (Atas)' : 'Top (First)')
+                        : (isId ? 'Paling Akhir (Bawah)' : 'Bottom (Last)'),
+                    onTap: () => _showPlaylistAddPositionDialog(),
+                  );
+                },
+              ),
               SettingsPremiumListTile(
                 isLight: _selectedThemeMode == 'light',
                 activeAccentColor: _activeAccentColor,

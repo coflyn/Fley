@@ -244,7 +244,31 @@ extension _TrackOptionsUI on _MainScreenState {
                         : (isLight ? Colors.black54 : Colors.white70),
                   ),
                   if (playlistContext != null &&
-                      _userPlaylists.containsKey(playlistContext))
+                      _userPlaylists.containsKey(playlistContext)) ...[
+                    if ((_userPlaylists[playlistContext]?.indexOf(track.id) ?? 0) > 0)
+                      _buildOptionItem(
+                        Icons.vertical_align_top_rounded,
+                        FleyStrings.currentLang == 'id'
+                            ? 'Pindahkan ke paling awal'
+                            : 'Move to top',
+                        () async {
+                          Navigator.pop(context);
+                          setState(() {
+                            _userPlaylists[playlistContext]!.remove(track.id);
+                            _userPlaylists[playlistContext]!.insert(0, track.id);
+                            _cachedDetailKey = null;
+                            _detailSortBy = 'default';
+                            _saveUserPlaylists();
+                          });
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('detailSortBy', 'default');
+                          showFleyToast(
+                            FleyStrings.currentLang == 'id'
+                                ? 'Lagu dipindahkan ke paling awal'
+                                : 'Song moved to top',
+                          );
+                        },
+                      ),
                     _buildOptionItem(
                       Icons.remove_circle_outline,
                       AppLocalizations.of(context).removeFromPlaylist,
@@ -267,6 +291,7 @@ extension _TrackOptionsUI on _MainScreenState {
                       },
                       iconColor: Colors.redAccent,
                     ),
+                  ],
                   _buildOptionItem(
                     Icons.album_outlined,
                     AppLocalizations.of(context).goToAlbum,
@@ -694,9 +719,11 @@ extension _TrackOptionsUI on _MainScreenState {
     if (fileBaseName.isEmpty) {
       fileBaseName = 'ytm_$videoId';
     }
-    final audioFile = File('${dir.path}/$fileBaseName.m4a');
+    final audioFileM4a = File('${dir.path}/$fileBaseName.m4a');
+    final audioFileOpus = File('${dir.path}/$fileBaseName.opus');
 
-    if (await audioFile.exists() && (await audioFile.length()) > 0) {
+    if ((await audioFileM4a.exists() && (await audioFileM4a.length()) > 0) ||
+        (await audioFileOpus.exists() && (await audioFileOpus.length()) > 0)) {
       showFleyToast(
         FleyStrings.currentLang == 'id'
             ? '${track.title} sudah diunduh'
