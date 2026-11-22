@@ -1363,10 +1363,35 @@ extension _TabsUI on _MainScreenState {
                   _playTrack(trackIndex, sourceList: list);
                 }
               },
-              leading: _buildTrackArtwork(
-                track,
-                size: _libraryDensity == 'compact' ? 36 : 44,
-                radius: _libraryDensity == 'compact' ? 4 : 6,
+              leading: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  _buildTrackArtwork(
+                    track,
+                    size: _libraryDensity == 'compact' ? 36 : 44,
+                    radius: _libraryDensity == 'compact' ? 4 : 6,
+                  ),
+                  if (isMultiSelected)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _activeAccentColor.withValues(alpha: 0.88),
+                          borderRadius: BorderRadius.circular(
+                            _libraryDensity == 'compact' ? 4 : 6,
+                          ),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.check_rounded,
+                            color: _activeAccentColor.computeLuminance() > 0.4
+                                ? Colors.black
+                                : Colors.white,
+                            size: _libraryDensity == 'compact' ? 18 : 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               title: Text(
                 track.title,
@@ -1418,47 +1443,70 @@ extension _TabsUI on _MainScreenState {
               ),
               trailing: Transform.translate(
                 offset: const Offset(12, 0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isSelected)
-                      SizedBox(
-                        width: 20,
-                        height: 14,
-                        child: MiniMusicVisualizer(
-                          color: _activeAccentColor,
-                          width: 4,
-                          height: 14,
-                          radius: 2,
-                          animate: _isPlaying,
+                child: _multiSelectedTrackIds.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          isMultiSelected
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          color: isMultiSelected
+                              ? _activeAccentColor
+                              : (isAppLight ? Colors.black26 : Colors.white24),
+                          size: 22,
                         ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _toggleMultiSelect(track.id),
                       )
-                    else
-                      Text(
-                        _formatDuration(Duration(milliseconds: track.duration)),
-                        style: TextStyle(
-                          color: isAppLight ? Colors.black45 : Colors.white38,
-                          fontSize: 12,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isSelected)
+                            SizedBox(
+                              width: 20,
+                              height: 14,
+                              child: MiniMusicVisualizer(
+                                color: _activeAccentColor,
+                                width: 4,
+                                height: 14,
+                                radius: 2,
+                                animate: _isPlaying,
+                              ),
+                            )
+                          else
+                            Text(
+                              _formatDuration(
+                                Duration(milliseconds: track.duration),
+                              ),
+                              style: TextStyle(
+                                color: isAppLight
+                                    ? Colors.black45
+                                    : Colors.white38,
+                                fontSize: 12,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: Icon(
+                              Icons.more_vert,
+                              color: isAppLight
+                                  ? Colors.black45
+                                  : Colors.white54,
+                              size: 20,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => _showTrackOptions(
+                              context,
+                              track,
+                              playlistContext: playlistContext,
+                            ),
+                          ),
+                        ],
                       ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: Icon(
-                        Icons.more_vert,
-                        color: isAppLight ? Colors.black45 : Colors.white54,
-                        size: 20,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () => _showTrackOptions(
-                        context,
-                        track,
-                        playlistContext: playlistContext,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ),

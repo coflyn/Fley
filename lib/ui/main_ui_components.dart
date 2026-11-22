@@ -194,74 +194,221 @@ extension _MainUIComponents on _MainScreenState {
     final isLight = isAppLight;
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
     final iconColor = isLight ? Colors.black87 : Colors.white;
+    final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};
+    final isAllSelected =
+        _multiSelectedTrackIds.length >= trackMap.length && trackMap.isNotEmpty;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      color: isLight
-          ? Colors.black.withValues(alpha: 0.05)
-          : _activeAccentColor.withValues(alpha: 0.1),
-      child: Column(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: isLight
+            ? Colors.black.withValues(alpha: 0.03)
+            : Colors.white.withValues(alpha: 0.04),
+        border: Border(
+          bottom: BorderSide(
+            color: (isLight ? Colors.black : Colors.white)
+                .withValues(alpha: 0.06),
+          ),
+        ),
+      ),
+      child: Row(
         children: [
-          Row(
-            children: [
-              IconButton(
-                icon: Icon(Icons.close, color: iconColor),
-                onPressed: _clearMultiSelect,
+          IconButton(
+            icon: Icon(Icons.close_rounded, color: iconColor, size: 22),
+            onPressed: _clearMultiSelect,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '${_multiSelectedTrackIds.length} ${AppLocalizations.of(context).selected}',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+              fontFamily: getFontFamily(activeFontNotifier.value),
+            ),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: _activeAccentColor,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            icon: Icon(
+              isAllSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+              size: 18,
+            ),
+            label: Text(
+              isAllSelected
+                  ? AppLocalizations.of(context).deselectAll
+                  : AppLocalizations.of(context).selectAll,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                fontFamily: getFontFamily(activeFontNotifier.value),
               ),
-              const SizedBox(width: 8),
-              Text(
-                '${_multiSelectedTrackIds.length} ${AppLocalizations.of(context).selected}',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
+            ),
+            onPressed: () {
+              setState(() {
+                if (isAllSelected) {
+                  _multiSelectedTrackIds.clear();
+                } else {
+                  _multiSelectedTrackIds.addAll(trackMap.keys);
+                }
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMultiSelectBottomBar() {
+    final isLight = isAppLight;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final count = _multiSelectedTrackIds.length;
+    final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};
+    final selectedTracks = _multiSelectedTrackIds
+        .where((id) => trackMap.containsKey(id))
+        .map((id) => trackMap[id]!)
+        .toList();
+    final isAllFav = selectedTracks.isNotEmpty &&
+        selectedTracks.every((t) => _favoriteTrackIds.contains(t.id));
+
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+          child: Container(
+            height: 60 + bottomInset,
+            padding: EdgeInsets.only(bottom: bottomInset),
+            decoration: BoxDecoration(
+              color: (isLight ? const Color(0xFFFFFFFF) : const Color(0xFF0F0F12))
+                  .withValues(alpha: 0.94),
+              border: Border(
+                top: BorderSide(
+                  color: (isLight ? Colors.black : Colors.white)
+                      .withValues(alpha: 0.08),
+                  width: 0.8,
                 ),
               ),
-              const Spacer(),
-              IconButton(
-                icon: Icon(Icons.select_all, color: iconColor),
-                onPressed: () {
-                  setState(() {
-                    if (_multiSelectedTrackIds.length == _allTracks.length) {
-                      _multiSelectedTrackIds.clear();
-                    } else {
-                      _multiSelectedTrackIds.addAll(
-                        _allTracks.map((t) => t.id),
-                      );
-                    }
-                  });
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _activeAccentColor,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onPressed: () {
-                    // Collect selected tracks
-                    final selectedTracks = _allTracks
-                        .where((t) => _multiSelectedTrackIds.contains(t.id))
-                        .toList();
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildMultiSelectActionButton(
+                  icon: Icons.play_arrow_rounded,
+                  label: AppLocalizations.of(context).playNext == 'Play Next'
+                      ? 'Play'
+                      : 'Putar',
+                  onTap: () {
+                    if (selectedTracks.isEmpty) return;
+                    _updatePlayingFrom(
+                      type: 'SELECTION',
+                      name: '$count ${AppLocalizations.of(context).selected}',
+                    );
+                    _playTrack(0, sourceList: selectedTracks);
+                    _clearMultiSelect();
+                  },
+                ),
+                _buildMultiSelectActionButton(
+                  icon: Icons.queue_music_rounded,
+                  label: AppLocalizations.of(context).addToQueue,
+                  onTap: () {
+                    if (selectedTracks.isEmpty) return;
+                    _addTracksToQueue(selectedTracks);
+                    showFleyToast(AppLocalizations.of(context).addedSongsToQueue);
+                    _clearMultiSelect();
+                  },
+                ),
+                _buildMultiSelectActionButton(
+                  icon: Icons.playlist_add_rounded,
+                  label: AppLocalizations.of(context).playlist,
+                  onTap: () {
+                    if (selectedTracks.isEmpty) return;
                     _showAddToPlaylistModal(context, selectedTracks);
                     _clearMultiSelect();
                   },
-                  icon: const Icon(Icons.playlist_add),
-                  label: Text(AppLocalizations.of(context).addToPlaylist),
                 ),
-              ),
-            ],
+                _buildMultiSelectActionButton(
+                  icon: isAllFav
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  label: AppLocalizations.of(context).favourites,
+                  iconColor: isAllFav ? _activeAccentColor : null,
+                  onTap: () {
+                    if (selectedTracks.isEmpty) return;
+                    setState(() {
+                      for (final t in selectedTracks) {
+                        if (isAllFav) {
+                          _favoriteTrackIds.remove(t.id);
+                        } else {
+                          _favoriteTrackIds.add(t.id);
+                          if (t.id.startsWith('ytm_')) {
+                            _onlineTracksMap[t.id] = t;
+                          }
+                        }
+                      }
+                    });
+                    SharedPreferences.getInstance().then((prefs) {
+                      prefs.setStringList(
+                        'favorite_track_ids',
+                        _favoriteTrackIds.toList(),
+                      );
+                    });
+                    showFleyToast(
+                      isAllFav
+                          ? AppLocalizations.of(context).removedFromFavourites
+                          : AppLocalizations.of(context).addedToFavourites,
+                    );
+                    _clearMultiSelect();
+                  },
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMultiSelectActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? iconColor,
+  }) {
+    final isLight = isAppLight;
+    final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
+
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: iconColor ?? textColor,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: textColor.withValues(alpha: 0.8),
+                fontFamily: getFontFamily(activeFontNotifier.value),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -194,8 +194,10 @@ extension _PlaylistEditSongsUI on _MainScreenState {
 
   void _showEditPlaylistSongsModal(BuildContext context, String playlistName) {
     final trackIds = _userPlaylists[playlistName] ?? <String>[];
-    final playlistSongs = _allTracks
-        .where((t) => trackIds.contains(t.id))
+    final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};
+    final playlistSongs = trackIds
+        .where((id) => trackMap.containsKey(id))
+        .map((id) => trackMap[id]!)
         .toList();
 
     Set<String> selectedForDeletion = {};
@@ -292,7 +294,12 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                               Navigator.pop(context);
                               _showMultiSelectSongsModal(
                                 context,
-                                candidateTracks: _allTracks,
+                                candidateTracks: [
+                                  ..._allTracks,
+                                  ..._onlineTracksMap.values.where(
+                                    (ot) => !_allTracks.any((t) => t.id == ot.id),
+                                  ),
+                                ],
                                 predefinedTargetPlaylist: playlistName,
                               );
                             },

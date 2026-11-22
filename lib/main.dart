@@ -40,6 +40,7 @@ import 'utils/image_cropper_util.dart';
 import 'services/ytmusic_service.dart';
 import 'services/yt_player_service.dart';
 import 'services/download_service.dart';
+import 'services/playlist_import_service.dart';
 import 'screens/ytmusic_auth_screen.dart';
 import 'package:fley/l10n/app_localizations.dart';
 part 'ui/player_ui.dart';
@@ -945,7 +946,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               _playTrack(index, sourceList: queue);
             },
             onTogglePlayPause: () {
-              if (player.playing) {
+              if (_isPlaying) {
                 _pauseWithFade();
               } else {
                 _playWithFade();
@@ -1212,50 +1213,49 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   children: [
                     if (_multiSelectedTrackIds.isNotEmpty)
                       _buildMultiSelectHeader()
-                    else ...[
+                    else
                       _buildHeader(),
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            AnimatedOpacity(
-                              opacity: _tabContentOpacity,
-                              duration: const Duration(milliseconds: 160),
-                              curve: Curves.easeOut,
-                              child: PageView(
-                                controller: _rootNavPageController,
-                                physics: (isDetailView || _isPlayerOpen)
-                                    ? const NeverScrollableScrollPhysics()
-                                    : const ClampingScrollPhysics(),
-                                onPageChanged: (index) {
-                                  if (_currentNavIndex == 1 && index != 1) {
-                                    _searchFocusNode.unfocus();
-                                  }
-                                  setState(() {
-                                    _currentNavIndex = index;
-                                  });
-                                },
-                                children: [
-                                  _KeepAliveWrapper(child: _buildHomeScreen()),
-                                  _KeepAliveWrapper(child: _buildSearchTab()),
-                                  _KeepAliveWrapper(child: _buildLibraryTab()),
-                                ],
-                              ),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          AnimatedOpacity(
+                            opacity: _tabContentOpacity,
+                            duration: const Duration(milliseconds: 160),
+                            curve: Curves.easeOut,
+                            child: PageView(
+                              controller: _rootNavPageController,
+                              physics: (isDetailView || _isPlayerOpen)
+                                  ? const NeverScrollableScrollPhysics()
+                                  : const ClampingScrollPhysics(),
+                              onPageChanged: (index) {
+                                if (_currentNavIndex == 1 && index != 1) {
+                                  _searchFocusNode.unfocus();
+                                }
+                                setState(() {
+                                  _currentNavIndex = index;
+                                });
+                              },
+                              children: [
+                                _KeepAliveWrapper(child: _buildHomeScreen()),
+                                _KeepAliveWrapper(child: _buildSearchTab()),
+                                _KeepAliveWrapper(child: _buildLibraryTab()),
+                              ],
                             ),
-                            if (_isLoading && !_showSplash)
-                              Positioned.fill(
-                                child: Container(
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      color: _activeAccentColor,
-                                    ),
+                          ),
+                          if (_isLoading && !_showSplash)
+                            Positioned.fill(
+                              child: Container(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: _activeAccentColor,
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
+                            ),
+                        ],
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -1298,7 +1298,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
               if (_playingTrack != null) _buildMiniPlayer(_playingTrack!),
 
-              _buildBottomNavBar(),
+              if (_multiSelectedTrackIds.isNotEmpty)
+                _buildMultiSelectBottomBar()
+              else
+                _buildBottomNavBar(),
 
               Positioned.fill(
                 child: ListenableBuilder(
