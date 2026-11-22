@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
+import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:id3/id3.dart';
 import 'package:on_audio_query/on_audio_query.dart';
@@ -140,7 +141,11 @@ class ArtworkCacheManager {
       try {
         final file = File(path);
         if (file.existsSync()) {
-          final bytes = file.readAsBytesSync();
+          final raf = file.openSync();
+          final fileLen = raf.lengthSync();
+          final readLen = fileLen > 2 * 1024 * 1024 ? 2 * 1024 * 1024 : fileLen;
+          final bytes = raf.readSync(readLen);
+          raf.closeSync();
           final mp3 = MP3Instance(bytes);
           if (mp3.parseTagsSync()) {
             final tags = mp3.getMetaTags();
@@ -201,9 +206,13 @@ class ArtworkCacheManager {
     final future = () async {
       Uint8List? bytes;
 
-      // 1. If path is available, extract directly from file
+      // 1. If path is available, extract directly from file in background isolate
       if (resolvedPath != null && resolvedPath.isNotEmpty) {
-        bytes = extractArtworkFromFile(resolvedPath);
+        try {
+          bytes = await Isolate.run(() => extractArtworkFromFile(resolvedPath));
+        } catch (_) {
+          bytes = null;
+        }
       }
 
       // 2. Fallback to native MediaStore if int trackId
