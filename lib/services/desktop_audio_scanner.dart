@@ -18,6 +18,8 @@ class DesktopAudioScanner {
     '.wav',
     '.ogg',
     '.aac',
+    '.opus',
+    '.webm',
   };
 
   /// Get OS standard music directories

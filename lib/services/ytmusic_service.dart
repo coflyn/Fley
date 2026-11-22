@@ -1466,6 +1466,9 @@ class YtMusicService {
             final json = jsonDecode(str) as Map<String, dynamic>;
             final audioStreams = json['audioStreams'] as List? ?? [];
             if (audioStreams.isNotEmpty) {
+              audioStreams.sort((a, b) =>
+                  (int.tryParse(b['bitrate']?.toString() ?? '0') ?? 0).compareTo(
+                      int.tryParse(a['bitrate']?.toString() ?? '0') ?? 0));
               final url = audioStreams.first['url'] as String?;
               if (url != null && url.isNotEmpty) return url;
             }

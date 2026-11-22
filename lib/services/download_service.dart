@@ -118,7 +118,7 @@ class DownloadService {
       fileBaseName = 'ytm_$videoId';
     }
 
-    final audioFile = File('${dir.path}/$fileBaseName.m4a');
+    File audioFile = File('${dir.path}/$fileBaseName.m4a');
 
     try {
       if (task._cancelled) return;
@@ -173,6 +173,23 @@ class DownloadService {
 
       if (!downloaded || !(await audioFile.exists()) || (await audioFile.length()) == 0) {
         throw Exception('Download failed (stream unavailable or restricted)');
+      }
+
+      // If downloaded stream is WebM / Opus container, adjust extension to .opus
+      if (await audioFile.exists() && (await audioFile.length()) > 16) {
+        try {
+          final headerBytes = await audioFile.openRead(0, 8).first;
+          final isWebm = headerBytes.length >= 4 &&
+              headerBytes[0] == 0x1A &&
+              headerBytes[1] == 0x45 &&
+              headerBytes[2] == 0xDF &&
+              headerBytes[3] == 0xA3;
+          if (isWebm) {
+            final opusFile = File('${dir.path}/$fileBaseName.opus');
+            if (await opusFile.exists()) await opusFile.delete();
+            audioFile = await audioFile.rename(opusFile.path);
+          }
+        } catch (_) {}
       }
 
       // 3. Download and cache cover artwork
@@ -298,8 +315,12 @@ class DownloadService {
       'https://invidious.protokolla.fi',
     ];
 
-    // Priority itags: 140 = M4A AAC (128 kbps), 251 = WebM Opus (160 kbps), 18 = MP4 (360p)
-    final itags = [140, 251, 18];
+    // Priority itags:
+    // 141 = M4A AAC (256 kbps - YTM Premium high quality)
+    // 251 = WebM Opus (~160 kbps - high dynamic range transparent audio)
+    // 140 = M4A AAC (128 kbps - standard quality)
+    // 18  = MP4 (360p fallback)
+    final itags = [141, 251, 140, 18];
 
     for (final host in candidateHosts) {
       if (task._cancelled) return false;
@@ -484,7 +505,9 @@ class DownloadService {
           if (item is File) {
             final p = item.path;
             final lower = p.toLowerCase();
-            if ((lower.endsWith('.m4a') || lower.endsWith('.mp3')) &&
+            if ((lower.endsWith('.m4a') ||
+                    lower.endsWith('.mp3') ||
+                    lower.endsWith('.opus')) &&
                 !tracks.any((t) => t.path == p)) {
               final fileName = item.uri.pathSegments.last;
               final dotIdx = fileName.lastIndexOf('.');
@@ -527,13 +550,13 @@ class DownloadService {
         await audioFile.delete();
       }
       // Also delete companion .jpg cover if present
-      final jpgPath = track.path.replaceAll(RegExp(r'\.m4a$'), '.jpg');
+      final jpgPath = track.path.replaceAll(RegExp(r'\.(m4a|opus|mp3)$'), '.jpg');
       final jpgFile = File(jpgPath);
       if (await jpgFile.exists()) {
         await jpgFile.delete();
       }
       // Also delete companion .lrc if present
-      final lrcPath = track.path.replaceAll(RegExp(r'\.m4a$'), '.lrc');
+      final lrcPath = track.path.replaceAll(RegExp(r'\.(m4a|opus|mp3)$'), '.lrc');
       final lrcFile = File(lrcPath);
       if (await lrcFile.exists()) {
         await lrcFile.delete();
@@ -552,7 +575,10 @@ class DownloadService {
       if (await dir.exists()) {
         final list = dir.listSync();
         for (final item in list) {
-          if (item is File && item.path.endsWith('.m4a')) {
+          if (item is File &&
+              (item.path.endsWith('.m4a') ||
+                  item.path.endsWith('.opus') ||
+                  item.path.endsWith('.mp3'))) {
             total += item.lengthSync();
           }
         }

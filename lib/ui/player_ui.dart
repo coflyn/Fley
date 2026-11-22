@@ -1110,7 +1110,7 @@ extension _PlayerUI on _MainScreenState {
         if (f != null) {
           customPath = f.path;
         } else if (track.path.isNotEmpty) {
-          final companion = File(track.path.replaceAll(RegExp(r'\.m4a$'), '.jpg'));
+          final companion = File(track.path.replaceAll(RegExp(r'\.(m4a|opus|mp3)$'), '.jpg'));
           if (companion.existsSync()) {
             customPath = companion.path;
           }

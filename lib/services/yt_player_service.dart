@@ -80,6 +80,10 @@ try {
 
   // 1. Spoof Page Visibility API (prevents YouTube background auto-pause after 30-40s)
   try {
+    localStorage.setItem('yt-player-audio-quality', 'AUDIO_QUALITY_HIGH');
+    localStorage.setItem('yt-player-quality', JSON.stringify({data:JSON.stringify({quality:'highres',previousQuality:'highres'})}));
+  } catch(e) {}
+  try {
     Object.defineProperties(document, {
       hidden: { get: () => false, configurable: true },
       visibilityState: { get: () => 'visible', configurable: true },
@@ -230,6 +234,8 @@ try {
     if (player) {
       try {
         if (typeof player.setAutonav === 'function') player.setAutonav(false);
+        if (typeof player.setAudioQuality === 'function') player.setAudioQuality('AUDIO_QUALITY_HIGH');
+        if (typeof player.setPlaybackQualityRange === 'function') player.setPlaybackQualityRange('highres', 'highres');
       } catch(e){}
     }
     if (player && typeof player.addEventListener === 'function' && !player._fleyHooked) {
@@ -245,6 +251,8 @@ try {
             }
             if (typeof player.unMute === 'function') player.unMute();
             if (typeof player.setVolume === 'function') player.setVolume(100);
+            if (typeof player.setAudioQuality === 'function') player.setAudioQuality('AUDIO_QUALITY_HIGH');
+            if (typeof player.setPlaybackQualityRange === 'function') player.setPlaybackQualityRange('highres', 'highres');
             FleyBridge.postMessage(JSON.stringify({type: 'play'}));
             FleyBridge.postMessage(JSON.stringify({type: 'buffering', val: false}));
           } catch(e){}
@@ -525,6 +533,8 @@ try {
   var p = document.getElementById('movie_player');
   if (p) {
     try { if (typeof p.setAutonav === 'function') p.setAutonav(false); } catch(e){}
+    try { if (typeof p.setAudioQuality === 'function') p.setAudioQuality('AUDIO_QUALITY_HIGH'); } catch(e){}
+    try { if (typeof p.setPlaybackQualityRange === 'function') p.setPlaybackQualityRange('highres', 'highres'); } catch(e){}
     try { if (typeof p.pauseVideo === 'function') p.pauseVideo(); } catch(e){}
     try { if (typeof p.mute === 'function') p.mute(); } catch(e){}
     if (typeof p.loadVideoById === 'function') {
@@ -690,10 +700,15 @@ try {
     var bestBr = 0;
     for (var i = 0; i < fmts.length; i++) {
       var f = fmts[i];
-      if (f.mimeType && f.mimeType.indexOf('audio/') === 0 && f.url) {
-        if (f.bitrate > bestBr) {
+      if (f.mimeType && f.mimeType.indexOf('audio/') === 0) {
+        var u = f.url;
+        if (!u && f.signatureCipher) {
+          var params = new URLSearchParams(f.signatureCipher);
+          u = params.get('url');
+        }
+        if (u && f.bitrate > bestBr) {
           bestBr = f.bitrate;
-          best = f.url;
+          best = u;
         }
       }
     }
@@ -758,10 +773,15 @@ try {
     var bestBr = 0;
     for (var i = 0; i < fmts.length; i++) {
       var f = fmts[i];
-      if (f.mimeType && f.mimeType.indexOf('audio/') === 0 && f.url) {
-        if (f.bitrate > bestBr) {
+      if (f.mimeType && f.mimeType.indexOf('audio/') === 0) {
+        var u = f.url;
+        if (!u && f.signatureCipher) {
+          var params = new URLSearchParams(f.signatureCipher);
+          u = params.get('url');
+        }
+        if (u && f.bitrate > bestBr) {
           bestBr = f.bitrate;
-          url = f.url;
+          url = u;
         }
       }
     }

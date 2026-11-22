@@ -17,7 +17,7 @@ class AudioDurationParser {
           ext.endsWith('.aac') ||
           ext.endsWith('.mp4')) {
         return parseM4a(file);
-      } else if (ext.endsWith('.ogg')) {
+      } else if (ext.endsWith('.ogg') || ext.endsWith('.opus')) {
         return parseOgg(file);
       }
     } catch (_) {}
