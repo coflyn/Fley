@@ -412,15 +412,18 @@ extension _DetailViewsUI on _MainScreenState {
     required List<Track> tracks,
   }) {
     final isLight = isAppLight;
-    final scaffoldBgColor =
-        (themeModeNotifier.value == 'custom' &&
-            customThemeBgNotifier.value == 'custom_image')
-        ? (isLight ? const Color(0xFFF6F8FA) : const Color(0xFF0A0A0A))
-        : getAppBackgroundColor(
-            themeMode: themeModeNotifier.value,
-            customBg: customThemeBgNotifier.value,
-            artworkColor: dominantColorNotifier.value,
-          );
+    final isAmoled =
+        detailViewBackgroundStyleNotifier.value == 'amoled' && !isLight;
+    final scaffoldBgColor = isAmoled
+        ? const Color(0xFF000000)
+        : ((themeModeNotifier.value == 'custom' &&
+                customThemeBgNotifier.value == 'custom_image')
+            ? (isLight ? const Color(0xFFF6F8FA) : const Color(0xFF0A0A0A))
+            : getAppBackgroundColor(
+                themeMode: themeModeNotifier.value,
+                customBg: customThemeBgNotifier.value,
+                artworkColor: dominantColorNotifier.value,
+              ));
 
     final header = GestureDetector(
       onVerticalDragUpdate: (details) {
@@ -529,10 +532,12 @@ extension _DetailViewsUI on _MainScreenState {
                         colors: [
                           Colors.black.withValues(alpha: 0.35),
                           Colors.transparent,
-                          scaffoldBgColor.withValues(alpha: 0.7),
+                          scaffoldBgColor.withValues(alpha: 0.6),
+                          scaffoldBgColor.withValues(alpha: 0.95),
+                          scaffoldBgColor,
                           scaffoldBgColor,
                         ],
-                        stops: const [0.0, 0.3, 0.75, 1.0],
+                        stops: const [0.0, 0.25, 0.65, 0.88, 0.96, 1.0],
                       ),
                     ),
                   ),
@@ -694,7 +699,8 @@ extension _DetailViewsUI on _MainScreenState {
             ),
 
             // SPOTIFY UNIFIED ACTION BAR
-            Padding(
+            Container(
+              color: scaffoldBgColor,
               padding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 12,
@@ -707,91 +713,79 @@ extension _DetailViewsUI on _MainScreenState {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (!(type == 'Playlist' &&
-                          title ==
-                              AppLocalizations.of(context).favourites)) ...[
-                        Builder(
-                          builder: (context) {
-                            final isAllFavorited = tracks.isNotEmpty &&
-                                tracks.every(
-                                  (t) => _favoriteTrackIds.contains(t.id),
-                                );
-                            final iconColor =
-                                _activeAccentColor.computeLuminance() > 0.35
-                                    ? Colors.black
-                                    : Colors.white;
+                      Builder(
+                        builder: (context) {
+                          final isFavourites = type == 'Playlist' &&
+                              title ==
+                                  AppLocalizations.of(context).favourites;
+                          final isUserPlaylist = type == 'Playlist' &&
+                              _userPlaylists.containsKey(title);
+                          final isAddSongsToThis =
+                              isFavourites || isUserPlaylist;
 
-                            return Tooltip(
-                              message: isAllFavorited
-                                  ? AppLocalizations.of(context)
-                                      .removeFromFavourites
-                                  : AppLocalizations.of(context)
-                                      .addToFavourites,
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () {
-                                  if (tracks.isEmpty) return;
-                                  setState(() {
-                                    if (isAllFavorited) {
-                                      for (final t in tracks) {
-                                        _favoriteTrackIds.remove(t.id);
-                                      }
-                                    } else {
-                                      for (final t in tracks) {
-                                        _favoriteTrackIds.add(t.id);
-                                      }
-                                    }
-                                  });
-                                  SharedPreferences.getInstance().then(
-                                    (prefs) {
-                                      prefs.setStringList(
-                                        'favorite_track_ids',
-                                        _favoriteTrackIds.toList(),
-                                      );
-                                    },
+                          return Tooltip(
+                            message: isAddSongsToThis
+                                ? AppLocalizations.of(context).addSongs
+                                : AppLocalizations.of(context).addToPlaylist,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                if (isFavourites) {
+                                  final candidateTracks = [
+                                    ..._allTracks,
+                                    ..._onlineTracksMap.values.where(
+                                      (ot) => !_allTracks.any(
+                                        (t) => t.id == ot.id,
+                                      ),
+                                    ),
+                                  ];
+                                  _showMultiSelectSongsModal(
+                                    context,
+                                    candidateTracks: candidateTracks,
+                                    isFavouritesTarget: true,
                                   );
-                                  showFleyToast(
-                                    isAllFavorited
-                                        ? AppLocalizations.of(context)
-                                            .removedFromFavourites
-                                        : AppLocalizations.of(context)
-                                            .addedToFavourites,
+                                } else if (isUserPlaylist) {
+                                  _showMultiSelectSongsModal(
+                                    context,
+                                    candidateTracks: [
+                                      ..._allTracks,
+                                      ..._onlineTracksMap.values.where(
+                                        (ot) => !_allTracks.any(
+                                          (t) => t.id == ot.id,
+                                        ),
+                                      ),
+                                    ],
+                                    predefinedTargetPlaylist: title,
                                   );
-                                },
-                                child: SizedBox(
-                                  width: 36,
-                                  height: 36,
-                                  child: Center(
-                                    child: isAllFavorited
-                                        ? Container(
-                                            width: 26,
-                                            height: 26,
-                                            decoration: BoxDecoration(
-                                              color: _activeAccentColor,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Icon(
-                                              Icons.check,
-                                              size: 16,
-                                              color: iconColor,
-                                            ),
-                                          )
-                                        : Icon(
-                                            Icons
-                                                .add_circle_outline_rounded,
-                                            size: 26,
-                                            color: isLight
-                                                ? Colors.black45
-                                                : Colors.white60,
-                                          ),
+                                } else {
+                                  if (tracks.isNotEmpty) {
+                                    _showAddToPlaylistModal(
+                                      context,
+                                      tracks,
+                                    );
+                                  }
+                                }
+                              },
+                              child: SizedBox(
+                                width: 36,
+                                height: 36,
+                                child: Center(
+                                  child: Icon(
+                                    isAddSongsToThis
+                                        ? Icons.add_circle_outline_rounded
+                                        : Icons.playlist_add_rounded,
+                                    size: 26,
+                                    color: isLight
+                                        ? Colors.black45
+                                        : Colors.white60,
                                   ),
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 14),
-                      ],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 14),
                       Tooltip(
                         message: AppLocalizations.of(context).addToQueue,
                         child: GestureDetector(
@@ -967,7 +961,7 @@ extension _DetailViewsUI on _MainScreenState {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            Container(color: scaffoldBgColor, height: 8),
           ],
         ),
       ),
@@ -1127,7 +1121,7 @@ extension _DetailViewsUI on _MainScreenState {
                             top: 0,
                             left: 0,
                             right: 0,
-                            height: 400,
+                            height: 310,
                             child: Container(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
