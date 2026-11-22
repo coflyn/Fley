@@ -59,7 +59,8 @@ extension _AudioStreamsLogic on _MainScreenState {
               (t) => t.id == trackId,
             );
             if (newQueueIndex != -1) {
-              if (nativeIndex == 2) {
+              if (nativeIndex == 2 ||
+                  (nativeIndex == 1 && concatenating.sequence.length == 2)) {
                 _slideWindowInPlace(newQueueIndex, 1);
               } else if (nativeIndex == 0) {
                 _slideWindowInPlace(newQueueIndex, -1);
@@ -95,11 +96,8 @@ extension _AudioStreamsLogic on _MainScreenState {
         if (_repeatMode == 2) {
           _audioPlayer.seek(Duration.zero);
           _audioPlayer.play();
-        } else if (_repeatMode == 1) {
-          _playNext();
         } else {
-          _audioPlayer.pause();
-          _audioPlayer.seek(Duration.zero);
+          _playNext();
         }
       }
     });
@@ -109,6 +107,41 @@ extension _AudioStreamsLogic on _MainScreenState {
       final dur = YtPlayerService.instance.currentDuration;
       if (dur > Duration.zero && dur - pos < const Duration(seconds: 12)) {
         _preloadNextYtmTrack();
+      }
+      if (pos.inSeconds < 2) {
+        _hasResetPosition = true;
+      }
+      if (_playingTrack != null &&
+          _hasResetPosition &&
+          _lastIncrementedTrackId != _playingTrack!.id) {
+        final effectiveDuration = dur > Duration.zero
+            ? dur
+            : Duration(milliseconds: _playingTrack!.duration);
+        bool shouldIncrement = false;
+        if (_playCountThreshold == -1) {
+          if (effectiveDuration > Duration.zero) {
+            shouldIncrement =
+                pos >= effectiveDuration - const Duration(milliseconds: 500);
+          }
+        } else {
+          shouldIncrement = pos.inSeconds >= _playCountThreshold;
+          if (!shouldIncrement && effectiveDuration > Duration.zero) {
+            if (effectiveDuration.inSeconds < _playCountThreshold &&
+                pos >= effectiveDuration - const Duration(milliseconds: 500)) {
+              shouldIncrement = true;
+            }
+          }
+        }
+        if (shouldIncrement) {
+          _lastIncrementedTrackId = _playingTrack!.id;
+          setState(() {
+            _playCounts[_playingTrack!.id] =
+                (_playCounts[_playingTrack!.id] ?? 0) + 1;
+          });
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.setString('play_counts', jsonEncode(_playCounts));
+          });
+        }
       }
     });
 

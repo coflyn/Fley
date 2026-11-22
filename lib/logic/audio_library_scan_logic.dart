@@ -646,7 +646,9 @@ extension _AudioLibraryScanLogic on _MainScreenState {
       if (_audioPlayer.audioSource is ConcatenatingAudioSource) {
         final concatenating =
             _audioPlayer.audioSource as ConcatenatingAudioSource;
-        int nextSourceIndexInConcatenating = _currentIndex > 0 ? 2 : 1;
+        int nextSourceIndexInConcatenating = concatenating.length > 1
+            ? concatenating.length - 1
+            : 1;
 
         if (_currentIndex + 1 < _playbackQueue.length) {
           final nextTrack = _playbackQueue[_currentIndex + 1];

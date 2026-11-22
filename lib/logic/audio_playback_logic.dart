@@ -260,10 +260,16 @@ extension _AudioPlaybackLogic on _MainScreenState {
       _lastPlaybackTrackId = track.id;
       SharedPreferences.getInstance().then((prefs) {
         if (_onlineTracksMap.length > 50) {
-          final toRemove =
-              _onlineTracksMap.keys.take(_onlineTracksMap.length - 50).toList();
-          for (final k in toRemove) {
-            _onlineTracksMap.remove(k);
+          final protectedIds = {
+            ..._favoriteTrackIds,
+            for (final list in _userPlaylists.values) ...list,
+          };
+          final candidates = _onlineTracksMap.keys
+              .where((k) => !protectedIds.contains(k))
+              .toList();
+          final toRemoveCount = _onlineTracksMap.length - 50;
+          for (int i = 0; i < toRemoveCount && i < candidates.length; i++) {
+            _onlineTracksMap.remove(candidates[i]);
           }
         }
         prefs.setString(
@@ -283,7 +289,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
       _audioPlayer.stop();
       final videoId =
           track.path.isNotEmpty ? track.path : track.id.replaceFirst('ytm_', '');
-      YtPlayerService.instance.loadAndPlay(videoId);
+      YtPlayerService.instance.loadAndPlay(
+        videoId,
+        initialPosition: initialPosition,
+      );
       YtPlayerService.instance.setLoop(_repeatMode == 2);
 
       final mediaItem = MediaItem(
@@ -1346,6 +1355,15 @@ extension _AudioPlaybackLogic on _MainScreenState {
 
   Future<void> _pauseWithFade() async {
     if (_isYtmPlaying) {
+      if (_playingTrack != null) {
+        final posMs = YtPlayerService.instance.currentPosition.inMilliseconds;
+        _lastPlaybackPositionMs = posMs;
+        _lastPlaybackTrackId = _playingTrack!.id;
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.setString('last_playback_track_id', _playingTrack!.id);
+          prefs.setInt('last_playback_position_ms', posMs);
+        });
+      }
       YtPlayerService.instance.pause();
       setState(() => _isPlaying = false);
       if (audioHandler is MyAudioHandler) {

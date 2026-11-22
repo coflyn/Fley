@@ -466,10 +466,13 @@ try {
     return c;
   }
 
-  Future<void> loadAndPlay(String videoId) async {
+  Future<void> loadAndPlay(String videoId, {Duration? initialPosition}) async {
     _lastEndedTime = DateTime.now();
     currentVideoId = videoId;
-    currentPosition = Duration.zero;
+    final int startSec = initialPosition != null && initialPosition > Duration.zero
+        ? initialPosition.inSeconds
+        : 0;
+    currentPosition = initialPosition ?? Duration.zero;
     currentDuration = Duration.zero;
     isPlaying = true;
     isBuffering = true;
@@ -492,7 +495,7 @@ try {
   if (p) {
     try { if (typeof p.setAutonav === 'function') p.setAutonav(false); } catch(e){}
     if (typeof p.loadVideoById === 'function') {
-      p.loadVideoById('$videoId');
+      p.loadVideoById({videoId: '$videoId', startSeconds: $startSec});
       try {
         if (typeof p.unMute === 'function') p.unMute();
         if (typeof p.setVolume === 'function') p.setVolume(100);
@@ -520,7 +523,10 @@ try {
     }
 
     _isPageLoaded = false;
-    controller.loadRequest(Uri.parse('https://music.youtube.com/watch?v=$videoId'));
+    final url = startSec > 0
+        ? 'https://music.youtube.com/watch?v=$videoId&t=${startSec}s'
+        : 'https://music.youtube.com/watch?v=$videoId';
+    controller.loadRequest(Uri.parse(url));
   }
 
   void setLoop(bool loop) {
