@@ -496,14 +496,15 @@ extension _MainUIComponents on _MainScreenState {
           _searchController.clear();
 
           List<Track> pSongs = [];
+          final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};
           if (title == AppLocalizations.of(context).favourites) {
-            pSongs = _allTracks
-                .where((t) => _favoriteTrackIds.contains(t.id))
+            pSongs = _favoriteTrackIds
+                .where((id) => trackMap.containsKey(id))
+                .map((id) => trackMap[id]!)
                 .toList();
           } else if (title == AppLocalizations.of(context).recentlyAdded) {
             pSongs = List.from(_allTracks);
           } else if (title == AppLocalizations.of(context).lastPlayed) {
-            final trackMap = {for (var t in _allTracks) t.id: t};
             pSongs = _allPlayedTrackIdsOrdered
                 .where((id) => trackMap.containsKey(id))
                 .map((id) => trackMap[id]!)
@@ -520,8 +521,9 @@ extension _MainUIComponents on _MainScreenState {
                 .where((t) => (_playCounts[t.id] ?? 0) <= 1)
                 .toList();
           } else if (_userPlaylists.containsKey(title)) {
-            pSongs = _allTracks
-                .where((t) => _userPlaylists[title]!.contains(t.id))
+            pSongs = (_userPlaylists[title] ?? [])
+                .where((id) => trackMap.containsKey(id))
+                .map((id) => trackMap[id]!)
                 .toList();
           }
           _detailColorFuture = _getDetailColor(
@@ -530,27 +532,12 @@ extension _MainUIComponents on _MainScreenState {
           );
         });
       },
-      leading: _playlistCovers.containsKey(title)
-          ? Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                image: DecorationImage(
-                  image: ResizeImage(
-                    FileImage(File(_playlistCovers[title]!)),
-                    width: 150,
-                  ),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            )
-          : _buildStackedArtwork(
-              songs,
-              color,
-              icon,
-              title == AppLocalizations.of(context).favourites,
-            ),
+      leading: _buildStackedArtwork(
+        songs,
+        color,
+        icon,
+        title == AppLocalizations.of(context).favourites,
+      ),
       title: Text(
         title,
         style: TextStyle(

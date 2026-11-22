@@ -371,7 +371,10 @@ extension _HomeUI on _MainScreenState {
             }
 
             final customCover = _playlistCovers[title];
-            final hasCustomCover =
+            final isNetworkCover = customCover != null &&
+                (customCover.startsWith('http://') ||
+                    customCover.startsWith('https://'));
+            final hasFileCover =
                 customCover != null && File(customCover).existsSync();
 
             return GestureDetector(
@@ -401,17 +404,28 @@ extension _HomeUI on _MainScreenState {
                         width: 54,
                         height: 54,
                         color: color.withValues(alpha: 0.15),
-                        child: hasCustomCover
-                            ? Image(
-                                image: ResizeImage(
-                                  FileImage(File(customCover)),
-                                  width: 150,
-                                ),
+                        child: isNetworkCover
+                            ? Image.network(
+                                customCover,
                                 fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    Icon(icon, color: color, size: 24),
                               )
-                            : (sampleTrack != null
-                                ? _buildTrackArtwork(sampleTrack, size: 54, radius: 0)
-                                : Icon(icon, color: color, size: 24)),
+                            : (hasFileCover
+                                ? Image(
+                                    image: ResizeImage(
+                                      FileImage(File(customCover)),
+                                      width: 150,
+                                    ),
+                                    fit: BoxFit.cover,
+                                  )
+                                : (sampleTrack != null
+                                    ? _buildTrackArtwork(
+                                        sampleTrack,
+                                        size: 54,
+                                        radius: 0,
+                                      )
+                                    : Icon(icon, color: color, size: 24))),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1568,7 +1582,7 @@ extension _HomeUI on _MainScreenState {
   }
 
   Widget _buildMyPlaylistsSection() {
-    if (_userPlaylists.length < 3) return const SizedBox.shrink();
+    if (_userPlaylists.isEmpty) return const SizedBox.shrink();
 
     final isLight = isAppLight;
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
@@ -1577,6 +1591,7 @@ extension _HomeUI on _MainScreenState {
     final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
 
     final playlistNames = _userPlaylists.keys.toList();
+    final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};
 
     return Padding(
       padding: const EdgeInsets.only(top: 28),
@@ -1585,22 +1600,6 @@ extension _HomeUI on _MainScreenState {
         children: [
           Row(
             children: [
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: _activeAccentColor.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.playlist_play_rounded,
-                    color: _activeAccentColor,
-                    size: 16,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   sectionTitle,
@@ -1637,14 +1636,17 @@ extension _HomeUI on _MainScreenState {
                 final name = playlistNames[index];
                 final trackIds = _userPlaylists[name] ?? [];
                 final customCover = _playlistCovers[name];
-                final hasCustomCover =
+                final isNetworkCover = customCover != null &&
+                    (customCover.startsWith('http://') ||
+                        customCover.startsWith('https://'));
+                final hasFileCover =
                     customCover != null && File(customCover).existsSync();
-                final sampleTrack = trackIds.isNotEmpty
-                    ? _allTracks.firstWhere(
-                        (t) => t.id == trackIds.first,
-                        orElse: () => _allTracks.first,
-                      )
-                    : null;
+                final sampleTrack = trackIds.isNotEmpty &&
+                        trackMap.containsKey(trackIds.first)
+                    ? trackMap[trackIds.first]
+                    : (trackIds.isNotEmpty && _allTracks.isNotEmpty
+                        ? _allTracks.first
+                        : null);
 
                 return GestureDetector(
                   onTap: () {
@@ -1683,7 +1685,22 @@ extension _HomeUI on _MainScreenState {
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                if (hasCustomCover)
+                                if (isNetworkCover)
+                                  Image.network(
+                                    customCover,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => Container(
+                                      color: isLight
+                                          ? Colors.black12
+                                          : const Color(0xFF282828),
+                                      child: const Icon(
+                                        Icons.queue_music_rounded,
+                                        color: Colors.white54,
+                                        size: 32,
+                                      ),
+                                    ),
+                                  )
+                                else if (hasFileCover)
                                   Image.file(
                                     File(customCover),
                                     fit: BoxFit.cover,

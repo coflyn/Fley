@@ -162,17 +162,37 @@ extension _DetailViewsUI on _MainScreenState {
         }
 
         if (_playlistCovers.containsKey(baseName)) {
+          final coverPath = _playlistCovers[baseName]!;
+          final isNetwork = coverPath.startsWith('http://') ||
+              coverPath.startsWith('https://');
           imageWidget = ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Image(
-              image: ResizeImage(
-                FileImage(File(_playlistCovers[baseName]!)),
-                width: 600,
-              ),
-              fit: BoxFit.cover,
-              width: 220,
-              height: 220,
-            ),
+            child: isNetwork
+                ? Image.network(
+                    coverPath,
+                    width: 220,
+                    height: 220,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      width: 220,
+                      height: 220,
+                      color: Colors.white10,
+                      child: const Icon(
+                        Icons.queue_music,
+                        size: 60,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  )
+                : Image(
+                    image: ResizeImage(
+                      FileImage(File(coverPath)),
+                      width: 600,
+                    ),
+                    fit: BoxFit.cover,
+                    width: 220,
+                    height: 220,
+                  ),
           );
         } else {
           Color color = Colors.grey;
@@ -616,14 +636,29 @@ extension _DetailViewsUI on _MainScreenState {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(4.5),
                                 child: _playlistCovers.containsKey(title) &&
-                                        File(_playlistCovers[title]!).existsSync()
-                                    ? Image(
-                                        image: ResizeImage(
-                                          FileImage(File(_playlistCovers[title]!)),
-                                          width: 100,
-                                        ),
-                                        fit: BoxFit.cover,
-                                      )
+                                        ((_playlistCovers[title]!.startsWith('http://') ||
+                                                _playlistCovers[title]!.startsWith('https://')) ||
+                                            File(_playlistCovers[title]!).existsSync())
+                                    ? (_playlistCovers[title]!.startsWith('http://') ||
+                                            _playlistCovers[title]!.startsWith('https://')
+                                        ? Image.network(
+                                            _playlistCovers[title]!,
+                                            fit: BoxFit.cover,
+                                            width: 32,
+                                            height: 32,
+                                            errorBuilder: (_, _, _) => const Icon(
+                                              Icons.queue_music,
+                                              size: 18,
+                                              color: Colors.white54,
+                                            ),
+                                          )
+                                        : Image(
+                                            image: ResizeImage(
+                                              FileImage(File(_playlistCovers[title]!)),
+                                              width: 100,
+                                            ),
+                                            fit: BoxFit.cover,
+                                          ))
                                     : (tracks.isNotEmpty
                                         ? _buildTrackArtwork(
                                             tracks.first,
