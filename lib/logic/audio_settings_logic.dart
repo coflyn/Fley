@@ -198,6 +198,7 @@ extension _AudioSettingsLogic on _MainScreenState {
         await _audioPlayer.setSpeed(_playbackSpeed);
         await _audioPlayer.setPitch(_playbackSpeed);
       }
+      YtPlayerService.instance.setPlaybackRate(_playbackSpeed);
     } catch (_) {}
   }
 
@@ -207,7 +208,8 @@ extension _AudioSettingsLogic on _MainScreenState {
     _batteryCheckTimer = Timer.periodic(const Duration(seconds: 30), (
       timer,
     ) async {
-      if (_stopOnLowBattery && _audioPlayer.playing) {
+      if (_stopOnLowBattery &&
+          (_audioPlayer.playing || (_isYtmPlaying && _isPlaying))) {
         try {
           const channel = MethodChannel('com.fley.audio/equalizer');
           final result = await channel.invokeMapMethod<String, dynamic>(

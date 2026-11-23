@@ -143,6 +143,22 @@ extension _AudioStreamsLogic on _MainScreenState {
           });
         }
       }
+
+      if (_sleepAtEndOfTrack && _hasResetPosition) {
+        final effectiveDuration = dur > Duration.zero
+            ? dur
+            : (_playingTrack != null && _playingTrack!.duration > 0
+                ? Duration(milliseconds: _playingTrack!.duration)
+                : Duration.zero);
+        if (effectiveDuration > Duration.zero &&
+            pos >= effectiveDuration - const Duration(milliseconds: 500)) {
+          setState(() {
+            _sleepAtEndOfTrack = false;
+            _sleepTimerNotifier.value = 0;
+          });
+          _pauseWithFade();
+        }
+      }
     });
 
     _audioPlayer.positionStream.listen((pos) {

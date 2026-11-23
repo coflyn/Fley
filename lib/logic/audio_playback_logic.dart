@@ -229,6 +229,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
     final track = _playbackQueue[index];
 
     setState(() {
+      _lastTrackStartTime = DateTime.now();
       _currentIndex = index;
       _playingTrack = track;
       if (_playerScrollController.hasClients) {
@@ -297,6 +298,9 @@ extension _AudioPlaybackLogic on _MainScreenState {
         initialPosition: initialPosition,
       );
       YtPlayerService.instance.setLoop(_repeatMode == 2);
+      if (_playbackSpeed != 1.0) {
+        YtPlayerService.instance.setPlaybackRate(_playbackSpeed);
+      }
 
       final mediaItem = MediaItem(
         id: track.id,
@@ -535,7 +539,7 @@ extension _AudioPlaybackLogic on _MainScreenState {
 
       if (playImmediately) {
         await _audioPlayer.setVolume(targetVol);
-        _audioPlayer.play();
+        await _audioPlayer.play();
         if (_crossfadeDuration > 0) {
           // Smooth fade in
           final int steps = 6;

@@ -486,10 +486,12 @@ try {
     c.setNavigationDelegate(NavigationDelegate(
       onPageStarted: (url) {
         _isPageLoaded = false;
+        if (currentVideoId == null || url == 'about:blank') return;
         c.runJavaScript(_visibilitySpoofScript).catchError((_) {});
       },
       onPageFinished: (url) {
         _isPageLoaded = true;
+        if (currentVideoId == null || url == 'about:blank') return;
         c.runJavaScript(_hookScript);
       },
     ));
@@ -580,6 +582,15 @@ try {
     } catch (_) {}
   }
 
+  void setPlaybackRate(double rate) {
+    controller.runJavaScript('''
+try {
+  var v = document.querySelector('video');
+  if (v) v.playbackRate = $rate;
+} catch(e){}
+''').catchError((_) {});
+  }
+
   void stop() {
     isPlaying = false;
     isBuffering = false;
@@ -591,18 +602,21 @@ try {
 window._fleyShouldPlay = false;
 window._fleyLoop = false;
 try {
+  var v = document.querySelector('video');
+  if (v) {
+    v.muted = true;
+    v.pause();
+    v.currentTime = 0;
+  }
   var p = document.getElementById('movie_player');
   if (p && typeof p.pauseVideo === 'function') {
     p.pauseVideo();
   } else if (p && typeof p.stopVideo === 'function') {
     p.stopVideo();
   }
-  var v = document.querySelector('video');
-  if (v) {
-    v.pause();
-  }
 } catch(e){}
 ''').catchError((_) {});
+    controller.loadRequest(Uri.parse('about:blank'));
   }
 
   String? _lastPreloadedVideoId;

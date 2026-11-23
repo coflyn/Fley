@@ -388,8 +388,8 @@ extension _TrackOptionsUI on _MainScreenState {
                     _buildOptionItem(
                       Icons.visibility_off_outlined,
                       FleyStrings.currentLang == 'id'
-                          ? 'Tidak tertarik / Sembunyikan'
-                          : 'Not interested / Hide track',
+                          ? 'Tidak tertarik'
+                          : 'Not interested',
                       () async {
                         Navigator.pop(context);
                         final prefs = await SharedPreferences.getInstance();
@@ -413,8 +413,8 @@ extension _TrackOptionsUI on _MainScreenState {
                         }
                         showFleyToast(
                           FleyStrings.currentLang == 'id'
-                              ? 'Lagu disembunyikan'
-                              : 'Track hidden',
+                              ? 'Tidak tertarik'
+                              : 'Not interested',
                         );
                       },
                     ),
