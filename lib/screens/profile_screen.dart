@@ -257,6 +257,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showRegionPickerModal(BuildContext context) {
+    final isLight = isAppLight;
+    final bgColor = isLight ? const Color(0xFFF0F0F3) : const Color(0xFF161616);
+    final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
+    final subTextColor = isLight ? const Color(0xFF757575) : const Color(0xFF9E9E9E);
+    final isIndo = FleyStrings.currentLang == 'id';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bgColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isLight ? Colors.black26 : Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isIndo ? 'Region Konten Musik' : 'Music Content Region',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: getFontFamily(),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isIndo
+                    ? 'Pilih wilayah untuk rekomendasi & tren lagu'
+                    : 'Select region for trending songs & new releases',
+                style: TextStyle(
+                  color: subTextColor,
+                  fontSize: 13,
+                  fontFamily: getFontFamily(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Divider(
+                color: isLight ? Colors.black12 : Colors.white10,
+                height: 1,
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: ytmSupportedRegions.length,
+                  itemBuilder: (ctx, index) {
+                    final region = ytmSupportedRegions[index];
+                    final isSelected = ytmRegionNotifier.value == region.code;
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+                      leading: Text(region.flag, style: const TextStyle(fontSize: 22)),
+                      title: Text(
+                        region.name,
+                        style: TextStyle(
+                          color: isSelected
+                              ? widget.activeAccentColor
+                              : textColor,
+                          fontSize: 15,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontFamily: getFontFamily(),
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? Icon(Icons.check_rounded, color: widget.activeAccentColor)
+                          : null,
+                      onTap: () async {
+                        final nav = Navigator.of(ctx);
+                        await ytmSetRegion(region.code);
+                        nav.pop();
+                        showFleyToast(
+                          isIndo
+                              ? 'Region diubah ke ${region.name}'
+                              : 'Region set to ${region.name}',
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showEditProfileDialog() {
     final isLight = isAppLight;
     final nameController = TextEditingController(text: userProfileNameNotifier.value);
@@ -677,7 +776,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: borderColor),
                       ),
-                      child: ListTile(
+                      child: Column(
+                        children: [
+                          ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         leading: ValueListenableBuilder<String?>(
                           valueListenable: ytmAccountAvatarNotifier,
@@ -874,7 +975,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           );
                         },
                       ),
-                    );
+                      Divider(height: 1, thickness: 0.8, color: borderColor),
+                      ValueListenableBuilder<String>(
+                        valueListenable: ytmRegionNotifier,
+                        builder: (context, regionCode, _) {
+                          final regionInfo = getYtmRegionInfo(regionCode);
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            leading: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: widget.activeAccentColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  regionInfo.flag,
+                                  style: const TextStyle(fontSize: 22),
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              FleyStrings.currentLang == 'id'
+                                  ? 'Region Konten'
+                                  : 'Content Region',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: textColor,
+                                fontFamily: getFontFamily(),
+                              ),
+                            ),
+                            subtitle: Text(
+                              regionInfo.name,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: subTextColor,
+                                fontFamily: getFontFamily(),
+                              ),
+                            ),
+                            trailing: Icon(Icons.chevron_right_rounded, color: subTextColor),
+                            onTap: () => _showRegionPickerModal(context),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                );
                   },
                 );
               },

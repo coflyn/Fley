@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -9,30 +10,320 @@ import 'package:webview_flutter/webview_flutter.dart';
 const _cookieKey = 'ytm_cookie';
 const _accountNameKey = 'ytm_account_name';
 const _accountAvatarKey = 'ytm_account_avatar';
+const _regionKey = 'ytm_content_region';
 
-/// Returns or creates the dedicated downloads directory for Fley.
+class YtmRegionInfo {
+  final String code;
+  final String name;
+  final String flag;
+
+  const YtmRegionInfo(this.code, this.name, this.flag);
+}
+
+const List<YtmRegionInfo> ytmSupportedRegions = [
+  YtmRegionInfo('US', 'Global (United States)', '🌐'),
+  YtmRegionInfo('ID', 'Indonesia', '🇮🇩'),
+  YtmRegionInfo('JP', 'Japan', '🇯🇵'),
+  YtmRegionInfo('KR', 'South Korea', '🇰🇷'),
+  YtmRegionInfo('GB', 'United Kingdom', '🇬🇧'),
+  YtmRegionInfo('CA', 'Canada', '🇨🇦'),
+  YtmRegionInfo('AU', 'Australia', '🇦🇺'),
+  YtmRegionInfo('DE', 'Germany', '🇩🇪'),
+  YtmRegionInfo('FR', 'France', '🇫🇷'),
+  YtmRegionInfo('BR', 'Brazil', '🇧🇷'),
+  YtmRegionInfo('IN', 'India', '🇮🇳'),
+  YtmRegionInfo('PH', 'Philippines', '🇵🇭'),
+];
+
+YtmRegionInfo getYtmRegionInfo([String? code]) {
+  final target = code ?? ytmRegionNotifier.value;
+  return ytmSupportedRegions.firstWhere(
+    (r) => r.code == target,
+    orElse: () => const YtmRegionInfo('US', 'Global (United States)', '🌐'),
+  );
+}
+
+const MethodChannel _mainChannel = MethodChannel('com.fley.audio/equalizer');
+
+/// Exports an audio file to Android public /storage/emulated/0/Music/Fley using MediaStore.
+Future<String?> exportToPublicMusic({
+  required String srcPath,
+  required String fileName,
+  String title = '',
+  String artist = '',
+  String album = '',
+}) async {
+  if (!Platform.isAndroid) return null;
+  try {
+    final result = await _mainChannel.invokeMethod<String>('exportToPublicMusic', {
+      'srcPath': srcPath,
+      'fileName': fileName,
+      'title': title,
+      'artist': artist,
+      'album': album,
+    });
+    return result;
+  } catch (e) {
+    debugPrint('exportToPublicMusic error: $e');
+    return null;
+  }
+}
+
+/// Triggers Android MediaScanner so file appears immediately in external apps/file managers.
+Future<void> scanMediaFile(String filePath) async {
+  if (!Platform.isAndroid) return;
+  try {
+    await _mainChannel.invokeMethod('scanMediaFile', {'filePath': filePath});
+  } catch (_) {}
+}
+
+/// Deletes an audio file from Android public Music/Fley and cleans up MediaStore record.
+Future<void> deleteFromPublicMusic(String filePath) async {
+  if (!Platform.isAndroid) return;
+  try {
+    await _mainChannel.invokeMethod('deleteFromPublicMusic', {'filePath': filePath});
+  } catch (_) {}
+}
+
+bool _migrationDone = false;
+
+/// Returns or creates the dedicated downloads directory for Fley (Music/Fley).
 Future<Directory> getFleyDownloadsDirectory() async {
-  Directory baseDir;
+  Directory targetDir;
   if (Platform.isAndroid) {
-    final ext = await getExternalStorageDirectory();
-    baseDir = ext ?? await getApplicationDocumentsDirectory();
+    // 1. Try public shared Music directory: /storage/emulated/0/Music/Fley
+    final publicMusic = Directory('/storage/emulated/0/Music/Fley');
+    bool canWritePublic = false;
+    try {
+      if (!await publicMusic.exists()) {
+        await publicMusic.create(recursive: true);
+      }
+      final probe = File(
+        '${publicMusic.path}/.probe_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      await probe.writeAsString('probe');
+      await probe.delete();
+      canWritePublic = true;
+    } catch (_) {
+      canWritePublic = false;
+    }
+
+    if (canWritePublic) {
+      targetDir = publicMusic;
+    } else {
+      final ext = await getExternalStorageDirectory();
+      final base = ext ?? await getApplicationDocumentsDirectory();
+      targetDir = Directory('${base.path}/Music/Fley');
+    }
   } else if (Platform.isIOS) {
-    baseDir = await getApplicationDocumentsDirectory();
+    final docs = await getApplicationDocumentsDirectory();
+    targetDir = Directory('${docs.path}/Music/Fley');
+  } else if (Platform.isMacOS || Platform.isLinux) {
+    final home = Platform.environment['HOME'] ?? '';
+    if (home.isNotEmpty) {
+      targetDir = Directory('$home/Music/Fley');
+    } else {
+      final down = await getDownloadsDirectory();
+      final base = down ?? await getApplicationDocumentsDirectory();
+      targetDir = Directory('${base.path}/Music/Fley');
+    }
+  } else if (Platform.isWindows) {
+    final userProfile = Platform.environment['USERPROFILE'] ?? '';
+    if (userProfile.isNotEmpty) {
+      targetDir = Directory('$userProfile\\Music\\Fley');
+    } else {
+      final down = await getDownloadsDirectory();
+      final base = down ?? await getApplicationDocumentsDirectory();
+      targetDir = Directory('${base.path}/Music/Fley');
+    }
   } else {
-    final down = await getDownloadsDirectory();
-    baseDir = down ?? await getApplicationDocumentsDirectory();
+    final docs = await getApplicationDocumentsDirectory();
+    targetDir = Directory('${docs.path}/Music/Fley');
   }
-  final downloadDir = Directory('${baseDir.path}/FleyDownloads');
-  if (!await downloadDir.exists()) {
-    await downloadDir.create(recursive: true);
+
+  if (!await targetDir.exists()) {
+    await targetDir.create(recursive: true);
   }
-  return downloadDir;
+
+  await _migrateLegacyDownloads(targetDir);
+
+  return targetDir;
+}
+
+Future<void> _migrateLegacyDownloads(Directory targetDir) async {
+  if (_migrationDone) return;
+  _migrationDone = true;
+
+  try {
+    final legacyDirs = <Directory>[];
+
+    if (Platform.isAndroid) {
+      try {
+        final ext = await getExternalStorageDirectory();
+        if (ext != null) {
+          legacyDirs.add(Directory('${ext.path}/FleyDownloads'));
+          legacyDirs.add(Directory('${ext.path}/Music/Fley'));
+        }
+      } catch (_) {}
+      legacyDirs.add(Directory('/storage/emulated/0/FleyDownloads'));
+    }
+
+    if (Platform.isMacOS || Platform.isLinux) {
+      final home = Platform.environment['HOME'] ?? '';
+      if (home.isNotEmpty) {
+        legacyDirs.add(Directory('$home/Downloads/FleyDownloads'));
+      }
+    } else if (Platform.isWindows) {
+      final userProfile = Platform.environment['USERPROFILE'] ?? '';
+      if (userProfile.isNotEmpty) {
+        legacyDirs.add(Directory('$userProfile\\Downloads\\FleyDownloads'));
+      }
+    }
+
+    try {
+      final down = await getDownloadsDirectory();
+      if (down != null) {
+        legacyDirs.add(Directory('${down.path}/FleyDownloads'));
+      }
+    } catch (_) {}
+    try {
+      final docs = await getApplicationDocumentsDirectory();
+      legacyDirs.add(Directory('${docs.path}/FleyDownloads'));
+      legacyDirs.add(Directory('${docs.path}/Music/Fley'));
+    } catch (_) {}
+
+    final pathMapping = <String, String>{};
+
+    for (final legacyDir in legacyDirs) {
+      if (!await legacyDir.exists() || legacyDir.path == targetDir.path) {
+        continue;
+      }
+
+      final entities = legacyDir.listSync();
+      for (final entity in entities) {
+        if (entity is! File) continue;
+        final fileName = entity.uri.pathSegments.last;
+        String? newFilePath;
+
+        if (Platform.isAndroid &&
+            (fileName.endsWith('.m4a') ||
+                fileName.endsWith('.opus') ||
+                fileName.endsWith('.mp3'))) {
+          // Export audio directly to public Music/Fley via MediaStore
+          final exported = await exportToPublicMusic(
+            srcPath: entity.path,
+            fileName: fileName,
+          );
+          if (exported != null && exported.isNotEmpty && File(exported).existsSync()) {
+            newFilePath = exported;
+            try {
+              await entity.delete();
+            } catch (_) {}
+          }
+        }
+
+        if (newFilePath == null) {
+          final newFile = File('${targetDir.path}/$fileName');
+          try {
+            if (!await newFile.exists()) {
+              try {
+                await entity.rename(newFile.path);
+              } catch (_) {
+                await entity.copy(newFile.path);
+                await entity.delete();
+              }
+            } else {
+              await entity.delete();
+            }
+            newFilePath = newFile.path;
+          } catch (e) {
+            debugPrint('Failed to migrate file ${entity.path}: $e');
+          }
+        }
+
+        if (newFilePath != null) {
+          pathMapping[entity.path] = newFilePath;
+        }
+      }
+
+      try {
+        if (legacyDir.listSync().isEmpty) {
+          await legacyDir.delete();
+        }
+      } catch (_) {}
+    }
+
+    if (pathMapping.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Update fley_downloads_registry
+      final rawRegistry = prefs.getString('fley_downloads_registry');
+      if (rawRegistry != null) {
+        try {
+          final registry = jsonDecode(rawRegistry) as Map<String, dynamic>;
+          bool registryChanged = false;
+          for (final entry in registry.entries) {
+            final tMap = entry.value;
+            if (tMap is Map && pathMapping.containsKey(tMap['path'])) {
+              tMap['path'] = pathMapping[tMap['path']];
+              tMap['url'] = pathMapping[tMap['path']];
+              registryChanged = true;
+            }
+          }
+          if (registryChanged) {
+            await prefs.setString('fley_downloads_registry', jsonEncode(registry));
+          }
+        } catch (_) {}
+      }
+
+      // Update metadata_overrides
+      final rawOverrides = prefs.getString('metadata_overrides');
+      if (rawOverrides != null) {
+        try {
+          final overrides = jsonDecode(rawOverrides) as Map<String, dynamic>;
+          bool overridesChanged = false;
+          for (final entry in overrides.entries) {
+            final oMap = entry.value;
+            if (oMap is Map && pathMapping.containsKey(oMap['coverPath'])) {
+              oMap['coverPath'] = pathMapping[oMap['coverPath']];
+              overridesChanged = true;
+            }
+          }
+          if (overridesChanged) {
+            await prefs.setString('metadata_overrides', jsonEncode(overrides));
+          }
+        } catch (_) {}
+      }
+
+      // Update cached_tracks_list
+      final rawCached = prefs.getString('cached_tracks_list');
+      if (rawCached != null) {
+        try {
+          final list = jsonDecode(rawCached) as List;
+          bool cachedChanged = false;
+          for (final item in list) {
+            if (item is Map && pathMapping.containsKey(item['path'])) {
+              item['path'] = pathMapping[item['path']];
+              item['url'] = pathMapping[item['path']];
+              cachedChanged = true;
+            }
+          }
+          if (cachedChanged) {
+            await prefs.setString('cached_tracks_list', jsonEncode(list));
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (e) {
+    debugPrint('Legacy downloads migration error: $e');
+  }
 }
 
 /// Notifier for login state so UI can react without polling.
 final ytmLoggedInNotifier = ValueNotifier<bool>(false);
 final ytmAccountNameNotifier = ValueNotifier<String?>('');
 final ytmAccountAvatarNotifier = ValueNotifier<String?>('');
+final ytmRegionNotifier = ValueNotifier<String>('US');
 
 Future<void> ytmInitFromPrefs() async {
   final prefs = await SharedPreferences.getInstance();
@@ -40,6 +331,13 @@ Future<void> ytmInitFromPrefs() async {
   ytmLoggedInNotifier.value = cookie.isNotEmpty;
   ytmAccountNameNotifier.value = prefs.getString(_accountNameKey);
   ytmAccountAvatarNotifier.value = prefs.getString(_accountAvatarKey);
+  ytmRegionNotifier.value = prefs.getString(_regionKey) ?? 'US';
+}
+
+Future<void> ytmSetRegion(String region) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_regionKey, region);
+  ytmRegionNotifier.value = region;
 }
 
 Future<void> ytmSaveCookie(String cookie,
@@ -166,11 +464,10 @@ class YtMusicService {
   static Map<String, String> _headers(String cookie) {
     const origin = 'https://music.youtube.com';
     final sapisidHash = _buildSapisidHash(cookie, origin);
-    String acceptLang = 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7';
-    try {
-      final loc = Platform.localeName.replaceAll('_', '-');
-      acceptLang = '$loc,id;q=0.9,en-US;q=0.8,en;q=0.7';
-    } catch (_) {}
+    final gl = ytmRegionNotifier.value;
+    final acceptLang = gl == 'ID'
+        ? 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7'
+        : 'en-US,en;q=0.9';
     return {
       'Cookie': cookie,
       'User-Agent': _userAgent,
@@ -187,13 +484,8 @@ class YtMusicService {
 
   static Map<String, dynamic> _context() {
     String hl = 'en';
-    String gl = 'US';
-    try {
-      final loc = Platform.localeName;
-      final parts = loc.split(RegExp(r'[-_]'));
-      if (parts.isNotEmpty && parts[0].isNotEmpty) hl = parts[0].toLowerCase();
-      if (parts.length > 1 && parts[1].isNotEmpty) gl = parts[1].toUpperCase();
-    } catch (_) {}
+    String gl = ytmRegionNotifier.value;
+    if (gl.isEmpty) gl = 'US';
     return {
       'client': {
         'clientName': 'WEB_REMIX',
@@ -260,7 +552,24 @@ class YtMusicService {
       client.close();
     }
     // Fallback to regional top hits search if browse is empty
-    return search('Top Hits Indonesia', limit: limit);
+    final gl = ytmRegionNotifier.value;
+    final fallbackQuery = gl == 'ID' ? 'Top Hits Indonesia' : 'Top Hits Global';
+    return search(fallbackQuery, limit: limit);
+  }
+
+  /// Fetch trending songs based on selected region.
+  static Future<List<YtTrack>> getTrendingSongs({int limit = 20}) async {
+    final gl = ytmRegionNotifier.value;
+    final regionInfo = getYtmRegionInfo(gl);
+    final String query;
+    if (gl == 'ID') {
+      query = 'Top Hits Indonesia';
+    } else if (gl == 'US') {
+      query = 'Top Hits Global';
+    } else {
+      query = 'Top Hits ${regionInfo.name}';
+    }
+    return search(query, limit: limit);
   }
 
   /// Search YT Music. Returns up to [limit] tracks.
