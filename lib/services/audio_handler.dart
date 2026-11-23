@@ -226,7 +226,7 @@ Future<void> configureAudioSession(bool playTogether) async {
         ),
         androidAudioFocusGainType:
             AndroidAudioFocusGainType.gainTransientMayDuck,
-        androidWillPauseWhenDucked: true,
+        androidWillPauseWhenDucked: false,
       ),
     );
   } else {
@@ -239,7 +239,7 @@ Future<void> configureAudioSession(bool playTogether) async {
           usage: AndroidAudioUsage.media,
         ),
         androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
-        androidWillPauseWhenDucked: true,
+        androidWillPauseWhenDucked: false,
       ),
     );
   }

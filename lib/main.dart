@@ -485,6 +485,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   String _playingFromName = 'All Songs';
   String? _lastIncrementedTrackId;
   bool _hasResetPosition = false;
+  DateTime _lastTrackStartTime = DateTime.now();
 
   List<Track> _playbackQueue = [];
   List<int> _shuffledIndices = [];
@@ -824,7 +825,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
     AudioSession.instance.then((session) {
       session.becomingNoisyEventStream.listen((_) {
-        if (_pauseOnDisconnect && _audioPlayer.playing) {
+        if (_pauseOnDisconnect &&
+            (_audioPlayer.playing || (_isYtmPlaying && _isPlaying))) {
           _pauseWithFade();
           showFleyToast(
             lookupAppLocalizations(
@@ -836,13 +838,20 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
       bool playBeforeInterruption = false;
       session.interruptionEventStream.listen((event) {
+        if (_isProgrammaticLoading) return;
+        if (DateTime.now().difference(_lastTrackStartTime).inMilliseconds <
+            2000) {
+          return;
+        }
         if (event.begin) {
           switch (event.type) {
             case AudioInterruptionType.duck:
+              _audioPlayer.setVolume(_volume);
               break;
             case AudioInterruptionType.pause:
             case AudioInterruptionType.unknown:
-              if (_audioPlayer.playing && !_playTogether) {
+              if ((_audioPlayer.playing || (_isYtmPlaying && _isPlaying)) &&
+                  !_playTogether) {
                 playBeforeInterruption = true;
                 _pauseWithFade();
               }
@@ -851,6 +860,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         } else {
           switch (event.type) {
             case AudioInterruptionType.duck:
+              _audioPlayer.setVolume(_volume);
               break;
             case AudioInterruptionType.pause:
             case AudioInterruptionType.unknown:

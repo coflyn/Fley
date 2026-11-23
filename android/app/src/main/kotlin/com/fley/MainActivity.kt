@@ -136,49 +136,15 @@ class MainActivity : AudioServiceActivity() {
                     try {
                         if (sessionId != 0) {
                             if (equalizer == null || activeSessionId != sessionId) {
-                                if (activeSessionId != 0 && activeSessionId != sessionId) {
-                                    try {
-                                        val closeIntent = Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
-                                            putExtra(AudioEffect.EXTRA_AUDIO_SESSION, activeSessionId)
-                                            putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
-                                        }
-                                        sendBroadcast(closeIntent)
-                                    } catch (_: Exception) {}
-                                }
                                 try {
                                     equalizer?.release()
                                 } catch (e: Exception) {}
                                 equalizer = try {
-                                    Equalizer(1000, sessionId).apply {
-                                        setControlStatusListener { effect, controlGranted ->
-                                            if (controlGranted) {
-                                                try { effect.enabled = true } catch (_: Exception) {}
-                                            }
-                                        }
-                                    }
+                                    Equalizer(0, sessionId)
                                 } catch (_: Exception) {
-                                    try {
-                                        Equalizer(0, sessionId).apply {
-                                            setControlStatusListener { effect, controlGranted ->
-                                                if (controlGranted) {
-                                                    try { effect.enabled = true } catch (_: Exception) {}
-                                                }
-                                            }
-                                        }
-                                    } catch (_: Exception) {
-                                        null
-                                    }
+                                    null
                                 }
                                 activeSessionId = sessionId
-
-                                try {
-                                    val openIntent = Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
-                                        putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
-                                        putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
-                                        putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
-                                    }
-                                    sendBroadcast(openIntent)
-                                } catch (_: Exception) {}
                             }
                             
                             val bands = equalizer?.numberOfBands?.toInt() ?: 0
@@ -350,16 +316,7 @@ class MainActivity : AudioServiceActivity() {
     }
 
     private fun releaseEqualizer() {
-        if (activeSessionId != 0) {
-            try {
-                val closeIntent = Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
-                    putExtra(AudioEffect.EXTRA_AUDIO_SESSION, activeSessionId)
-                    putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
-                }
-                sendBroadcast(closeIntent)
-            } catch (_: Exception) {}
-            activeSessionId = 0
-        }
+        activeSessionId = 0
         try {
             equalizer?.enabled = false
         } catch (_: Exception) {}
