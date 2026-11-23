@@ -2,6 +2,7 @@ package com.fley
 
 import android.content.ContentValues
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.media.RingtoneManager
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.Equalizer
@@ -303,6 +304,144 @@ class MainActivity : AudioServiceActivity() {
                                 WebView(this).clearCache(true)
                             } catch (_: Exception) {}
                         }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+                "exportToPublicMusic" -> {
+                    val srcPath = call.argument<String>("srcPath") ?: ""
+                    val fileName = call.argument<String>("fileName") ?: ""
+                    val title = call.argument<String>("title") ?: ""
+                    val artist = call.argument<String>("artist") ?: ""
+                    val album = call.argument<String>("album") ?: ""
+
+                    Thread {
+                        try {
+                            val srcFile = File(srcPath)
+                            if (!srcFile.exists()) {
+                                runOnUiThread {
+                                    result.error("FILE_NOT_FOUND", "Source file not found", null)
+                                }
+                                return@Thread
+                            }
+
+                            val cleanFileName = if (fileName.isNotEmpty()) fileName else srcFile.name
+                            val mimeType = when {
+                                cleanFileName.endsWith(".m4a", true) || cleanFileName.endsWith(".aac", true) -> "audio/mp4"
+                                cleanFileName.endsWith(".opus", true) -> "audio/opus"
+                                cleanFileName.endsWith(".mp3", true) -> "audio/mpeg"
+                                cleanFileName.endsWith(".ogg", true) -> "audio/ogg"
+                                cleanFileName.endsWith(".flac", true) -> "audio/flac"
+                                cleanFileName.endsWith(".wav", true) -> "audio/wav"
+                                else -> "audio/*"
+                            }
+
+                            var publicPath = ""
+
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                val resolver = contentResolver
+                                val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+
+                                try {
+                                    val projection = arrayOf(MediaStore.Audio.Media._ID, MediaStore.MediaColumns.DATA)
+                                    val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
+                                    val selectionArgs = arrayOf(cleanFileName, "Music/Fley%")
+                                    resolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
+                                        if (cursor.moveToFirst()) {
+                                            val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                                            val uriToDelete = Uri.withAppendedPath(collection, id.toString())
+                                            try { resolver.delete(uriToDelete, null, null) } catch (_: Exception) {}
+                                        }
+                                    }
+                                } catch (_: Exception) {}
+
+                                val contentValues = ContentValues().apply {
+                                    put(MediaStore.Audio.Media.DISPLAY_NAME, cleanFileName)
+                                    put(MediaStore.Audio.Media.TITLE, title.ifEmpty { cleanFileName })
+                                    if (artist.isNotEmpty() && artist != "<unknown>") {
+                                        put(MediaStore.Audio.Media.ARTIST, artist)
+                                    }
+                                    if (album.isNotEmpty() && album != "<unknown>") {
+                                        put(MediaStore.Audio.Media.ALBUM, album)
+                                    }
+                                    put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
+                                    put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/Fley")
+                                    put(MediaStore.Audio.Media.IS_PENDING, 1)
+                                }
+
+                                val newUri = resolver.insert(collection, contentValues)
+                                if (newUri != null) {
+                                    resolver.openOutputStream(newUri)?.use { outStream ->
+                                        srcFile.inputStream().use { inStream ->
+                                            inStream.copyTo(outStream)
+                                        }
+                                    }
+
+                                    val updateValues = ContentValues().apply {
+                                        put(MediaStore.Audio.Media.IS_PENDING, 0)
+                                    }
+                                    resolver.update(newUri, updateValues, null, null)
+                                    publicPath = "/storage/emulated/0/Music/Fley/$cleanFileName"
+                                }
+                            } else {
+                                val targetDir = File("/storage/emulated/0/Music/Fley")
+                                if (!targetDir.exists()) {
+                                    targetDir.mkdirs()
+                                }
+                                val destFile = File(targetDir, cleanFileName)
+                                srcFile.copyTo(destFile, overwrite = true)
+                                publicPath = destFile.absolutePath
+                            }
+
+                            if (publicPath.isNotEmpty()) {
+                                MediaScannerConnection.scanFile(
+                                    this@MainActivity,
+                                    arrayOf(publicPath),
+                                    arrayOf(mimeType)
+                                ) { _, _ -> }
+                            }
+
+                            runOnUiThread {
+                                result.success(publicPath)
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                result.error("EXPORT_ERROR", e.message, null)
+                            }
+                        }
+                    }.start()
+                }
+                "scanMediaFile" -> {
+                    val filePath = call.argument<String>("filePath") ?: ""
+                    try {
+                        MediaScannerConnection.scanFile(
+                            this,
+                            arrayOf(filePath),
+                            null
+                        ) { _, _ -> }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+                "deleteFromPublicMusic" -> {
+                    val filePath = call.argument<String>("filePath") ?: ""
+                    try {
+                        val file = File(filePath)
+                        if (file.exists()) {
+                            file.delete()
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            val resolver = contentResolver
+                            val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                            val selection = "${MediaStore.MediaColumns.DATA} = ?"
+                            val selectionArgs = arrayOf(filePath)
+                            try {
+                                resolver.delete(collection, selection, selectionArgs)
+                            } catch (_: Exception) {}
+                        }
+                        MediaScannerConnection.scanFile(this, arrayOf(filePath), null) { _, _ -> }
                         result.success(true)
                     } catch (e: Exception) {
                         result.success(false)

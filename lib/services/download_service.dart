@@ -261,6 +261,31 @@ class DownloadService {
         albumName = '${task.track.title} - Single';
       }
 
+      // On Android, export to public Music/Fley via MediaStore so it appears in Music/Fley immediately
+      if (Platform.isAndroid) {
+        try {
+          final publicPath = await exportToPublicMusic(
+            srcPath: audioFile.path,
+            fileName: audioFile.uri.pathSegments.last,
+            title: task.track.title,
+            artist: task.track.artist,
+            album: albumName,
+          );
+          if (publicPath != null &&
+              publicPath.isNotEmpty &&
+              File(publicPath).existsSync()) {
+            if (audioFile.path != publicPath) {
+              try {
+                await audioFile.delete();
+              } catch (_) {}
+            }
+            audioFile = File(publicPath);
+          }
+        } catch (e) {
+          debugPrint('Failed to export to public music: $e');
+        }
+      }
+
       final downloadedTrack = Track(
         id: newTrackId,
         title: task.track.title,
@@ -497,10 +522,19 @@ class DownloadService {
         await prefs.setString(_registryKey, jsonEncode(registry));
       }
 
-      // Check FleyDownloads directory for any audio files not yet in registry
+      // Check download directories for any audio files not yet in registry
       final dir = await getFleyDownloadsDirectory();
-      if (await dir.exists()) {
-        final list = dir.listSync();
+      final dirsToCheck = <Directory>[dir];
+      if (Platform.isAndroid) {
+        final publicMusic = Directory('/storage/emulated/0/Music/Fley');
+        if (publicMusic.path != dir.path && publicMusic.existsSync()) {
+          dirsToCheck.add(publicMusic);
+        }
+      }
+
+      for (final checkDir in dirsToCheck) {
+        if (!checkDir.existsSync()) continue;
+        final list = checkDir.listSync();
         for (final item in list) {
           if (item is File) {
             final p = item.path;
@@ -536,8 +570,8 @@ class DownloadService {
             }
           }
         }
-        await prefs.setString(_registryKey, jsonEncode(registry));
       }
+      await prefs.setString(_registryKey, jsonEncode(registry));
     } catch (_) {}
     return tracks;
   }
@@ -545,6 +579,9 @@ class DownloadService {
   /// Delete a downloaded track and its associated artwork from disk.
   Future<void> deleteDownload(Track track) async {
     try {
+      if (Platform.isAndroid) {
+        await deleteFromPublicMusic(track.path);
+      }
       final audioFile = File(track.path);
       if (await audioFile.exists()) {
         await audioFile.delete();

@@ -29,7 +29,9 @@ extension _DownloadsUI on _MainScreenState {
           builder: (context, setSheetState) {
             final downloadedTracks = _allTracks.where((t) {
               return t.id.startsWith('local_ytm_') ||
-                  t.path.contains('FleyDownloads');
+                  t.path.contains('FleyDownloads') ||
+                  t.path.contains('/Music/Fley') ||
+                  t.path.contains(r'\Music\Fley');
             }).toList();
 
             final sheetHeight = downloadedTracks.isEmpty
@@ -700,7 +702,9 @@ extension _DownloadsUI on _MainScreenState {
               setState(() {
                 _allTracks.removeWhere((t) =>
                     t.id.startsWith('local_ytm_') ||
-                    t.path.contains('FleyDownloads'));
+                    t.path.contains('FleyDownloads') ||
+                    t.path.contains('/Music/Fley') ||
+                    t.path.contains(r'\Music\Fley'));
                 _cachedDetailKey = null;
                 _memoSortedTracks = null;
               });
