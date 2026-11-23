@@ -404,6 +404,7 @@ extension _TrackOptionsUI on _MainScreenState {
                           _hiddenTrackIds.toList(),
                         );
                         setState(() {
+                          _ytmQuickPicksTracks.removeWhere((t) => t.videoId == vid);
                           _ytmTrendingTracks.removeWhere((t) => t.videoId == vid);
                           _recommendedTracks.removeWhere((t) => t.videoId == vid);
                           _cachedDetailKey = null;
@@ -469,7 +470,9 @@ extension _TrackOptionsUI on _MainScreenState {
                           final file = File(track.path);
                           if (track.path.isNotEmpty && await file.exists()) {
                             if (track.id.startsWith('local_ytm_') ||
-                                track.path.contains('FleyDownloads')) {
+                                track.path.contains('FleyDownloads') ||
+                                track.path.contains('/Music/Fley') ||
+                                track.path.contains(r'\Music\Fley')) {
                               await DownloadService.instance.deleteDownload(track);
                             } else {
                               await file.delete();

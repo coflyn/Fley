@@ -453,12 +453,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   List<Track> _allTracks = [];
   final Map<String, Track> _onlineTracksMap = {};
+  List<YtTrack> _ytmQuickPicksTracks = [];
+  bool _ytmQuickPicksLoading = false;
+  bool _ytmQuickPicksFailed = false;
   List<YtTrack> _ytmTrendingTracks = [];
   bool _ytmTrendingLoading = false;
   bool _ytmTrendingFailed = false;
-  List<YtPlaylist> _ytmNewReleases = [];
-  bool _ytmNewReleasesLoading = false;
-  bool _ytmNewReleasesFailed = false;
   List<YtTrack> _recommendedTracks = [];
   String _recommendedArtist = '';
   bool _recommendedLoading = false;
@@ -717,6 +717,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _requestPermissionAndScan();
     _setupAudioStreams();
     _startBatteryMonitor();
+    ytmRegionNotifier.addListener(_onYtmRegionChanged);
 
     DownloadService.instance.onTrackDownloaded = (newTrack, artBytes) {
       if (!mounted) return;
@@ -761,8 +762,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         final dur = YtPlayerService.instance.currentDuration;
         if (_playingTrack != null &&
             _playingTrack!.id.startsWith('ytm_') &&
-            _playingTrack!.duration <= 0 &&
-            dur > Duration.zero) {
+            dur > Duration.zero &&
+            (_playingTrack!.duration <= 0 ||
+                _playingTrack!.duration != dur.inMilliseconds)) {
           _playingTrack = _playingTrack!.copyWith(duration: dur.inMilliseconds);
           _onlineTracksMap[_playingTrack!.id] = _playingTrack!;
           final idx = _recentOnlineSearches.indexWhere(
@@ -790,6 +792,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         if (audioHandler is MyAudioHandler) {
           (audioHandler as MyAudioHandler).updateYtmPlaybackState(
             isPlaying: YtPlayerService.instance.isPlaying,
+            position: YtPlayerService.instance.currentPosition,
           );
         }
       }
@@ -915,8 +918,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
   }
 
+  void _onYtmRegionChanged() {
+    if (!mounted) return;
+    setState(() {
+      _ytmQuickPicksTracks.clear();
+      _ytmQuickPicksLoading = false;
+      _ytmQuickPicksFailed = false;
+      _ytmTrendingTracks.clear();
+      _ytmTrendingLoading = false;
+      _ytmTrendingFailed = false;
+    });
+  }
+
   @override
   void dispose() {
+    ytmRegionNotifier.removeListener(_onYtmRegionChanged);
     YtPlayerService.instance.stop();
     WidgetsBinding.instance.removeObserver(this);
     _batteryCheckTimer?.cancel();

@@ -2274,9 +2274,11 @@ extension _TabsUI on _MainScreenState {
     final targetIndex = queue.indexWhere((t) => t.path == yt.videoId);
     _updatePlayingFrom(
       type: 'YOUTUBE MUSIC',
-      name: customQueue == _ytmTrendingTracks
-          ? 'Trending Songs'
-          : (customQueue != null ? 'Online Playlist' : 'YouTube Music Search'),
+      name: customQueue == _ytmQuickPicksTracks
+          ? 'Quick Picks'
+          : (customQueue == _ytmTrendingTracks
+              ? 'Trending Songs'
+              : (customQueue != null ? 'Online Playlist' : 'YouTube Music Search')),
     );
     _playTrack(
       targetIndex != -1 ? targetIndex : 0,

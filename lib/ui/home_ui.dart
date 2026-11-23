@@ -26,8 +26,8 @@ extension _HomeUI on _MainScreenState {
           _buildQuickPinsGrid(),
           const SizedBox(height: 28),
           _buildRecentRotationSection(),
+          _buildYtmQuickPicksSection(),
           _buildYtmTrendingSection(),
-          _buildYtmNewReleasesSection(),
           _buildYtmArtistRecommendationsSection(),
           _buildMyPlaylistsSection(),
           const SizedBox(height: 28),
@@ -809,12 +809,226 @@ extension _HomeUI on _MainScreenState {
     );
   }
 
+  void _fetchYtmQuickPicks() async {
+    if (_ytmQuickPicksLoading || _ytmQuickPicksTracks.isNotEmpty || _ytmQuickPicksFailed) return;
+    if (!ytmLoggedInNotifier.value) return;
+    setState(() => _ytmQuickPicksLoading = true);
+    try {
+      final results = await YtMusicService.getHomeQuickPicks(limit: 20);
+      if (mounted) {
+        setState(() {
+          _ytmQuickPicksTracks = results;
+          _ytmQuickPicksLoading = false;
+          _ytmQuickPicksFailed = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _ytmQuickPicksLoading = false;
+          _ytmQuickPicksFailed = true;
+        });
+      }
+    }
+  }
+
+  Widget _buildYtmQuickPicksSection() {
+    final isLight = isAppLight;
+    final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
+    final isIndo = FleyStrings.currentLang == 'id';
+    final sectionTitle = isIndo ? 'Pilihan Cepat' : 'Quick Picks';
+
+    return ValueListenableBuilder<bool>(
+      valueListenable: ytmLoggedInNotifier,
+      builder: (context, isLoggedIn, _) {
+        if (!isLoggedIn) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 28),
+            child: _buildYtmConnectBanner(isLight, textColor),
+          );
+        }
+
+        if (_ytmQuickPicksFailed) {
+          return const SizedBox.shrink();
+        }
+
+        if (_ytmQuickPicksTracks.isEmpty) {
+          if (!_ytmQuickPicksLoading) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _fetchYtmQuickPicks();
+            });
+          }
+          return const SizedBox.shrink();
+        }
+
+        final visibleQuickPicks = _ytmQuickPicksTracks
+            .where(
+              (t) =>
+                  !_hiddenTrackIds.contains(t.videoId) &&
+                  !_hiddenTrackIds.contains('ytm_${t.videoId}'),
+            )
+            .toList();
+
+        if (visibleQuickPicks.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFF0000),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    sectionTitle,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                      color: textColor,
+                      fontFamily: getFontFamily(activeFontNotifier.value),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 195,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  cacheExtent: 1500.0,
+                  itemCount: visibleQuickPicks.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 14),
+                  itemBuilder: (context, index) {
+                    final yt = visibleQuickPicks[index];
+                    return GestureDetector(
+                      onTap: () {
+                        _playYtmTrack(yt, customQueue: visibleQuickPicks);
+                      },
+                      child: SizedBox(
+                        width: 136,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 136,
+                              height: 136,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(
+                                      alpha: isLight ? 0.08 : 0.3,
+                                    ),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    _buildYtTrackThumbnail(yt, isLight),
+                                    Positioned(
+                                      bottom: 8,
+                                      right: 8,
+                                      child: GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTap: () {
+                                          final t = Track(
+                                            id: 'ytm_${yt.videoId}',
+                                            title: yt.title,
+                                            artist: yt.artist,
+                                            album: yt.album,
+                                            url: yt.thumbnailUrl,
+                                            path: yt.videoId,
+                                            lyrics: const [],
+                                            duration: yt.durationMs,
+                                            artistBrowseId: yt.artistBrowseId,
+                                            albumBrowseId: yt.albumBrowseId,
+                                          );
+                                          _showTrackOptions(context, t);
+                                        },
+                                        child: Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(alpha: 0.7),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.more_vert_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              yt.title,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
+                                fontFamily: getFontFamily(activeFontNotifier.value),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              yt.artist,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isLight ? Colors.black54 : Colors.white54,
+                                fontFamily: getFontFamily(activeFontNotifier.value),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _fetchYtmHomeTrending() async {
     if (_ytmTrendingLoading || _ytmTrendingTracks.isNotEmpty || _ytmTrendingFailed) return;
     if (!ytmLoggedInNotifier.value) return;
     setState(() => _ytmTrendingLoading = true);
     try {
-      final results = await YtMusicService.getHomeQuickPicks(limit: 20);
+      final results = await YtMusicService.getTrendingSongs(limit: 20);
       if (mounted) {
         setState(() {
           _ytmTrendingTracks = results;
@@ -835,18 +1049,13 @@ extension _HomeUI on _MainScreenState {
   Widget _buildYtmTrendingSection() {
     final isLight = isAppLight;
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
+    final isIndo = FleyStrings.currentLang == 'id';
+    final sectionTitle = isIndo ? 'Lagu Trending' : 'Trending Songs';
 
     return ValueListenableBuilder<bool>(
       valueListenable: ytmLoggedInNotifier,
       builder: (context, isLoggedIn, _) {
-        if (!isLoggedIn) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 28),
-            child: _buildYtmConnectBanner(isLight, textColor),
-          );
-        }
-
-        if (_ytmTrendingFailed) {
+        if (!isLoggedIn || _ytmTrendingFailed) {
           return const SizedBox.shrink();
         }
 
@@ -869,8 +1078,6 @@ extension _HomeUI on _MainScreenState {
 
         if (visibleTrending.isEmpty) return const SizedBox.shrink();
 
-        const sectionTitle = 'Trending Songs for You';
-
         return Padding(
           padding: const EdgeInsets.only(top: 28),
           child: Column(
@@ -887,9 +1094,9 @@ extension _HomeUI on _MainScreenState {
                   ),
                   child: const Center(
                     child: Icon(
-                      Icons.play_arrow_rounded,
+                      Icons.local_fire_department_rounded,
                       color: Colors.white,
-                      size: 16,
+                      size: 14,
                     ),
                   ),
                 ),
@@ -1117,213 +1324,6 @@ extension _HomeUI on _MainScreenState {
     );
   }
 
-  void _fetchYtmNewReleases() async {
-    if (_ytmNewReleasesLoading ||
-        _ytmNewReleases.isNotEmpty ||
-        _ytmNewReleasesFailed) {
-      return;
-    }
-    if (!ytmLoggedInNotifier.value) {
-      return;
-    }
-    setState(() => _ytmNewReleasesLoading = true);
-    try {
-      final results = await YtMusicService.getNewReleases(limit: 20);
-      if (mounted) {
-        setState(() {
-          _ytmNewReleases = results;
-          _ytmNewReleasesLoading = false;
-          _ytmNewReleasesFailed = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _ytmNewReleasesLoading = false;
-          _ytmNewReleasesFailed = true;
-        });
-      }
-    }
-  }
-
-  Widget _buildYtmNewReleasesSection() {
-    final isLight = isAppLight;
-    final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
-    final isIndo = FleyStrings.currentLang == 'id';
-    final sectionTitle = isIndo ? 'Rilisan Terbaru' : 'New Releases';
-
-    return ValueListenableBuilder<bool>(
-      valueListenable: ytmLoggedInNotifier,
-      builder: (context, isLoggedIn, _) {
-        if (!isLoggedIn || _ytmNewReleasesFailed) return const SizedBox.shrink();
-
-        if (_ytmNewReleases.isEmpty && !_ytmNewReleasesLoading) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _fetchYtmNewReleases();
-          });
-        }
-
-        if (_ytmNewReleases.isEmpty && _ytmNewReleasesLoading) {
-          return const SizedBox.shrink();
-        }
-
-        if (_ytmNewReleases.isEmpty) return const SizedBox.shrink();
-
-        return Padding(
-          padding: const EdgeInsets.only(top: 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFF0000),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.album_rounded,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    sectionTitle,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                      color: textColor,
-                      fontFamily: getFontFamily(activeFontNotifier.value),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 200,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: _ytmNewReleases.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 14),
-                  itemBuilder: (context, index) {
-                    final pl = _ytmNewReleases[index];
-                    return GestureDetector(
-                      onTap: () => _openOnlineAlbum(
-                        pl.title,
-                        pl.author,
-                        browseId: pl.playlistId,
-                        coverUrl: pl.thumbnailUrl,
-                      ),
-                      child: SizedBox(
-                        width: 136,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 136,
-                              height: 136,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(
-                                      alpha: isLight ? 0.08 : 0.3,
-                                    ),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Image.network(
-                                      pl.thumbnailUrl,
-                                      fit: BoxFit.cover,
-                                      gaplessPlayback: true,
-                                      errorBuilder: (_, _, _) => Container(
-                                        color: isLight
-                                            ? Colors.black12
-                                            : const Color(0xFF282828),
-                                        child: const Icon(
-                                          Icons.album_rounded,
-                                          color: Colors.white54,
-                                          size: 32,
-                                        ),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      bottom: 8,
-                                      right: 8,
-                                      child: Container(
-                                        width: 32,
-                                        height: 32,
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.7,
-                                          ),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.play_arrow_rounded,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              pl.title,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: textColor,
-                                fontFamily:
-                                    getFontFamily(activeFontNotifier.value),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              pl.author,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isLight
-                                    ? Colors.black54
-                                    : Colors.white54,
-                                fontFamily:
-                                    getFontFamily(activeFontNotifier.value),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   String _getRecommendationArtist() {
     if (_playingTrack != null) {
