@@ -302,17 +302,36 @@ extension _AudioPlaybackLogic on _MainScreenState {
         YtPlayerService.instance.setPlaybackRate(_playbackSpeed);
       }
 
+      final vid = track.path.isNotEmpty ? track.path : track.id.replaceFirst('ytm_', '');
+      final cachedCover = ArtworkCacheManager.getYtmCoverFile(vid);
+      final artUri = cachedCover != null
+          ? Uri.file(cachedCover.path)
+          : (track.url.isNotEmpty ? Uri.tryParse(track.url) : null);
+
       final mediaItem = MediaItem(
         id: track.id,
         album: track.album.trim().isEmpty ? 'YouTube Music' : track.album,
         title: track.title.trim().isEmpty ? 'Unknown Title' : track.title,
         artist: track.artist.trim().isEmpty ? 'Unknown Artist' : track.artist,
-        artUri: Uri.tryParse(track.url),
-        duration: Duration(milliseconds: track.duration),
+        artUri: artUri,
+        duration: track.duration > 0 ? Duration(milliseconds: track.duration) : null,
       );
       if (audioHandler is MyAudioHandler) {
         (audioHandler as MyAudioHandler).updateYtmMediaItem(mediaItem);
-        (audioHandler as MyAudioHandler).updateYtmPlaybackState(isPlaying: true);
+        (audioHandler as MyAudioHandler).updateYtmPlaybackState(
+          isPlaying: true,
+          position: initialPosition ?? Duration.zero,
+        );
+      }
+      if (cachedCover == null && track.url.startsWith('http')) {
+        ArtworkCacheManager.saveYtmCover(vid, track.url).then((file) {
+          if (file != null && _playingTrack?.id == track.id) {
+            final cur = audioHandler.mediaItem.value;
+            if (cur != null && cur.id == track.id) {
+              audioHandler.updateMediaItem(cur.copyWith(artUri: Uri.file(file.path)));
+            }
+          }
+        });
       }
       _updateDominantColor(track);
       setState(() {
@@ -352,6 +371,10 @@ extension _AudioPlaybackLogic on _MainScreenState {
       if (customPath != null && File(customPath).existsSync()) {
         currentCover = Uri.file(customPath);
       }
+      currentCover ??= await _getCoverUriForTrack(
+        track,
+        fetchNativeIfMissing: false,
+      );
 
       Future.microtask(() async {
         final fullCover = await _getCoverUriForTrack(

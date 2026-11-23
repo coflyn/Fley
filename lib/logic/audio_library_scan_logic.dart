@@ -617,22 +617,27 @@ extension _AudioLibraryScanLogic on _MainScreenState {
         return Uri.file(cacheFile.path);
       }
 
+      if (track.url.startsWith('http://') || track.url.startsWith('https://')) {
+        return Uri.tryParse(track.url);
+      }
+
       if (!fetchNativeIfMissing) return null;
 
       // 2. Fetch via on_audio_query or ArtworkCacheManager
       final id = int.tryParse(track.id);
+      Uint8List? bytes;
       if (id != null) {
-        Uint8List? bytes = await _audioQuery.queryArtwork(
+        bytes = await _audioQuery.queryArtwork(
           id,
           ArtworkType.AUDIO,
           size: 500,
           quality: 85,
         );
-        bytes ??= await ArtworkCacheManager.fetchAndCacheNativeArtwork(track.id);
-        if (bytes != null && bytes.isNotEmpty) {
-          await cacheFile.writeAsBytes(bytes);
-          return Uri.file(cacheFile.path);
-        }
+      }
+      bytes ??= await ArtworkCacheManager.fetchAndCacheNativeArtwork(track.id);
+      if (bytes != null && bytes.isNotEmpty) {
+        await cacheFile.writeAsBytes(bytes);
+        return Uri.file(cacheFile.path);
       }
     } catch (_) {}
     return null;

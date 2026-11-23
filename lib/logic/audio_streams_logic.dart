@@ -105,6 +105,20 @@ extension _AudioStreamsLogic on _MainScreenState {
     YtPlayerService.instance.positionStream.listen((pos) {
       if (!_isYtmPlaying) return;
       final dur = YtPlayerService.instance.currentDuration;
+      if (dur > Duration.zero) {
+        final curItem = audioHandler.mediaItem.value;
+        if (curItem != null && (curItem.duration == null || curItem.duration == Duration.zero)) {
+          if (audioHandler is MyAudioHandler) {
+            (audioHandler as MyAudioHandler).updateYtmMediaItem(curItem.copyWith(duration: dur));
+          }
+        }
+      }
+      if (audioHandler is MyAudioHandler && pos.inSeconds % 2 == 0) {
+        (audioHandler as MyAudioHandler).updateYtmPlaybackState(
+          isPlaying: YtPlayerService.instance.isPlaying,
+          position: pos,
+        );
+      }
       if (dur > Duration.zero && dur - pos < const Duration(seconds: 12)) {
         _preloadNextYtmTrack();
       }

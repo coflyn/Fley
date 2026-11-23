@@ -61,7 +61,17 @@ class MyAudioHandler extends BaseAudioHandler {
     mediaItem.add(item);
   }
 
-  void updateYtmPlaybackState({required bool isPlaying}) {
+  void updateYtmPlaybackState({
+    required bool isPlaying,
+    Duration? position,
+    Duration? bufferedPosition,
+    double speed = 1.0,
+  }) {
+    final pos = position ??
+        (_MainScreenState.mainScreenState != null &&
+                _MainScreenState.mainScreenState!._isYtmPlaying
+            ? YtPlayerService.instance.currentPosition
+            : Duration.zero);
     playbackState.add(
       PlaybackState(
         controls: [
@@ -81,7 +91,10 @@ class MyAudioHandler extends BaseAudioHandler {
         androidCompactActionIndices: const [0, 1, 2],
         processingState: AudioProcessingState.ready,
         playing: isPlaying,
-        speed: 1.0,
+        speed: speed,
+        updatePosition: pos,
+        updateTime: DateTime.now(),
+        bufferedPosition: bufferedPosition ?? pos,
       ),
     );
   }
@@ -103,7 +116,11 @@ class MyAudioHandler extends BaseAudioHandler {
       playbackState.value.copyWith(
         playing: false,
         processingState: AudioProcessingState.idle,
-        controls: [],
+        controls: [
+          MediaControl.skipToPrevious,
+          MediaControl.play,
+          MediaControl.skipToNext,
+        ],
       ),
     );
     await super.stop();
@@ -114,6 +131,10 @@ class MyAudioHandler extends BaseAudioHandler {
     if (_MainScreenState.mainScreenState != null &&
         _MainScreenState.mainScreenState!._isYtmPlaying) {
       _MainScreenState.mainScreenState!._smoothSeek(position);
+      updateYtmPlaybackState(
+        isPlaying: YtPlayerService.instance.isPlaying,
+        position: position,
+      );
       return Future.value();
     }
     return player.seek(position);
@@ -150,11 +171,17 @@ class MyAudioHandler extends BaseAudioHandler {
   }
 
   void refreshPlaybackState() {
+    final isYtm = _MainScreenState.mainScreenState != null &&
+        _MainScreenState.mainScreenState!._isYtmPlaying;
+    final isPlaying = isYtm ? YtPlayerService.instance.isPlaying : player.playing;
+    final pos = isYtm ? YtPlayerService.instance.currentPosition : player.position;
+
     playbackState.add(
       playbackState.value.copyWith(
+        playing: isPlaying,
         controls: [
           MediaControl.skipToPrevious,
-          if (player.playing) MediaControl.pause else MediaControl.play,
+          if (isPlaying) MediaControl.pause else MediaControl.play,
           MediaControl.skipToNext,
         ],
         systemActions: const {
@@ -166,6 +193,7 @@ class MyAudioHandler extends BaseAudioHandler {
           MediaAction.skipToNext,
           MediaAction.skipToPrevious,
         },
+        updatePosition: pos,
       ),
     );
   }
