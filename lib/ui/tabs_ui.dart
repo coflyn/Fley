@@ -131,9 +131,7 @@ extension _TabsUI on _MainScreenState {
           ),
         ),
         title: Text(
-          FleyStrings.currentLang == 'id'
-              ? 'Import Playlist'
-              : 'Import Playlist',
+          lookupAppLocalizations(Locale(FleyStrings.currentLang)).importPlaylist,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -141,7 +139,7 @@ extension _TabsUI on _MainScreenState {
           ),
         ),
         subtitle: Text(
-          'Spotify / Apple Music / YouTube Music',
+          lookupAppLocalizations(Locale(FleyStrings.currentLang)).importPlaylistPlatforms,
           style: TextStyle(
             fontSize: 12,
             color: isAppLight ? Colors.black45 : Colors.white54,
@@ -2272,12 +2270,13 @@ extension _TabsUI on _MainScreenState {
     }
 
     final targetIndex = queue.indexWhere((t) => t.path == yt.videoId);
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
     _updatePlayingFrom(
       type: 'YOUTUBE MUSIC',
       name: customQueue == _ytmQuickPicksTracks
-          ? 'Quick Picks'
+          ? loc.quickPicks
           : (customQueue == _ytmTrendingTracks
-              ? 'Trending Songs'
+              ? loc.trendingSongs
               : (customQueue != null ? 'Online Playlist' : 'YouTube Music Search')),
     );
     _playTrack(
@@ -2445,7 +2444,7 @@ extension _TabsUI on _MainScreenState {
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 8),
             child: Text(
-              'Trending',
+              loc.trending,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,

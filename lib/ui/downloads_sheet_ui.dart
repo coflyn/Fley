@@ -27,6 +27,7 @@ extension _DownloadsUI on _MainScreenState {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final loc = AppLocalizations.of(context);
             final downloadedTracks = _allTracks.where((t) {
               return t.id.startsWith('local_ytm_') ||
                   t.path.contains('FleyDownloads') ||
@@ -82,7 +83,7 @@ extension _DownloadsUI on _MainScreenState {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Downloads',
+                                  loc.downloads,
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -181,7 +182,7 @@ extension _DownloadsUI on _MainScreenState {
                                   child: Row(
                                     children: [
                                       Text(
-                                        'DOWNLOADING (${downloadingTasks.length})',
+                                        loc.downloadingSection(downloadingTasks.length),
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
@@ -222,7 +223,7 @@ extension _DownloadsUI on _MainScreenState {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 4, vertical: 6),
                                   child: Text(
-                                    'DOWNLOADED OFFLINE (${downloadedTracks.length})',
+                                    loc.downloadedOfflineSection(downloadedTracks.length),
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -280,9 +281,7 @@ extension _DownloadsUI on _MainScreenState {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              FleyStrings.currentLang == 'id'
-                                  ? 'Gulir ke bawah untuk lagu lainnya (${downloadedTracks.length} lagu)'
-                                  : 'Scroll down for more (${downloadedTracks.length} songs)',
+                              loc.scrollDownForMore(downloadedTracks.length),
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
@@ -609,6 +608,7 @@ extension _DownloadsUI on _MainScreenState {
 
   Widget _buildDownloadsEmptyState(
       bool isLight, Color textColor, Color subtextColor) {
+    final loc = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 36),
@@ -629,7 +629,7 @@ extension _DownloadsUI on _MainScreenState {
             ),
             const SizedBox(height: 22),
             Text(
-              'No Downloads Yet',
+              loc.noDownloadsYet,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -638,7 +638,7 @@ extension _DownloadsUI on _MainScreenState {
             ),
             const SizedBox(height: 8),
             Text(
-              'Download your favorite songs from YouTube Music to listen offline anytime without using cellular data.',
+              loc.noDownloadsYetSubtitle,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -655,6 +655,7 @@ extension _DownloadsUI on _MainScreenState {
   void _confirmClearAllDownloads(
       BuildContext ctx, StateSetter setSheetState) {
     final isLight = isAppLight;
+    final loc = AppLocalizations.of(ctx);
     showDialog(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
@@ -662,14 +663,14 @@ extension _DownloadsUI on _MainScreenState {
             isLight ? const Color(0xFFF7F7F9) : const Color(0xFF1F1F23),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         title: Text(
-          'Clear All Downloads?',
+          loc.clearAllDownloadsTitle,
           style: TextStyle(
             color: isLight ? const Color(0xFF18181B) : Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
-          'All downloaded song files and offline cached artwork will be permanently deleted from your device storage.',
+          loc.clearAllDownloadsBody,
           style: TextStyle(
             color: isLight ? Colors.black87 : Colors.white70,
             fontSize: 13.5,
@@ -680,7 +681,7 @@ extension _DownloadsUI on _MainScreenState {
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
             child: Text(
-              'Cancel',
+              loc.cancel,
               style: TextStyle(
                 color: isLight ? Colors.black54 : Colors.white54,
                 fontWeight: FontWeight.w600,
@@ -712,9 +713,9 @@ extension _DownloadsUI on _MainScreenState {
               final serialized = _allTracks.map((t) => t.toMap()).toList();
               await prefs.setString('cached_tracks_list', jsonEncode(serialized));
               setSheetState(() {});
-              showFleyToast('All downloads cleared');
+              showFleyToast(loc.allDownloadsCleared);
             },
-            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(loc.delete, style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

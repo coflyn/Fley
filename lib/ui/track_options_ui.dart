@@ -173,9 +173,7 @@ extension _TrackOptionsUI on _MainScreenState {
                         Navigator.pop(context);
                         if (isDownloaded) {
                           showFleyToast(
-                            FleyStrings.currentLang == 'id'
-                                ? 'Lagu sudah ada di perpustakaan lokal'
-                                : 'Song already in local library',
+                            AppLocalizations.of(context).songAlreadyInLibrary,
                           );
                         } else {
                           _downloadYtmTrack(track);
@@ -248,11 +246,11 @@ extension _TrackOptionsUI on _MainScreenState {
                     if ((_userPlaylists[playlistContext]?.indexOf(track.id) ?? 0) > 0)
                       _buildOptionItem(
                         Icons.vertical_align_top_rounded,
-                        FleyStrings.currentLang == 'id'
-                            ? 'Pindahkan ke paling awal'
-                            : 'Move to top',
+                        AppLocalizations.of(context).moveToTop,
                         () async {
                           Navigator.pop(context);
+                          final movedMsg =
+                              AppLocalizations.of(context).songMovedToTop;
                           setState(() {
                             _userPlaylists[playlistContext]!.remove(track.id);
                             _userPlaylists[playlistContext]!.insert(0, track.id);
@@ -262,11 +260,7 @@ extension _TrackOptionsUI on _MainScreenState {
                           });
                           final prefs = await SharedPreferences.getInstance();
                           await prefs.setString('detailSortBy', 'default');
-                          showFleyToast(
-                            FleyStrings.currentLang == 'id'
-                                ? 'Lagu dipindahkan ke paling awal'
-                                : 'Song moved to top',
-                          );
+                          showFleyToast(movedMsg);
                         },
                       ),
                     _buildOptionItem(
@@ -387,11 +381,11 @@ extension _TrackOptionsUI on _MainScreenState {
                   if (isYtm) ...[
                     _buildOptionItem(
                       Icons.visibility_off_outlined,
-                      FleyStrings.currentLang == 'id'
-                          ? 'Tidak tertarik'
-                          : 'Not interested',
+                      AppLocalizations.of(context).notInterested,
                       () async {
                         Navigator.pop(context);
+                        final notInterestedMsg =
+                            AppLocalizations.of(context).notInterested;
                         final prefs = await SharedPreferences.getInstance();
                         final vid = track.path.isNotEmpty
                             ? track.path
@@ -412,11 +406,7 @@ extension _TrackOptionsUI on _MainScreenState {
                         if (_playingTrack?.id == track.id) {
                           _MainScreenState.mainScreenState!._playNext();
                         }
-                        showFleyToast(
-                          FleyStrings.currentLang == 'id'
-                              ? 'Tidak tertarik'
-                              : 'Not interested',
-                        );
+                        showFleyToast(notInterestedMsg);
                       },
                     ),
                   ],
@@ -698,16 +688,13 @@ extension _TrackOptionsUI on _MainScreenState {
   }
 
   Future<void> _downloadYtmTrack(Track track) async {
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
     final videoId = track.path.isNotEmpty
         ? track.path
         : track.id.replaceFirst('ytm_', '');
 
     if (videoId.isEmpty) {
-      showFleyToast(
-        FleyStrings.currentLang == 'id'
-            ? 'ID video tidak valid'
-            : 'Invalid video ID',
-      );
+      showFleyToast(loc.invalidVideoId);
       return;
     }
 
@@ -727,19 +714,11 @@ extension _TrackOptionsUI on _MainScreenState {
 
     if ((await audioFileM4a.exists() && (await audioFileM4a.length()) > 0) ||
         (await audioFileOpus.exists() && (await audioFileOpus.length()) > 0)) {
-      showFleyToast(
-        FleyStrings.currentLang == 'id'
-            ? '${track.title} sudah diunduh'
-            : '${track.title} already downloaded',
-      );
+      showFleyToast(loc.songAlreadyDownloaded(track.title));
       return;
     }
 
-    showFleyToast(
-      FleyStrings.currentLang == 'id'
-          ? 'Menambahkan ${track.title} ke unduhan...'
-          : 'Added ${track.title} to downloads...',
-    );
+    showFleyToast(loc.addedToDownloads(track.title));
 
     DownloadService.instance.downloadTrack(track);
   }

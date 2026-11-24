@@ -189,9 +189,7 @@ extension _MainUIComponents on _MainScreenState {
                         ),
                     ],
                   ),
-                  tooltip: FleyStrings.currentLang == 'id'
-                      ? 'Unduhan'
-                      : 'Downloads',
+                  tooltip: AppLocalizations.of(context).downloads,
                   onPressed: _openDownloads,
                 );
               },

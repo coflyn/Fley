@@ -613,9 +613,8 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                                     children: [
                                       if (index > 0)
                                         Tooltip(
-                                          message: FleyStrings.currentLang == 'id'
-                                              ? 'Pindahkan ke paling awal'
-                                              : 'Move to top',
+                                          message: AppLocalizations.of(context)
+                                              .moveToTop,
                                           child: IconButton(
                                             icon: const Icon(
                                               Icons.vertical_align_top_rounded,
@@ -625,6 +624,9 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                                                 ? Colors.black45
                                                 : Colors.white60,
                                             onPressed: () {
+                                              final movedMsg =
+                                                  AppLocalizations.of(context)
+                                                      .songMovedToTop;
                                               setModalState(() {
                                                 final item = playlistSongs
                                                     .removeAt(index);
@@ -647,11 +649,7 @@ extension _PlaylistEditSongsUI on _MainScreenState {
                                                   'default',
                                                 );
                                               });
-                                              showFleyToast(
-                                                FleyStrings.currentLang == 'id'
-                                                    ? 'Lagu dipindahkan ke paling awal'
-                                                    : 'Song moved to top',
-                                              );
+                                              showFleyToast(movedMsg);
                                             },
                                           ),
                                         ),

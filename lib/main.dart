@@ -376,7 +376,10 @@ class MainScreen extends StatefulWidget {
       }
       final sessionId = mainScreenState!.player.androidAudioSessionId ?? 0;
       if (sessionId == 0) {
-        showFleyToast("Please play a song first to use the Equalizer!");
+        showFleyToast(
+          lookupAppLocalizations(Locale(FleyStrings.currentLang))
+              .playFirstToUseEqualizer,
+        );
       } else {
         mainScreenState!._showEqualizerSheet(context);
       }
@@ -738,9 +741,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         prefs.setString('cached_tracks_list', jsonEncode(serialized));
       });
       showFleyToast(
-        FleyStrings.currentLang == 'id'
-            ? 'Berhasil mengunduh ${newTrack.title}'
-            : 'Successfully downloaded ${newTrack.title}',
+        lookupAppLocalizations(Locale(FleyStrings.currentLang))
+            .downloadSuccess(newTrack.title),
       );
     };
 

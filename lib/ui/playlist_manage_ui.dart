@@ -599,7 +599,7 @@ extension _PlaylistManageUI on _MainScreenState {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Import Playlist',
+                              AppLocalizations.of(context).importPlaylist,
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -611,7 +611,7 @@ extension _PlaylistManageUI on _MainScreenState {
                               ),
                             ),
                             Text(
-                              'Spotify / Apple Music / YouTube Music',
+                              AppLocalizations.of(context).importPlaylistPlatforms,
                               style: TextStyle(
                                 fontSize: 12,
                                 color:
@@ -646,7 +646,7 @@ extension _PlaylistManageUI on _MainScreenState {
                         ),
                         decoration: InputDecoration(
                           hintText:
-                              'Paste Spotify, Apple Music, or YouTube link...',
+                              AppLocalizations.of(context).pastePlaylistLinkHint,
                           hintStyle: TextStyle(
                             fontSize: 13,
                             color: isLight ? Colors.black38 : Colors.white38,
@@ -661,7 +661,7 @@ extension _PlaylistManageUI on _MainScreenState {
                               Icons.content_paste_rounded,
                               size: 18,
                             ),
-                            tooltip: 'Paste from clipboard',
+                            tooltip: AppLocalizations.of(context).pasteFromClipboard,
                             onPressed: () async {
                               final data = await Clipboard.getData(
                                 Clipboard.kTextPlain,
@@ -714,18 +714,17 @@ extension _PlaylistManageUI on _MainScreenState {
                               elevation: 0,
                             ),
                             onPressed: () async {
+                              final loc = AppLocalizations.of(context);
                               final url = urlController.text.trim();
                               if (url.isEmpty ||
                                   !PlaylistImportService.isSupportedUrl(url)) {
-                                showFleyToast(
-                                  'Invalid link. Please enter a Spotify, Apple Music, or YouTube link.',
-                                );
+                                showFleyToast(loc.invalidPlaylistUrl);
                                 return;
                               }
 
                               setModalState(() {
                                 isLoading = true;
-                                statusMessage = 'Processing playlist...';
+                                statusMessage = loc.processingPlaylist;
                                 progressValue = 0.1;
                               });
 
@@ -743,15 +742,13 @@ extension _PlaylistManageUI on _MainScreenState {
 
                                 if (result == null || result.tracks.isEmpty) {
                                   setModalState(() => isLoading = false);
-                                  showFleyToast(
-                                    'Failed to import. Make sure playlist is public.',
-                                  );
+                                  showFleyToast(loc.importPlaylistFailed);
                                   return;
                                 }
 
                                 var playlistName = result.title.trim();
                                 if (playlistName.isEmpty) {
-                                  playlistName = 'Imported Playlist';
+                                  playlistName = loc.importedPlaylist;
                                 }
                                 if (_userPlaylists.containsKey(playlistName)) {
                                   playlistName = '$playlistName (Imported)';
@@ -788,16 +785,19 @@ extension _PlaylistManageUI on _MainScreenState {
                                 if (!context.mounted) return;
                                 Navigator.pop(context);
                                 showFleyToast(
-                                  'Imported "$playlistName" (${result.tracks.length} songs)',
+                                  loc.importedPlaylistSuccess(
+                                    playlistName,
+                                    result.tracks.length,
+                                  ),
                                 );
                               } catch (e) {
                                 setModalState(() => isLoading = false);
                                 showFleyToast('Error: $e');
                               }
                             },
-                            child: const Text(
-                              'Import',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                            child: Text(
+                              AppLocalizations.of(context).importAction,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),

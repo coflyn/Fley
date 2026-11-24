@@ -1993,12 +1993,10 @@ extension _PlayerUI on _MainScreenState {
                 const SizedBox(width: 4),
                 Text(
                   isOnlineTrack
-                      ? (FleyStrings.currentLang == 'id'
-                          ? 'Kredit & Populer'
-                          : 'Credits & Popular')
-                      : (FleyStrings.currentLang == 'id'
-                          ? 'Info & Lagu Terkait'
-                          : 'Info & Related Songs'),
+                      ? lookupAppLocalizations(Locale(FleyStrings.currentLang))
+                          .creditsAndPopular
+                      : lookupAppLocalizations(Locale(FleyStrings.currentLang))
+                          .infoAndRelated,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -2060,7 +2058,7 @@ extension _PlayerUI on _MainScreenState {
   }
 
   Widget _buildCreditsCard(Track currentTrack) {
-    final isId = FleyStrings.currentLang == 'id';
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -2073,7 +2071,7 @@ extension _PlayerUI on _MainScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-          isId ? 'Kredit' : 'Credits',
+          loc.credits,
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -2119,7 +2117,7 @@ extension _PlayerUI on _MainScreenState {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      isId ? 'Artis Utama' : 'Main Artist',
+                      loc.mainArtist,
                       style: const TextStyle(
                         color: Colors.white54,
                         fontSize: 12,
@@ -2146,7 +2144,7 @@ extension _PlayerUI on _MainScreenState {
                   ),
                 ),
                 child: Text(
-                  isId ? 'Lihat Artis' : 'View Artist',
+                  loc.viewArtist,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -2179,7 +2177,7 @@ extension _PlayerUI on _MainScreenState {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isId ? 'Rilis / Album' : 'Release / Album',
+                        loc.releaseOrAlbum,
                         style: const TextStyle(
                           color: Colors.white38,
                           fontSize: 11,
@@ -2197,7 +2195,7 @@ extension _PlayerUI on _MainScreenState {
   }
 
   Widget _buildPopularByArtistSection(Track currentTrack) {
-    final isId = FleyStrings.currentLang == 'id';
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
     final artistKey = currentTrack.artist.trim();
     final popularTracks = _cachedArtistExploreTracks[artistKey] ?? [];
     final isLoading = _loadingArtistExplore[artistKey] == true;
@@ -2210,9 +2208,7 @@ extension _PlayerUI on _MainScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          isId
-              ? 'Populer dari ${currentTrack.artist}'
-              : 'Popular by ${currentTrack.artist}',
+          loc.popularByArtist(currentTrack.artist),
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -2311,7 +2307,7 @@ extension _PlayerUI on _MainScreenState {
   }
 
   Widget _buildLocalArtistAndAlbumCard(Track currentTrack) {
-    final isId = FleyStrings.currentLang == 'id';
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
     final artistClean = currentTrack.artist.trim();
     final hasArtist = artistClean.isNotEmpty &&
         artistClean != '<unknown>' &&
@@ -2342,7 +2338,7 @@ extension _PlayerUI on _MainScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isId ? 'Artis & Album' : 'Artist & Album',
+            loc.artistAndAlbum,
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -2372,7 +2368,7 @@ extension _PlayerUI on _MainScreenState {
                     Text(
                       hasArtist
                           ? currentTrack.artist
-                          : (isId ? 'Artis Tidak Diketahui' : 'Unknown Artist'),
+                          : loc.unknownArtist,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -2384,8 +2380,8 @@ extension _PlayerUI on _MainScreenState {
                     const SizedBox(height: 2),
                     Text(
                       songCount > 0
-                          ? '$songCount ${isId ? 'lagu di perangkat' : 'songs on device'}'
-                          : (isId ? 'Artis Lokal' : 'Local Artist'),
+                          ? loc.songsOnDevice(songCount)
+                          : loc.localArtist,
                       style: const TextStyle(
                         color: Colors.white54,
                         fontSize: 12,
@@ -2426,7 +2422,7 @@ extension _PlayerUI on _MainScreenState {
                     ),
                   ),
                   child: Text(
-                    isId ? 'Lihat Artis' : 'View Artist',
+                    loc.viewArtist,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -2457,7 +2453,7 @@ extension _PlayerUI on _MainScreenState {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isId ? 'Album Lokal' : 'Local Album',
+                        loc.localAlbum,
                         style: const TextStyle(
                           color: Colors.white38,
                           fontSize: 11,
@@ -2497,7 +2493,7 @@ extension _PlayerUI on _MainScreenState {
                     ),
                   ),
                   child: Text(
-                    isId ? 'Lihat Album' : 'View Album',
+                    loc.viewAlbum,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -2513,7 +2509,7 @@ extension _PlayerUI on _MainScreenState {
   }
 
   Widget _buildLocalMoreFromArtistSection(Track currentTrack) {
-    final isId = FleyStrings.currentLang == 'id';
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
     final artistClean = currentTrack.artist.trim().toLowerCase();
     if (artistClean.isEmpty ||
         artistClean == '<unknown>' ||
@@ -2540,9 +2536,7 @@ extension _PlayerUI on _MainScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          isId
-              ? 'Lainnya dari ${currentTrack.artist}'
-              : 'More by ${currentTrack.artist}',
+          loc.moreByArtist(currentTrack.artist),
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -2621,7 +2615,7 @@ extension _PlayerUI on _MainScreenState {
   }
 
   Widget _buildLocalAudioFileSpecsCard(Track currentTrack) {
-    final isId = FleyStrings.currentLang == 'id';
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
 
     String ext = '';
     if (currentTrack.path.contains('.')) {
@@ -2656,7 +2650,7 @@ extension _PlayerUI on _MainScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isId ? 'Info Berkas & Audio' : 'Audio & File Specs',
+            loc.audioAndFileSpecs,
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -2768,7 +2762,7 @@ extension _PlayerUI on _MainScreenState {
                 child: OutlinedButton.icon(
                   onPressed: () => _showSongInfoModal(context, currentTrack),
                   icon: const Icon(Icons.info_outline_rounded, size: 16),
-                  label: Text(isId ? 'Info Lengkap' : 'Full Info'),
+                  label: Text(loc.fullInfo),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: BorderSide(
@@ -2787,7 +2781,7 @@ extension _PlayerUI on _MainScreenState {
                   onPressed: () =>
                       _showEditMetadataModal(context, currentTrack),
                   icon: const Icon(Icons.edit_note_rounded, size: 16),
-                  label: Text(isId ? 'Edit Tag' : 'Edit Tags'),
+                  label: Text(loc.editTags),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: BorderSide(

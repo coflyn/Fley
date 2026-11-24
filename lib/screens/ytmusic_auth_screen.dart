@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:fley/l10n/app_localizations.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import '../services/ytmusic_service.dart';
@@ -163,11 +164,7 @@ class _YtMusicAuthScreenState extends State<YtMusicAuthScreen> {
     YtMusicService.fetchAccountProfile().ignore();
 
     if (mounted) {
-      showFleyToast(
-        FleyStrings.currentLang == 'id'
-            ? 'YouTube Music terhubung!'
-            : 'YouTube Music connected!',
-      );
+      showFleyToast(AppLocalizations.of(context).ytmConnectedToast);
       Navigator.pop(context, true);
     }
   }
@@ -184,7 +181,7 @@ class _YtMusicAuthScreenState extends State<YtMusicAuthScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Connect YouTube Music',
+          AppLocalizations.of(context).connectYtMusic,
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w700,
@@ -200,10 +197,10 @@ class _YtMusicAuthScreenState extends State<YtMusicAuthScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.switch_account_rounded, color: textColor),
-            tooltip: FleyStrings.currentLang == 'id'
-                ? 'Ganti Akun'
-                : 'Switch Account',
+            tooltip: AppLocalizations.of(context).switchAccount,
             onPressed: () async {
+              final switchPrompt =
+                  AppLocalizations.of(context).signInAnotherAccountPrompt;
               setState(() {
                 _loading = true;
                 _done = false;
@@ -217,11 +214,7 @@ class _YtMusicAuthScreenState extends State<YtMusicAuthScreen> {
                 'https://accounts.google.com/Logout'
                 '?continue=https://accounts.google.com/ServiceLogin?service=youtube%26continue=https://music.youtube.com/',
               ));
-              showFleyToast(
-                FleyStrings.currentLang == 'id'
-                    ? 'Silakan login dengan akun lain'
-                    : 'Please sign in with another account',
-              );
+              showFleyToast(switchPrompt);
             },
           ),
           if (_loading)

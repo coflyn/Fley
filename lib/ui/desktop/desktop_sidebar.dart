@@ -494,9 +494,7 @@ extension _DesktopSidebarUI on _DesktopLayoutShellState {
                 if (widget.onOpenDownloads != null)
                   _buildSidebarActionBtn(
                     icon: Icons.download_rounded,
-                    label: FleyStrings.currentLang == 'id'
-                        ? 'Unduhan'
-                        : 'Downloads',
+                    label: loc.downloads,
                     onTap: widget.onOpenDownloads!,
                     textColor: secondaryTextColor,
                   ),

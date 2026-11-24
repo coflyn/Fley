@@ -61,7 +61,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('userProfileImage', finalPath);
           userProfileImageNotifier.value = finalPath;
-          showFleyToast(isGif ? 'Profile GIF updated' : 'Profile photo updated');
+          final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
+          showFleyToast(isGif ? loc.profileGifUpdated : loc.profilePhotoUpdated);
         }
       }
     } catch (e) {
@@ -73,15 +74,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userProfileImage');
     userProfileImageNotifier.value = null;
-    showFleyToast('Profile photo removed');
+    showFleyToast(
+      lookupAppLocalizations(Locale(FleyStrings.currentLang))
+          .profilePhotoRemoved,
+    );
   }
 
   Future<void> _syncProfileFromYtm() async {
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
     if (!ytmLoggedInNotifier.value) {
-      showFleyToast('Connect to YouTube Music first');
+      showFleyToast(loc.connectYtmFirst);
       return;
     }
-    showFleyToast('Syncing profile from YouTube Music...');
+    showFleyToast(loc.syncingProfile);
     await YtMusicService.fetchAccountProfile();
 
     final ytmName = ytmAccountNameNotifier.value;
@@ -106,9 +111,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     if (updated) {
-      showFleyToast('Profile synced from YouTube Music!');
+      showFleyToast(loc.profileSynced);
     } else {
-      showFleyToast('No YouTube Music profile data found');
+      showFleyToast(loc.noYtmProfileData);
     }
   }
 
@@ -193,7 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: widget.activeAccentColor,
                   ),
                   title: Text(
-                    '${AppLocalizations.of(context).chooseFromGallery} (Photo / GIF)',
+                    AppLocalizations.of(context).chooseFromGalleryPhotoGif,
                     style: TextStyle(
                       color: textColor,
                       fontFamily: getFontFamily(),
@@ -211,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: Color(0xFFFF0000),
                     ),
                     title: Text(
-                      'Sync from YouTube Music',
+                      AppLocalizations.of(context).syncProfileFromYtm,
                       style: TextStyle(
                         color: textColor,
                         fontWeight: FontWeight.w600,
@@ -219,7 +224,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     subtitle: Text(
-                      'Use your Google/YouTube Music name & avatar',
+                      AppLocalizations.of(context).syncProfileFromYtmSubtitle,
                       style: TextStyle(
                         color: isLight ? Colors.black54 : Colors.white54,
                         fontSize: 12,
@@ -262,7 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final bgColor = isLight ? const Color(0xFFF0F0F3) : const Color(0xFF161616);
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
     final subTextColor = isLight ? const Color(0xFF757575) : const Color(0xFF9E9E9E);
-    final isIndo = FleyStrings.currentLang == 'id';
+    final loc = AppLocalizations.of(context);
 
     showModalBottomSheet(
       context: context,
@@ -286,7 +291,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                isIndo ? 'Region Konten Musik' : 'Music Content Region',
+                loc.musicContentRegion,
                 style: TextStyle(
                   color: textColor,
                   fontSize: 18,
@@ -296,9 +301,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                isIndo
-                    ? 'Pilih wilayah untuk rekomendasi & tren lagu'
-                    : 'Select region for trending songs & new releases',
+                loc.musicContentRegionSubtitle,
                 style: TextStyle(
                   color: subTextColor,
                   fontSize: 13,
@@ -338,11 +341,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         final nav = Navigator.of(ctx);
                         await ytmSetRegion(region.code);
                         nav.pop();
-                        showFleyToast(
-                          isIndo
-                              ? 'Region diubah ke ${region.name}'
-                              : 'Region set to ${region.name}',
-                        );
+                        showFleyToast(loc.regionSetToast(region.name));
                       },
                     );
                   },
@@ -881,8 +880,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   isLoggedIn
                                       ? (accountName != null && accountName.isNotEmpty
                                           ? accountName
-                                          : 'Connected')
-                                      : 'Tap to connect',
+                                          : AppLocalizations.of(context).connected)
+                                      : AppLocalizations.of(context).tapToConnect,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 12.5,
@@ -941,18 +940,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     child: InkWell(
                                       borderRadius: BorderRadius.circular(10),
                                       onTap: () async {
+                                        final toastMsg =
+                                            AppLocalizations.of(context)
+                                                .ytmDisconnectedToast;
                                         await ytmLogout();
-                                        showFleyToast(
-                                          FleyStrings.currentLang == 'id'
-                                              ? 'YouTube Music terputus'
-                                              : 'YouTube Music disconnected',
-                                        );
+                                        showFleyToast(toastMsg);
                                       },
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                         child: Text(
-                                          'Disconnect',
-                                          style: TextStyle(
+                                          AppLocalizations.of(context).disconnect,
+                                          style: const TextStyle(
                                             fontSize: 12.5,
                                             fontWeight: FontWeight.w600,
                                             color: Colors.redAccent,
@@ -997,9 +995,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                             title: Text(
-                              FleyStrings.currentLang == 'id'
-                                  ? 'Region Konten'
-                                  : 'Content Region',
+                              AppLocalizations.of(context).contentRegion,
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,

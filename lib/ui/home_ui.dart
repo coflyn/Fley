@@ -835,8 +835,8 @@ extension _HomeUI on _MainScreenState {
   Widget _buildYtmQuickPicksSection() {
     final isLight = isAppLight;
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
-    final isIndo = FleyStrings.currentLang == 'id';
-    final sectionTitle = isIndo ? 'Pilihan Cepat' : 'Quick Picks';
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
+    final sectionTitle = loc.quickPicks;
 
     return ValueListenableBuilder<bool>(
       valueListenable: ytmLoggedInNotifier,
@@ -1049,8 +1049,8 @@ extension _HomeUI on _MainScreenState {
   Widget _buildYtmTrendingSection() {
     final isLight = isAppLight;
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
-    final isIndo = FleyStrings.currentLang == 'id';
-    final sectionTitle = isIndo ? 'Lagu Trending' : 'Trending Songs';
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
+    final sectionTitle = loc.trendingSongs;
 
     return ValueListenableBuilder<bool>(
       valueListenable: ytmLoggedInNotifier,
@@ -1283,9 +1283,8 @@ extension _HomeUI on _MainScreenState {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  FleyStrings.currentLang == 'id'
-                      ? 'Hubungkan akun untuk streaming jutaan lagu online di Home.'
-                      : 'Connect your account to stream millions of songs online on Home.',
+                  lookupAppLocalizations(Locale(FleyStrings.currentLang))
+                      .connectYtMusicSubtitle,
                   style: TextStyle(
                     fontSize: 12,
                     color: isLight ? Colors.black54 : Colors.white54,
@@ -1315,7 +1314,7 @@ extension _HomeUI on _MainScreenState {
               ),
             ),
             child: Text(
-              FleyStrings.currentLang == 'id' ? 'Hubungkan' : 'Connect',
+              lookupAppLocalizations(Locale(FleyStrings.currentLang)).connect,
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
@@ -1398,8 +1397,8 @@ extension _HomeUI on _MainScreenState {
 
     final isLight = isAppLight;
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
-    final isIndo = FleyStrings.currentLang == 'id';
-    final sectionTitle = isIndo ? 'Berdasarkan $artist' : 'Similar to $artist';
+    final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
+    final sectionTitle = loc.similarToArtist(artist);
 
     return ValueListenableBuilder<bool>(
       valueListenable: ytmLoggedInNotifier,
@@ -1595,9 +1594,8 @@ extension _HomeUI on _MainScreenState {
 
     final isLight = isAppLight;
     final textColor = isLight ? const Color(0xFF1A1A1A) : Colors.white;
-    final isIndo = FleyStrings.currentLang == 'id';
-    final sectionTitle = isIndo ? 'Playlist Saya' : 'My Playlists';
     final loc = lookupAppLocalizations(Locale(FleyStrings.currentLang));
+    final sectionTitle = loc.myPlaylists;
 
     final playlistNames = _userPlaylists.keys.toList();
     final trackMap = {for (var t in _allTracks) t.id: t, ..._onlineTracksMap};

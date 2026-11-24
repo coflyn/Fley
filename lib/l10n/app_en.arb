@@ -401,7 +401,7 @@
   "editLyrics": "Edit Lyrics",
   "addLyricsManually": "Add Lyrics Manually",
   "importLrcFile": "Import .LRC File",
-  "pasteFromClipboard": "Paste",
+  "pasteFromClipboard": "Paste from clipboard",
   "clearLyrics": "Clear",
   "searchLyricsOnline": "Search on Google",
   "resetOffset": "Reset",
@@ -442,7 +442,6 @@
   "sortSongs": "Sort Songs",
   "editAlbumCover": "Edit Album Cover",
   "editSongs": "Edit Songs",
-  "addSongs": "Add Songs",
   "selectSongCover": "Select Song Cover",
   "searchSongsHint": "Search songs...",
   "noCoverAvailable": "No cover available for this song",
@@ -463,5 +462,379 @@
   "hideBanner": "Hide Banner",
   "showBanner": "Show Banner",
   "bannerHidden": "Banner hidden",
-  "bannerShown": "Banner visible"
+  "bannerShown": "Banner visible",
+  "musicContentRegion": "Music Content Region",
+  "@musicContentRegion": {
+    "description": "Title for music content region selection"
+  },
+  "musicContentRegionSubtitle": "Select region for trending songs & new releases",
+  "@musicContentRegionSubtitle": {
+    "description": "Subtitle for music content region selection"
+  },
+  "contentRegion": "Content Region",
+  "@contentRegion": {
+    "description": "Short title for content region tile"
+  },
+  "regionSetToast": "Region set to {region}",
+  "@regionSetToast": {
+    "description": "Toast message when music region is updated",
+    "placeholders": {
+      "region": {
+        "type": "String"
+      }
+    }
+  },
+  "connectYtMusic": "Connect YouTube Music",
+  "@connectYtMusic": {
+    "description": "Title for connect YouTube Music screen or banner"
+  },
+  "connectYtMusicSubtitle": "Connect your account to stream millions of songs online on Home.",
+  "@connectYtMusicSubtitle": {
+    "description": "Subtitle for connect YouTube Music banner on Home"
+  },
+  "connect": "Connect",
+  "@connect": {
+    "description": "Button to connect account"
+  },
+  "connected": "Connected",
+  "@connected": {
+    "description": "Status text when connected"
+  },
+  "disconnect": "Disconnect",
+  "@disconnect": {
+    "description": "Button to disconnect account"
+  },
+  "tapToConnect": "Tap to connect",
+  "@tapToConnect": {
+    "description": "Prompt to tap and connect account"
+  },
+  "switchAccount": "Switch Account",
+  "@switchAccount": {
+    "description": "Tooltip or button to switch account"
+  },
+  "signInAnotherAccountPrompt": "Please sign in with another account",
+  "@signInAnotherAccountPrompt": {
+    "description": "Toast prompt when initiating switch account"
+  },
+  "ytmConnectedToast": "YouTube Music connected!",
+  "@ytmConnectedToast": {
+    "description": "Toast message when YouTube Music is successfully connected"
+  },
+  "ytmDisconnectedToast": "YouTube Music disconnected",
+  "@ytmDisconnectedToast": {
+    "description": "Toast message when YouTube Music is disconnected"
+  },
+  "syncProfileFromYtm": "Sync from YouTube Music",
+  "@syncProfileFromYtm": {
+    "description": "Title to sync profile from YouTube Music"
+  },
+  "syncProfileFromYtmSubtitle": "Use your Google/YouTube Music name & avatar",
+  "@syncProfileFromYtmSubtitle": {
+    "description": "Subtitle for sync profile from YouTube Music option"
+  },
+  "connectYtmFirst": "Connect to YouTube Music first",
+  "@connectYtmFirst": {
+    "description": "Toast warning to connect YouTube Music before syncing"
+  },
+  "syncingProfile": "Syncing profile from YouTube Music...",
+  "@syncingProfile": {
+    "description": "Toast message while syncing profile from YouTube Music"
+  },
+  "profileSynced": "Profile synced from YouTube Music!",
+  "@profileSynced": {
+    "description": "Toast message when profile sync succeeds"
+  },
+  "noYtmProfileData": "No YouTube Music profile data found",
+  "@noYtmProfileData": {
+    "description": "Toast message when no YouTube Music profile data is found"
+  },
+  "profilePhotoUpdated": "Profile photo updated",
+  "@profilePhotoUpdated": {
+    "description": "Toast when profile photo is updated"
+  },
+  "profileGifUpdated": "Profile GIF updated",
+  "@profileGifUpdated": {
+    "description": "Toast when profile GIF is updated"
+  },
+  "profilePhotoRemoved": "Profile photo removed",
+  "@profilePhotoRemoved": {
+    "description": "Toast when profile photo is removed"
+  },
+  "chooseFromGalleryPhotoGif": "Choose from Gallery (Photo / GIF)",
+  "@chooseFromGalleryPhotoGif": {
+    "description": "Option to pick photo or gif from gallery"
+  },
+  "quickPicks": "Quick Picks",
+  "@quickPicks": {
+    "description": "Title for Quick Picks feed section"
+  },
+  "trendingSongs": "Trending Songs",
+  "@trendingSongs": {
+    "description": "Title for Trending Songs feed section"
+  },
+  "trending": "Trending",
+  "@trending": {
+    "description": "Short label for Trending"
+  },
+  "similarToArtist": "Similar to {artist}",
+  "@similarToArtist": {
+    "description": "Title for artist recommendation section",
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "moveToTop": "Move to top",
+  "@moveToTop": {
+    "description": "Action to move song to the beginning of a playlist"
+  },
+  "songMovedToTop": "Song moved to top",
+  "@songMovedToTop": {
+    "description": "Toast message when song is moved to the top of playlist"
+  },
+  "notInterested": "Not interested",
+  "@notInterested": {
+    "description": "Option to hide an online track from recommendations"
+  },
+  "songAlreadyInLibrary": "Song already in local library",
+  "@songAlreadyInLibrary": {
+    "description": "Toast when song is already in local library"
+  },
+  "songAlreadyDownloaded": "{title} already downloaded",
+  "@songAlreadyDownloaded": {
+    "description": "Toast when track is already downloaded",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "addedToDownloads": "Added {title} to downloads...",
+  "@addedToDownloads": {
+    "description": "Toast when track is added to download queue",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadSuccess": "Successfully downloaded {title}",
+  "@downloadSuccess": {
+    "description": "Toast when track download finishes",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "invalidVideoId": "Invalid video ID",
+  "@invalidVideoId": {
+    "description": "Toast when video id is missing or invalid"
+  },
+  "newSongPositionInPlaylist": "New Song Position in Playlist",
+  "@newSongPositionInPlaylist": {
+    "description": "Title for playlist add song position setting"
+  },
+  "positionTop": "Top (First)",
+  "@positionTop": {
+    "description": "Position option for top of playlist"
+  },
+  "positionTopSubtitle": "New songs are placed at the beginning",
+  "@positionTopSubtitle": {
+    "description": "Description for top of playlist option"
+  },
+  "positionBottom": "Bottom (Last)",
+  "@positionBottom": {
+    "description": "Position option for bottom of playlist"
+  },
+  "positionBottomSubtitle": "New songs are placed at the end",
+  "@positionBottomSubtitle": {
+    "description": "Description for bottom of playlist option"
+  },
+  "creditsAndPopular": "Credits & Popular",
+  "@creditsAndPopular": {
+    "description": "Header title for online track credits and popular section"
+  },
+  "infoAndRelated": "Info & Related Songs",
+  "@infoAndRelated": {
+    "description": "Header title for local track info and related songs section"
+  },
+  "credits": "Credits",
+  "@credits": {
+    "description": "Title for credits card in player"
+  },
+  "mainArtist": "Main Artist",
+  "@mainArtist": {
+    "description": "Subtitle for primary artist in credits"
+  },
+  "viewArtist": "View Artist",
+  "@viewArtist": {
+    "description": "Button to navigate to artist profile"
+  },
+  "releaseOrAlbum": "Release / Album",
+  "@releaseOrAlbum": {
+    "description": "Label for release or album in credits"
+  },
+  "popularByArtist": "Popular by {artist}",
+  "@popularByArtist": {
+    "description": "Section header for artist popular tracks",
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "viewProfile": "View Profile",
+  "@viewProfile": {
+    "description": "Button to view profile or full artist list"
+  },
+  "moreByArtist": "More by {artist}",
+  "@moreByArtist": {
+    "description": "Section header for more tracks by the same local artist",
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "audioAndFileSpecs": "Audio & File Specs",
+  "@audioAndFileSpecs": {
+    "description": "Header for audio specs card in player"
+  },
+  "downloads": "Downloads",
+  "@downloads": {
+    "description": "Title for downloads screen and sidebar item"
+  },
+  "downloadingSection": "DOWNLOADING ({count})",
+  "@downloadingSection": {
+    "description": "Header for active downloads list",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadedOfflineSection": "DOWNLOADED OFFLINE ({count})",
+  "@downloadedOfflineSection": {
+    "description": "Header for offline downloaded songs list",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noDownloadsYet": "No Downloads Yet",
+  "@noDownloadsYet": {
+    "description": "Empty state title for downloads sheet"
+  },
+  "noDownloadsYetSubtitle": "Download your favorite songs from YouTube Music to listen offline anytime without using cellular data.",
+  "@noDownloadsYetSubtitle": {
+    "description": "Empty state subtitle for downloads sheet"
+  },
+  "clearAllDownloadsTitle": "Clear All Downloads?",
+  "@clearAllDownloadsTitle": {
+    "description": "Dialog title to clear all downloads"
+  },
+  "clearAllDownloadsBody": "All downloaded song files and offline cached artwork will be permanently deleted from your device storage.",
+  "@clearAllDownloadsBody": {
+    "description": "Dialog body explaining that download files will be permanently deleted"
+  },
+  "allDownloadsCleared": "All downloads cleared",
+  "@allDownloadsCleared": {
+    "description": "Toast message when all downloads are deleted"
+  },
+  "scrollDownForMore": "Scroll down for more ({count} songs)",
+  "@scrollDownForMore": {
+    "description": "Hint indicator to scroll down for more downloaded songs",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importPlaylist": "Import Playlist",
+  "@importPlaylist": {
+    "description": "Title for import playlist modal"
+  },
+  "importPlaylistPlatforms": "Spotify / Apple Music / YouTube Music",
+  "@importPlaylistPlatforms": {
+    "description": "Subtitle listing supported platforms for playlist import"
+  },
+  "pastePlaylistLinkHint": "Paste Spotify, Apple Music, or YouTube link...",
+  "@pastePlaylistLinkHint": {
+    "description": "Hint text for playlist import URL input field"
+  },
+  "@pasteFromClipboard": {
+    "description": "Tooltip for paste from clipboard button"
+  },
+  "invalidPlaylistUrl": "Invalid link. Please enter a Spotify, Apple Music, or YouTube link.",
+  "@invalidPlaylistUrl": {
+    "description": "Error toast when entered link is unsupported or invalid"
+  },
+  "processingPlaylist": "Processing playlist...",
+  "@processingPlaylist": {
+    "description": "Status text while fetching and importing playlist"
+  },
+  "importPlaylistFailed": "Failed to import. Make sure playlist is public.",
+  "@importPlaylistFailed": {
+    "description": "Error toast when playlist import fails"
+  },
+  "importedPlaylistSuccess": "Imported \"{name}\" ({count} songs)",
+  "@importedPlaylistSuccess": {
+    "description": "Success toast when playlist is imported",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importAction": "Import",
+  "@importAction": {
+    "description": "Button label to start importing playlist"
+  },
+  "playFirstToUseEqualizer": "Please play a song first to use the Equalizer!",
+  "@playFirstToUseEqualizer": {
+    "description": "Toast message when equalizer is opened without an active song"
+  },
+  "artistAndAlbum": "Artist & Album",
+  "@artistAndAlbum": {
+    "description": "Header for artist and album card in player"
+  },
+  "songsOnDevice": "{count} songs on device",
+  "@songsOnDevice": {
+    "description": "Number of songs by the artist on the local device",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "localArtist": "Local Artist",
+  "@localArtist": {
+    "description": "Label for local artist"
+  },
+  "localAlbum": "Local Album",
+  "@localAlbum": {
+    "description": "Label for local album"
+  },
+  "viewAlbum": "View Album",
+  "@viewAlbum": {
+    "description": "Button to view album detail"
+  },
+  "fullInfo": "Full Info",
+  "@fullInfo": {
+    "description": "Label for full song info button"
+  },
+  "editTags": "Edit Tags",
+  "@editTags": {
+    "description": "Label for edit song tags button"
+  },
+  "importedPlaylist": "Imported Playlist",
+  "@importedPlaylist": {
+    "description": "Default title for imported playlist"
+  }
 }

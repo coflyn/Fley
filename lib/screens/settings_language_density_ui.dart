@@ -433,7 +433,7 @@ extension SettingsLanguageDensityModals on _SettingsScreenState {
 
   void _showPlaylistAddPositionDialog() {
     final isLight = _selectedThemeMode == 'light';
-    final isId = FleyStrings.currentLang == 'id';
+    final loc = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: isLight
@@ -442,7 +442,7 @@ extension SettingsLanguageDensityModals on _SettingsScreenState {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (ctx) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -461,9 +461,7 @@ extension SettingsLanguageDensityModals on _SettingsScreenState {
               const SizedBox(height: 16),
               Center(
                 child: Text(
-                  isId
-                      ? 'Posisi Lagu Baru di Playlist'
-                      : 'New Song Position in Playlist',
+                  loc.newSongPositionInPlaylist,
                   style: TextStyle(
                     color: isLight ? const Color(0xFF1A1A1A) : Colors.white,
                     fontSize: 20,
@@ -488,7 +486,7 @@ extension SettingsLanguageDensityModals on _SettingsScreenState {
                       : (isLight ? Colors.black54 : Colors.white54),
                 ),
                 title: Text(
-                  isId ? 'Paling Awal (Atas)' : 'Top (First)',
+                  loc.positionTop,
                   style: TextStyle(
                     color: playlistAddSongPositionNotifier.value == 'top'
                         ? _activeAccentColor
@@ -499,9 +497,7 @@ extension SettingsLanguageDensityModals on _SettingsScreenState {
                   ),
                 ),
                 subtitle: Text(
-                  isId
-                      ? 'Lagu baru ditaruh di urutan paling atas'
-                      : 'New songs are placed at the beginning',
+                  loc.positionTopSubtitle,
                   style: TextStyle(
                     color: isLight ? Colors.black54 : Colors.white54,
                     fontSize: 12,
@@ -511,10 +507,11 @@ extension SettingsLanguageDensityModals on _SettingsScreenState {
                     ? Icon(Icons.check, color: _activeAccentColor)
                     : null,
                 onTap: () async {
+                  final nav = Navigator.of(ctx);
                   playlistAddSongPositionNotifier.value = 'top';
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setString('playlist_add_song_position', 'top');
-                  if (mounted) Navigator.pop(context);
+                  nav.pop();
                 },
               ),
               ListTile(
@@ -529,7 +526,7 @@ extension SettingsLanguageDensityModals on _SettingsScreenState {
                       : (isLight ? Colors.black54 : Colors.white54),
                 ),
                 title: Text(
-                  isId ? 'Paling Akhir (Bawah)' : 'Bottom (Last)',
+                  loc.positionBottom,
                   style: TextStyle(
                     color: playlistAddSongPositionNotifier.value == 'bottom'
                         ? _activeAccentColor
@@ -541,9 +538,7 @@ extension SettingsLanguageDensityModals on _SettingsScreenState {
                   ),
                 ),
                 subtitle: Text(
-                  isId
-                      ? 'Lagu baru ditambahkan di urutan paling bawah'
-                      : 'New songs are placed at the end',
+                  loc.positionBottomSubtitle,
                   style: TextStyle(
                     color: isLight ? Colors.black54 : Colors.white54,
                     fontSize: 12,
@@ -553,10 +548,11 @@ extension SettingsLanguageDensityModals on _SettingsScreenState {
                     ? Icon(Icons.check, color: _activeAccentColor)
                     : null,
                 onTap: () async {
+                  final nav = Navigator.of(ctx);
                   playlistAddSongPositionNotifier.value = 'bottom';
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setString('playlist_add_song_position', 'bottom');
-                  if (mounted) Navigator.pop(context);
+                  nav.pop();
                 },
               ),
               const SizedBox(height: 16),

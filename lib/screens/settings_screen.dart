@@ -1044,17 +1044,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ValueListenableBuilder<String>(
                 valueListenable: playlistAddSongPositionNotifier,
                 builder: (context, position, child) {
-                  final isId = FleyStrings.currentLang == 'id';
+                  final loc = AppLocalizations.of(context);
                   return SettingsPremiumListTile(
                     isLight: _selectedThemeMode == 'light',
                     activeAccentColor: _activeAccentColor,
                     icon: Icons.playlist_add_rounded,
-                    title: isId
-                        ? 'Posisi Lagu Baru di Playlist'
-                        : 'New Song Position in Playlist',
+                    title: loc.newSongPositionInPlaylist,
                     subtitle: position == 'top'
-                        ? (isId ? 'Paling Awal (Atas)' : 'Top (First)')
-                        : (isId ? 'Paling Akhir (Bawah)' : 'Bottom (Last)'),
+                        ? loc.positionTop
+                        : loc.positionBottom,
                     onTap: () => _showPlaylistAddPositionDialog(),
                   );
                 },
